@@ -1,6 +1,6 @@
 # Security
 
-If you find a vulnerability in Moonstage, email **opensource@lunatalk.ai** rather than
+If you find a vulnerability in Moonstage, email **support@lunatalk.ai** rather than
 opening a public issue. Include what you found, how to reproduce it, and what you think the
 impact is. We will acknowledge within a few working days.
 
