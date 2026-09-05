@@ -52,5 +52,7 @@ Two things the licence does not touch:
 
 ## Contributing
 
-Contribution guidelines and a contributor agreement are being finalised. Until then,
-issues are welcome; pull requests will wait.
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) first: it
+explains which issue template to use (bug, card compatibility, feature), what a pull request
+needs to carry, and what will not be merged. Security problems go to
+[SECURITY.md](./SECURITY.md).
