@@ -25,8 +25,35 @@ export interface AuthorDraft {
   opening: string
   /** 匯入時辨認出的格式，給清單顯示 */
   format: DraftFormat
+  /** 整張卡（酒館 V2/V3）：有這一段才能建成試玩卡到伺服器上玩 */
+  card?: DraftCard
   createdAt: number
   updatedAt: number
+}
+
+/** 酒館卡裡除了規則以外、試玩會用到的部分。欄位名照伺服器試玩卡的段落走。 */
+export interface DraftCard {
+  description: string
+  personality: string
+  scenario: string
+  mesExample: string
+  creatorNotes: string
+  firstMes: string
+  alternateGreetings: string[]
+  book: DraftBook | null
+}
+
+export interface DraftBook {
+  name: string
+  entries: DraftBookEntry[]
+}
+
+export interface DraftBookEntry {
+  name: string
+  content: string
+  keywords: string[]
+  isConstant: boolean
+  isEnabled: boolean
 }
 
 export type DraftFormat =
@@ -167,6 +194,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
       format: 'st-card',
       rules: compact(scripts.map(stRule)),
       opening: str(data.first_mes),
+      card: stCard(data),
     }
   }
 
@@ -221,6 +249,141 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   }
 
   throw new DraftImportError('unknown-format')
+}
+
+function strList(v: any): string[] {
+  return Array.isArray(v) ? v.filter((x: any) => typeof x === 'string' && x.trim()) : []
+}
+
+/** 酒館的 character_book：keys 是觸發詞，comment 是條目名，constant 是常駐。 */
+function stBook(book: any): DraftBook | null {
+  if (!book || typeof book !== 'object' || !Array.isArray(book.entries)) return null
+  const entries: DraftBookEntry[] = []
+  book.entries.forEach((e: any, i: number) => {
+    if (!e || typeof e !== 'object') return
+    const content = str(e.content)
+    if (!content.trim()) return
+    const keywords = strList(e.keys)
+    entries.push({
+      name: str(e.comment).trim() || str(e.name).trim() || keywords[0] || `#${i + 1}`,
+      content,
+      keywords,
+      isConstant: e.constant === true,
+      isEnabled: e.enabled !== false,
+    })
+  })
+  return { name: str(book.name), entries }
+}
+
+function stCard(data: any): DraftCard {
+  return {
+    description: str(data.description),
+    personality: str(data.personality),
+    scenario: str(data.scenario),
+    mesExample: str(data.mes_example),
+    creatorNotes: str(data.creator_notes),
+    firstMes: str(data.first_mes),
+    alternateGreetings: strList(data.alternate_greetings),
+    book: stBook(data.character_book),
+  }
+}
+
+export interface TrialTalkExample {
+  roleType: 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * 酒館的對話範例：`<START>` 分段，每行 `{{user}}: …` 或 `{{char}}: …`。
+ * 認不出說話者的行併進上一句；整段都認不出就整段當角色說的。
+ */
+export function parseMesExample(text: string): TrialTalkExample[] {
+  const out: TrialTalkExample[] = []
+  const blocks = String(text || '').split(/<START>/i)
+  for (const block of blocks) {
+    const lines = block.split(/\r?\n/)
+    let current: TrialTalkExample | null = null
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line) continue
+      const m = /^\{\{(user|char)\}\}\s*:\s*(.*)$/i.exec(line)
+      if (m) {
+        current = { roleType: m[1].toLowerCase() === 'user' ? 'user' : 'assistant', content: m[2] }
+        out.push(current)
+      } else if (current) {
+        current.content += '\n' + line
+      } else {
+        current = { roleType: 'assistant', content: line }
+        out.push(current)
+      }
+    }
+  }
+  return out.filter((e) => e.content.trim())
+}
+
+/** 短介紹：作者備註優先，沒有就取設定的第一段（最多 120 字）。 */
+function shortIntro(card: DraftCard): string {
+  const notes = card.creatorNotes.trim()
+  if (notes) return notes.length > 300 ? notes.slice(0, 300) : notes
+  const first = card.description.trim().split(/\n+/)[0] || ''
+  return first.length > 120 ? first.slice(0, 120) + '…' : first
+}
+
+/** 完整設定：描述、性格、場景各自成段，欄位名保留給伺服器端的巨集替換。 */
+function fullDefinition(card: DraftCard): string {
+  const parts: string[] = []
+  if (card.description.trim()) parts.push(card.description.trim())
+  if (card.personality.trim()) parts.push('Personality:\n' + card.personality.trim())
+  if (card.scenario.trim()) parts.push('Scenario:\n' + card.scenario.trim())
+  return parts.join('\n\n')
+}
+
+/**
+ * 試玩卡的請求體（PUT /open/v1/trial-cards/{key}）。整份就是這張卡的全貌：
+ * 沒有的段不送，伺服器就把上次有的段清掉。沒有 card 的草稿（只有規則）回 null。
+ */
+export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | null {
+  const card = draft.card
+  if (!card) return null
+  const name = draftDisplayName(draft)
+  const payload: Record<string, any> = {
+    name,
+    card: {
+      roleDesc: shortIntro(card),
+      roleDetailDesc: fullDefinition(card),
+    },
+  }
+  const examples = parseMesExample(card.mesExample)
+  if (examples.length) payload.card.talkExample = examples
+  if (card.firstMes.trim() || card.alternateGreetings.length) {
+    payload.welcome = { roleWelcome: card.firstMes, alternates: card.alternateGreetings, prologue: [] }
+  }
+  if (card.book && card.book.entries.length) {
+    payload.worldbook = {
+      name: card.book.name || name,
+      entries: card.book.entries.map((e) => ({
+        name: e.name,
+        content: e.content,
+        keywords: e.keywords,
+        isConstant: e.isConstant,
+        isEnabled: e.isEnabled,
+      })),
+    }
+  }
+  if (draft.rules.length) {
+    payload.authorAsset = {
+      rules: draft.rules.map((r) => ({
+        id: String(r.id),
+        name: String(r.name || ''),
+        find: String(r.find || ''),
+        replace: String(r.replace || ''),
+        enabled: r.enabled !== false,
+      })),
+      mountTrigger: draft.mountTrigger,
+      mountLayer: draft.mountLayer,
+    }
+  }
+  return payload
 }
 
 /** 給畫布用的資產形狀：跟 authorAssetServe 回的一樣，所以套用路徑不用分岔。 */

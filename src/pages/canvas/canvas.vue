@@ -13,7 +13,7 @@
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
       :model-name="formData.selectModelName"
-      :badge="previewDraft ? t('openChat.preview.badge') : ''"
+      :badge="previewDraft ? t('openChat.preview.badge') : (trialCard ? t('openChat.trial.badge') : '')"
       :show-model="!previewOnly"
       :back-label="t('common.back')"
       :model-label="t('chat.modelSelectAria')"
@@ -1411,6 +1411,8 @@ onLoad((options) => {
 
   // 三種進場（owner 2026-09-05）：只有卡片 ID＝一般遊玩；只有草稿＝純預覽，
   // 不碰伺服器；兩個都有＝照常遊玩，但作者資產換成本機草稿。
+  // 試玩卡：入口頁剛把本機檔案建成一張會到期的私有卡，玩法跟一般卡完全一樣，只多個徽章。
+  trialCard.value = options.trial === '1';
   const draftId = options.draft ? String(options.draft) : '';
   if (draftId) {
     bootFromDraft(draftId, options.roleId);
@@ -2128,6 +2130,7 @@ const activeAuthorAsset = ref({ rules: [], version: 0, crossLine: false, variant
 // 沒登入也能用是這個模式的前提，任何一個漏網的請求撞到 401 就會被踢去登入頁。
 const previewDraft = ref<AuthorDraft | null>(null);
 const previewOnly = ref(false);
+const trialCard = ref(false);
 let previewSeq = 0;
 let previewHintShown = false;
 

@@ -61,6 +61,7 @@
 						</view>
 						<view class="ms-panel-body">
 							<text class="ms-panel-desc">{{ $t('openChat.entry.fileDesc') }}</text>
+							<text class="ms-panel-desc">{{ $t('openChat.trial.note') }}</text>
 
 							<view id="ms-drop" class="ms-drop" :class="{ 'is-over': dragOver }" @click="pickFile">
 								<text class="ms-drop-text">{{ $t('openChat.entry.dropHint') }}</text>
@@ -96,7 +97,7 @@
 								<view class="ms-radio" :class="{ 'is-on': selectedDraftId === d.id }"></view>
 								<view class="ms-draft-body">
 									<text class="ms-draft-name">{{ draftName(d) }}</text>
-									<text class="ms-draft-meta">{{ formatLabel(d) }} · {{ $t('openChat.entry.draftRules', { n: d.rules.length }) }}</text>
+									<text class="ms-draft-meta">{{ formatLabel(d) }} · {{ $t('openChat.entry.draftRules', { n: d.rules.length }) }}<template v-if="d.card"> · {{ $t('openChat.trial.tag') }}</template></text>
 								</view>
 								<text class="ms-draft-delete" :aria-label="$t('openChat.entry.draftDelete')" @click.stop="deleteDraft(d)">×</text>
 							</view>
@@ -106,8 +107,16 @@
 
 				<!-- 動作列：一句話說明接下來會發生什麼，一顆主按鈕。手機上固定在底部。 -->
 				<view class="ms-action">
+					<view v-if="trialError" class="ms-alert">{{ trialError }}</view>
+					<view v-if="slotsFull" class="ms-alert is-warn">
+						<text>{{ $t('openChat.trial.slotsFull', { max: slotsFull.max, name: slotsFull.name }) }}</text>
+						<view class="ms-alert-actions">
+							<view class="ms-btn is-small" @click="startTrial(true)"><text class="ms-btn-text">{{ $t('openChat.trial.evict') }}</text></view>
+							<text class="ms-link" @click="slotsFull = null">{{ $t('common.cancel') }}</text>
+						</view>
+					</view>
 					<text class="ms-summary">{{ summaryText }}</text>
-					<view class="ms-cta" :class="{ 'is-disabled': !canProceed }" @click="proceed">
+					<view class="ms-cta" :class="{ 'is-disabled': !canProceed || busy }" @click="proceed">
 						<text class="ms-cta-text">{{ ctaText }}</text>
 					</view>
 				</view>
@@ -130,7 +139,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import { clearTokens, isSignedIn, redirectToLogin } from '@/common/open-oauth'
-import { importAuthorDraft, DraftImportError, draftDisplayName, stripFileExtension } from '@/common/author-draft'
+import { importAuthorDraft, draftToTrialPayload, DraftImportError, draftDisplayName, stripFileExtension } from '@/common/author-draft'
 import type { AuthorDraft } from '@/common/author-draft'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 
@@ -168,6 +177,12 @@ const dragOver = ref(false)
 
 const selectedDraft = computed(() => drafts.value.find((d) => d.id === selectedDraftId.value) || null)
 
+// ── 試玩卡：整張酒館卡、沒有卡片編號時，建成一張會到期的私有卡上線玩 ──────
+const trialError = ref('')
+const slotsFull = ref<{ max: number; name: string } | null>(null)
+const isTrialDraft = computed(() => !!selectedDraft.value?.card && !role.value && !cardId.value.trim())
+watch(selectedDraftId, () => { trialError.value = ''; slotsFull.value = null })
+
 // ── 接下來會發生什麼 ──────────────────────────────────────────────────
 const canProceed = computed(() => !!role.value || !!selectedDraft.value || !!cardId.value.trim())
 
@@ -176,6 +191,9 @@ const summaryText = computed(() => {
 	const card = role.value
 	if (card && draft) return t('openChat.entry.summaryBoth', { card: card.roleName || cardId.value, draft: draftName(draft) })
 	if (card) return t('openChat.entry.summaryCard', { card: card.roleName || cardId.value })
+	if (draft && isTrialDraft.value) {
+		return t(signedIn.value ? 'openChat.trial.summary' : 'openChat.trial.summarySignedOut', { draft: draftName(draft) })
+	}
 	if (draft) return t('openChat.entry.summaryDraft', { draft: draftName(draft) })
 	if (cardId.value.trim()) return t('openChat.entry.summaryLookup')
 	return t('openChat.entry.summaryEmpty')
@@ -186,6 +204,10 @@ const ctaText = computed(() => {
 	const card = role.value
 	if (card && draft) return t('openChat.entry.ctaBoth')
 	if (card) return t('openChat.entry.ctaCard')
+	if (draft && isTrialDraft.value) {
+		if (busy.value) return t('openChat.trial.creating')
+		return t(signedIn.value ? 'openChat.trial.cta' : 'openChat.trial.ctaSignIn')
+	}
 	if (draft) return t('openChat.entry.ctaDraft')
 	if (cardId.value.trim()) return busy.value ? t('openChat.entry.loading') : t('openChat.entry.lookup')
 	return t('openChat.entry.ctaCard')
@@ -203,11 +225,68 @@ function proceed() {
 		uni.navigateTo({ url: `/pages/canvas/canvas?${query}` })
 		return
 	}
+	if (draft && isTrialDraft.value) {
+		if (!signedIn.value) {
+			goSignIn()
+			return
+		}
+		startTrial(false)
+		return
+	}
 	if (draft) {
 		uni.navigateTo({ url: `/pages/canvas/canvas?draft=${encodeURIComponent(draft.id)}` })
 		return
 	}
 	lookup()
+}
+
+/**
+ * 建試玩卡：整份草稿一次送上去。鍵就是草稿 id——同一份檔案改了再匯入，伺服器只寫有變的段，
+ * 不會留下第二張卡。位滿時伺服器回 409 並指出最久沒動的那張，由玩家決定要不要頂掉。
+ */
+async function startTrial(evict: boolean) {
+	const draft = selectedDraft.value
+	if (!draft || busy.value) return
+	const payload = draftToTrialPayload(draft)
+	if (!payload) return
+	if (evict) payload.evict = true
+	busy.value = true
+	trialError.value = ''
+	slotsFull.value = null
+	try {
+		const res = await proxy.http.request({
+			url: `${proxy.requestUrl.trialCards}/${encodeURIComponent(draft.id)}`,
+			method: 'PUT',
+			data: payload,
+		})
+		const data = res && res.data ? res.data : {}
+		if (res.statusCode === 200 && data.roleId) {
+			uni.navigateTo({ url: `/pages/canvas/canvas?roleId=${encodeURIComponent(data.roleId)}&trial=1` })
+			return
+		}
+		if (res.statusCode === 409 && data.error === 'trial_slots_full') {
+			const oldestKey = data.oldest && data.oldest.clientKey
+			const oldest = drafts.value.find((d) => d.id === oldestKey)
+			slotsFull.value = {
+				max: (data.slots && data.slots.max) || 5,
+				name: oldest ? draftName(oldest) : t('openChat.entry.draftUntitled'),
+			}
+			return
+		}
+		if (res.statusCode === 401) {
+			goSignIn()
+			return
+		}
+		trialError.value = t(
+			res.statusCode === 413 ? 'openChat.trial.tooLarge'
+				: res.statusCode === 503 ? 'openChat.trial.unavailable'
+					: 'openChat.trial.failed',
+		)
+	} catch (e) {
+		trialError.value = t('openChat.trial.failed')
+	} finally {
+		busy.value = false
+	}
 }
 
 onLoad((options: Record<string, string> = {}) => {
@@ -394,6 +473,13 @@ onBeforeUnmount(() => {
 	width: 100%;
 	max-width: 1120px;
 	margin: 0 auto;
+}
+
+.ms-alert-actions {
+	display: flex;
+	align-items: center;
+	gap: 24rpx;
+	margin-top: 16rpx;
 }
 
 /* ── 字標列 ─────────────────────────────────────────────── */

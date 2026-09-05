@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { importAuthorDraft, draftToAuthorAsset, DraftImportError, stripFileExtension } from '../author-draft'
+import { importAuthorDraft, draftToAuthorAsset, draftToTrialPayload, parseMesExample, DraftImportError, stripFileExtension } from '../author-draft'
 
 describe('importAuthorDraft', () => {
   it('認得 MMD 的正則清單 API 回包（regex/content 欄位，/pattern/flags 字串原樣保留）', () => {
@@ -126,5 +126,83 @@ describe('stripFileExtension', () => {
     expect(stripFileExtension('regex.json')).toBe('regex')
     expect(stripFileExtension('狀態欄 v2.JSON')).toBe('狀態欄 v2')
     expect(stripFileExtension('noext')).toBe('noext')
+  })
+})
+
+describe('酒館卡 → 試玩卡', () => {
+  const card = {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name: '夜行偵探',
+      description: '雨夜裡的偵探。\n第二段。',
+      personality: '冷靜',
+      scenario: '巷底事務所',
+      first_mes: '雨還在下。',
+      alternate_greetings: ['另一個開場', ''],
+      mes_example: '<START>\n{{user}}: 你是誰\n{{char}}: 偵探。\n續行。\n<START>\n沒有說話者的段落',
+      creator_notes: '',
+      character_book: {
+        name: '偵探事務所',
+        entries: [
+          { keys: ['事務所', '巷底'], comment: '事務所', content: '在巷底', enabled: true, constant: false },
+          { keys: ['帽子'], content: '戴帽的男人', constant: true },
+          { keys: ['空'], comment: '空的', content: '   ' },
+          { keys: [], content: '停用', enabled: false },
+        ],
+      },
+      extensions: { regex_scripts: [{ scriptName: '狀態欄', findRegex: '/<s>(.*)<\\/s>/g', replaceString: '$1', placement: [2] }] },
+    },
+  }
+
+  it('整張卡的設定、開場白、世界書與規則都讀進草稿', () => {
+    const d = importAuthorDraft(JSON.stringify(card), '')
+    expect(d.format).toBe('st-card')
+    expect(d.name).toBe('夜行偵探')
+    expect(d.card).toBeTruthy()
+    expect(d.card!.alternateGreetings).toEqual(['另一個開場'])
+    expect(d.card!.book!.name).toBe('偵探事務所')
+    // 空內容的條目丟掉；停用的留著但標記停用；沒有 comment 的用第一個關鍵字當名字
+    expect(d.card!.book!.entries.map((e) => [e.name, e.isEnabled, e.isConstant])).toEqual([
+      ['事務所', true, false], ['帽子', true, true], ['#4', false, false],
+    ])
+    expect(d.rules).toHaveLength(1)
+  })
+
+  it('對話範例：<START> 分段、{{user}}/{{char}} 認說話者、續行併進上一句', () => {
+    expect(parseMesExample(card.data.mes_example)).toEqual([
+      { roleType: 'user', content: '你是誰' },
+      { roleType: 'assistant', content: '偵探。\n續行。' },
+      { roleType: 'assistant', content: '沒有說話者的段落' },
+    ])
+    expect(parseMesExample('')).toEqual([])
+  })
+
+  it('試玩卡請求體：四段照伺服器契約，沒有的段不送', () => {
+    const d = importAuthorDraft(JSON.stringify(card), '')
+    const p = draftToTrialPayload(d)!
+    expect(p.name).toBe('夜行偵探')
+    expect(p.card.roleDesc).toBe('雨夜裡的偵探。')
+    expect(p.card.roleDetailDesc).toBe('雨夜裡的偵探。\n第二段。\n\nPersonality:\n冷靜\n\nScenario:\n巷底事務所')
+    expect(p.card.talkExample).toHaveLength(3)
+    expect(p.card.roleWelcome).toBeUndefined()
+    expect(p.welcome).toEqual({ roleWelcome: '雨還在下。', alternates: ['另一個開場'], prologue: [] })
+    expect(p.worldbook.name).toBe('偵探事務所')
+    expect(p.worldbook.entries).toHaveLength(3)
+    expect(p.worldbook.entries[1]).toEqual({ name: '帽子', content: '戴帽的男人', keywords: ['帽子'], isConstant: true, isEnabled: true })
+    expect(p.authorAsset.rules[0]).toEqual({ id: '1', name: '狀態欄', find: '/<s>(.*)<\\/s>/g', replace: '$1', enabled: true })
+    expect(p.authorAsset.mountLayer).toBe('over')
+  })
+
+  it('只有規則、沒有卡的草稿不能建試玩卡', () => {
+    const d = importAuthorDraft(JSON.stringify([{ scriptName: 'a', findRegex: 'x', replaceString: 'y' }]), 'r')
+    expect(d.card).toBeUndefined()
+    expect(draftToTrialPayload(d)).toBeNull()
+  })
+
+  it('沒有世界書、沒有規則的卡：只送名字、設定與開場白', () => {
+    const d = importAuthorDraft(JSON.stringify({ spec: 'chara_card_v3', data: { name: '簡單', description: '一句', first_mes: '嗨' } }), '')
+    const p = draftToTrialPayload(d)!
+    expect(Object.keys(p).sort()).toEqual(['card', 'name', 'welcome'])
   })
 })

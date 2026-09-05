@@ -372,6 +372,8 @@ const requestUrl = {
 
 	// 角色與遊玩所需的讀路徑
 	getRoleDetail: `${V1}/role/detail`,
+	// 試玩卡：把本機的酒館卡建成一張會自動到期的私有卡（PUT/GET/DELETE …/{clientKey}）。
+	trialCards: `${V1}/trial-cards`,
 	authorAssetServe: `${V1}/role/author-asset/serve`,
 	// 外觀偏好（桌布、字體）。送出那一輪不讀它——讀的是下面那一份。
 	playerPreference: `${V1}/player/preference`,

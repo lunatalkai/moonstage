@@ -182,6 +182,91 @@ rewritten on the way in.
 | POST | `/worldbook/:worldbookId/document` | metadata, entries and binding as one document — `{ metadata?: { name, description, tags }, entries?: [{ op: "create" \| "update" \| "delete", entryId?, name, content, keywords, category?, isConstant?, isEnabled? }], binding?: { roleId } }` → `{ createdEntryIds, updatedCount, deletedCount, bound }` |
 | GET | `/worldbook/bindings` | `?roleId=` → worldbooks bound to a card |
 
+Authoring is for building a card the author intends to keep. For "play this file now"
+use trial cards below; they carry their own clean-up.
+
+### Trial cards
+
+A trial card is a throwaway private card the server builds from a file the player holds
+locally — an imported tavern card, a worldbook, a set of display rules — so it can be
+played with the full server pipeline (worldbook recall, memory, model catalog) without
+the player managing anything afterwards. Trial cards **expire** and are removed, with
+every conversation, worldbook and display rule they created.
+
+The client names each trial with a **client key** it controls, typically the id of the
+local draft. Re-sending the same key updates the same trial instead of creating a second
+one; the server hashes every section and writes only what changed. That is what lets an
+author edit a file and re-import it thirty times without leaving thirty cards behind.
+
+| Method | Path | Purpose |
+|---|---|---|
+| PUT | `/trial-cards/:clientKey` | create or update a trial. Body below → trial summary |
+| GET | `/trial-cards` | the caller's trials — `{ list: [summary], slots: { used, max }, ttlHours }` |
+| GET | `/trial-cards/:clientKey` | one trial summary; `404 trial_not_found` after expiry |
+| DELETE | `/trial-cards/:clientKey` | remove now — card, conversations, worldbook, display rules |
+
+`clientKey` is 1–64 characters from `A-Z a-z 0-9 _ -`.
+
+**PUT body** — every section is optional; the body is the whole trial, so a section that
+is absent is removed from the trial if it existed before:
+
+```json
+{
+  "name": "Display name for the trial card",
+  "card":        { "roleDesc": "…", "roleDetailDesc": "…", "roleAvatar": "https://…", "talkExample": [] },
+  "welcome":     { "roleWelcome": "…", "alternates": ["…"], "prologue": ["…"] },
+  "worldbook":   { "name": "…", "entries": [ { "name": "…", "content": "…", "keywords": ["…"], "isConstant": false, "isEnabled": true } ] },
+  "authorAsset": { "rules": [ { "id": "…", "name": "…", "find": "…", "replace": "…", "enabled": true } ], "mountTrigger": "…", "mountLayer": "under" },
+  "evict": false
+}
+```
+
+- `card` takes the same fields as `/role/:roleId/document`; `roleWelcome` inside it is
+  ignored — openings live in `welcome`.
+- `worldbook.entries` are the entries in full. The server keys each entry by a hash of
+  its content and only creates the new ones and deletes the missing ones; two identical
+  entries collapse into one. Disabled entries are not created.
+- `authorAsset` is the display-rule set the canvas applies to AI output (tavern regex
+  scripts already filtered to AI-output placement).
+
+**Response**
+
+```json
+{
+  "clientKey": "draft-8f1c",
+  "roleId": "…",
+  "created": true,
+  "expiresAt": "2026-09-08T14:03:00Z",
+  "slots": { "used": 2, "max": 5 },
+  "sections": { "card": "sha256:…", "welcome": "sha256:…", "worldbook": "sha256:…", "authorAsset": "" },
+  "changed": ["card", "worldbook"],
+  "worldbook": { "worldbookId": "…", "entries": 120, "created": 3, "deleted": 1 }
+}
+```
+
+Play it like any card: `roleId` goes to `/role/detail` and `/conversation/start`.
+
+**Limits and errors**
+
+| Limit | Value |
+|---|---|
+| trials per account | 5 |
+| time to live | 72 hours from the last import or the last message in any of its conversations |
+| worldbook entries | 1000 per trial, 3000 characters each |
+| request body | 4 MB |
+
+| Status | `error` | Meaning |
+|---|---|---|
+| 400 | `trial_invalid_key` · `trial_invalid_body` | key outside the allowed characters, or a body that is not the shape above |
+| 409 | `trial_slots_full` | all slots are taken and this key is new. The body carries `oldest: { clientKey, roleId, lastActiveAt }`; send the same PUT with `"evict": true` to replace it |
+| 413 | `trial_payload_too_large` | body, entry count or entry length over the limit; `detail` says which |
+| 404 | `trial_not_found` | no trial with that key for this account — it never existed, was deleted, or expired |
+| 503 | `worldbook_unavailable` | the worldbook service is down; the card and rules were not written either |
+
+Expiry is a server-side sweep, so a trial may survive a few minutes past `expiresAt`;
+treat the timestamp as a floor. A client that wants to keep something longer than that
+is building a card, not trying one: use the authoring routes.
+
 ## Errors
 
 ```json
