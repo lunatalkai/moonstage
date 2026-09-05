@@ -13,6 +13,8 @@
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
       :model-name="formData.selectModelName"
+      :badge="previewDraft ? t('openChat.preview.badge') : ''"
+      :show-model="!previewOnly"
       :back-label="t('common.back')"
       :model-label="t('chat.modelSelectAria')"
       @back="goBackToEntry"
@@ -338,6 +340,8 @@ import {
 } from '@/utils/rich-text-renderer.js';
 import { applyDisplayRules, hasCrossLineRule } from '@/utils/display-rule-engine.js'
 import { createAuthorAssetRuntime } from '@/utils/author-asset-mount.js'
+import { getAuthorDraftStore } from '@/common/author-draft-store'
+import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common/author-draft'
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
 import { composerOverhang } from './canvas-composer-overhang'
 import { createLunaIntentApi } from '@/utils/luna-intent-api.js'
@@ -1384,7 +1388,11 @@ function _onWheel() { _wheelScrollEndAt = Date.now(); }
 // 版面上任何一處直接讀 currentRole.xxx 都會在第一次繪製時丟出例外，而 Vue 的
 // 繪製例外會讓整棵子樹停在那裡：畫面上是一張空白的對話頁，沒有訊息、沒有開場白，
 // 也沒有任何看得出原因的錯誤。永遠給一個空物件，等資料回來再自然更新。
-const roleView = computed(() => unref(currentRole) || {});
+// 純預覽沒有角色：頂欄與訊息署名用草稿的名字。
+const roleView = computed(() => {
+  if (previewOnly.value) return { roleName: previewRoleName() }
+  return unref(currentRole) || {}
+});
 
 const getBackgroud = computed(() => {
   return formData.backgroundUrl
@@ -1401,8 +1409,49 @@ onLoad((options) => {
   from.value = uni.getStorageSync("from");
   version.value = uni.getStorageSync("version");
 
+  // 三種進場（owner 2026-09-05）：只有卡片 ID＝一般遊玩；只有草稿＝純預覽，
+  // 不碰伺服器；兩個都有＝照常遊玩，但作者資產換成本機草稿。
+  const draftId = options.draft ? String(options.draft) : '';
+  if (draftId) {
+    bootFromDraft(draftId, options.roleId);
+    return;
+  }
+  bootRole(options.roleId, null);
+});
+
+async function bootFromDraft(draftId: string, targetRoleId: any) {
+  let draft: AuthorDraft | null = null;
+  try {
+    draft = await (await getAuthorDraftStore()).get(draftId);
+  } catch (e) { /* 讀不到就當沒有 */ }
+  if (!draft) {
+    // 草稿不在了（換了瀏覽器、清了資料）：說清楚、送回入口，不留在空畫布上。
+    uni.showToast({ title: t('openChat.preview.missing'), icon: 'none' });
+    setTimeout(() => uni.reLaunch({ url: '/pages/play/entry' }), 1200);
+    return;
+  }
+  previewDraft.value = draft;
+  if (targetRoleId) {
+    bootRole(targetRoleId, draft);
+    return;
+  }
+  previewOnly.value = true;
+  // 沒有卡：把角色識別清成空字串，免得下游把預設的 0 當成一張卡。
+  roleId.value = '' as any;
+  // onLoad 在掛載之前；作者容器要掛在 body 上、量對話欄，等 DOM 在了再套。
+  await nextTick();
+  applyAuthorAsset(draftToAuthorAsset(draft));
+  seedPreviewOpening(draft);
+}
+
+function bootRole(targetRoleId: any, draft: AuthorDraft | null) {
+  const options = { roleId: targetRoleId };
   roleId.value = options.roleId;
-  loadAuthorAsset(options.roleId);
+  if (draft) {
+    nextTick(() => applyAuthorAsset(draftToAuthorAsset(draft)));
+  } else {
+    loadAuthorAsset(options.roleId);
+  }
   /*
     先把遊玩設定清成「還不知道」。
 
@@ -1436,8 +1485,7 @@ onLoad((options) => {
     }
     chatStart();
   });
-
-});
+}
 
 const chatContainerRef = ref<null | HTMLElement>(null)
 const scrollableElement = ref<null | HTMLElement>(null)
@@ -2073,6 +2121,55 @@ const ajax = ref({
 // crossLine 只在資產變動時算一次，不必每次渲染都判。
 const activeAuthorAsset = ref({ rules: [], version: 0, crossLine: false, variants: null });
 
+// ── 作者預覽 ─────────────────────────────────────────────────────────
+//
+// previewDraft：這次進場帶著本機草稿（兩種模式都會設）。
+// previewOnly：沒有卡片 ID。畫布上所有會打伺服器的東西都要看這個旗標——
+// 沒登入也能用是這個模式的前提，任何一個漏網的請求撞到 401 就會被踢去登入頁。
+const previewDraft = ref<AuthorDraft | null>(null);
+const previewOnly = ref(false);
+let previewSeq = 0;
+let previewHintShown = false;
+
+function previewRoleName(): string {
+  const draft = previewDraft.value;
+  return (draft && draftDisplayName(draft)) || t('openChat.preview.name');
+}
+
+// 預覽的第一則：草稿裡的開場白；沒有就放一句說明，玩家才知道下一步做什麼。
+function seedPreviewOpening(draft: AuthorDraft) {
+  talkList.value = [{
+    id: 0,
+    content: draft.opening || t('openChat.preview.openingHint'),
+    type: 0,
+    pic: '',
+    maskPosition: 1,
+    chatFinish: true,
+  }];
+}
+
+// 純預覽的「送出」：不打伺服器，把輸入的字當成一則 AI 回覆畫出來，
+// 讓作者拿自己的文字試規則。第一次攔下來時說一聲。
+function previewEcho() {
+  const text = String(unref(content) || '').trim();
+  if (!text) return;
+  content.value = '';
+  previewSeq += 1;
+  talkList.value.push({
+    id: `preview-${previewSeq}`,
+    content: text,
+    type: 0,
+    pic: '',
+    maskPosition: 1,
+    chatFinish: true,
+  });
+  nextTick(() => scrollToBottom(true));
+  if (!previewHintShown) {
+    previewHintShown = true;
+    uni.showToast({ title: t('openChat.preview.intercepted'), icon: 'none', duration: 2500 });
+  }
+}
+
 function setActiveAuthorAsset(asset) {
   const rules = (asset && Array.isArray(asset.rules)) ? asset.rules : [];
   activeAuthorAsset.value = {
@@ -2165,8 +2262,8 @@ function buildAuthorAssetHost() {
       // 先動本地再寫穿伺服器。只寫伺服器的話畫面要重載才變，作者呼叫完會覺得
       // 「什麼都沒發生」——背景是 formData.backgroundUrl 算出來的，不同步就看不到。
       formData.backgroundUrl = url;
-      // 寫穿伺服器：換裝置再進來這張卡，桌布還在。
-      savePlayerPreference({ roleId: unref(roleId), prefs: { backgroundUrl: url } });
+      // 寫穿伺服器：換裝置再進來這張卡，桌布還在。純預覽沒有卡也沒有登入，只改本地。
+      if (!previewOnly.value) savePlayerPreference({ roleId: unref(roleId), prefs: { backgroundUrl: url } });
       return true;
     },
     scrollToTop: () => { scrollTopValue.value = 0; return true; },
@@ -2196,6 +2293,18 @@ async function loadAuthorAsset(targetRoleId) {
       timeout: 8000,
     });
     if (res.statusCode !== 200 || !res.data) return;
+    applyAuthorAsset(res.data);
+  } catch (e) {
+    // 資產載入失敗不能影響對話本身——沒有資產就是正常狀態。
+    console.warn('[AuthorAsset] 載入失敗，本次對話不套用版面規則');
+  }
+}
+
+// 把一份作者資產套到畫布上。伺服器回的與本機草稿轉出來的是同一個形狀，
+// 所以兩條路在這裡會合；之後的規則、掛載、沉浸模式都不知道資產從哪來。
+function applyAuthorAsset(asset) {
+  try {
+    const res = { data: asset };
     setActiveAuthorAsset(res.data);
     cardSource.value = normalizeCardSource(res.data.source);
     applyImmersiveMode(res.data.pageMode === 'immersive');
@@ -2236,8 +2345,8 @@ async function loadAuthorAsset(targetRoleId) {
       observeFixedAuthorNodes();
     }
   } catch (e) {
-    // 資產載入失敗不能影響對話本身——沒有資產就是正常狀態。
-    console.warn('[AuthorAsset] 載入失敗，本次對話不套用版面規則');
+    // 套用失敗不能影響對話本身——沒有資產就是正常狀態。
+    console.warn('[AuthorAsset] 套用失敗，本次對話不套用版面規則');
   }
 }
 
@@ -3021,6 +3130,11 @@ function goBackToEntry() {
 }
 
 function openModelSelect() {
+  // 純預覽不會呼叫模型。節點留著（作者的卡對它寫外觀），按下去講清楚為什麼沒東西可選。
+  if (previewOnly.value) {
+    uni.showToast({ title: t('openChat.preview.noModel'), icon: 'none' })
+    return
+  }
   panel.value = openSheet(panel.value, 'model')
 }
 
@@ -6592,6 +6706,11 @@ function send() {
   // confirm-type="send" + @confirm="send" 在 H5 textarea 用 Enter 時會觸發,
   // 即使 handleKeydown 攔住了,confirm event 仍可能在 IME flush 候選的瞬間誤 fire。
   if (unref(imeComposing)) return;
+  // 純預覽：攔下來，不送（owner 2026-09-05）。放在登入檢查之前，沒登入也能預覽。
+  if (previewOnly.value) {
+    previewEcho();
+    return;
+  }
   // 未登录时触发登录弹窗
   if (!unref(hasLogin)) {
     uni.$emit('notLogin', {});
@@ -7365,6 +7484,10 @@ watch(conversationId, () => { lastAssistReply.value = '' })
 
 async function onAssist() {
   if (assistBusy.value) return
+  if (previewOnly.value) {
+    uni.showToast({ title: t('openChat.preview.intercepted'), icon: 'none' })
+    return
+  }
   const targetConversationId = String(unref(conversationId) || '')
   if (!targetConversationId) {
     uni.showToast({ title: t('canvas.assist.failed'), icon: 'none' })
@@ -7501,7 +7624,7 @@ function messageProps(item: any, index: number) {
     // 這跟 latest 不同：latest 是列表最後一則，可能是玩家自己說的。
     // 串流進行中一律關掉：重新生成時新氣泡要等跑完才換上去，這段時間舊的那則仍是
     // 「最新一則 AI」，鍵還亮著就會再送一次（owner 2026-09-05：跑到 182 個 token 時還能按）。
-    latestAI: !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index),
+    latestAI: !previewOnly.value && !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index),
     contextUsage: (!isUser && !isSystemOnly) ? contextUsageForRow(item) : null,
     swipes: (index === 0 && showGreetingSwipes.value)
       ? { index: greeting.index, total: greeting.list.length }
@@ -7544,6 +7667,8 @@ const menuActions = computed(() => {
   const index = menuIndex.value
   const item = talkList.value[index]
   if (!item) return []
+  // 純預覽的訊息不在伺服器上：改寫、倒回、分叉、刪除都沒有對象，只留複製。
+  if (previewOnly.value) return [{ key: 'copy', label: t('chat.copy') }]
   const isAI = item.type == 0
   const latestAI = isAI && isLatestCanonicalAIIndex(index)
   const actions: Array<{ key: string; label: string; disabled?: boolean }> = []
@@ -7749,7 +7874,7 @@ const isGenerating = computed(() => {
 })
 
 // 輸入區上面那一排放「每次都會碰」的五樣（照 MMD 的習慣）；其餘全部收進「＋」。
-const shortcutItems = computed(() => [
+const shortcutItems = computed(() => previewOnly.value ? [] : [
   { key: 'model', label: t('canvas.panel.model') },
   { key: 'persona', label: t('canvas.panel.persona') },
   { key: 'directives', label: t('directive.entry') },
@@ -7765,7 +7890,9 @@ const shortcutItems = computed(() => [
 const panel = ref<CanvasPanelState>(createPanelState())
 
 // 「＋」放得下全部：快捷列上的五樣也留著，玩家不必記得哪一樣在哪裡。
-const moreItems = computed(() => [
+const moreItems = computed(() => previewOnly.value ? [
+  { key: 'bottom', label: t('canvas.shortcut.toBottom') },
+] : [
   { key: 'model', label: t('canvas.panel.model') },
   { key: 'persona', label: t('canvas.panel.persona') },
   { key: 'directives', label: t('directive.entry') },

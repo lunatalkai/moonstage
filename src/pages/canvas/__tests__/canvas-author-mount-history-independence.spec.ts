@@ -116,14 +116,24 @@ describe('作者資產：mountTrigger 常駐部署跟訊息歷史脫鉤', () => 
     // 1) 函式本體完全不提訊息歷史陣列——它不該讀、也不該等 talkList 才動作。
     const fnBody = extractBraceMatchedBody('async function loadAuthorAsset(targetRoleId) {')
     expect(fnBody).not.toMatch(/talkList/)
+    // 套用那一半（本機草稿也走它）同樣不碰歷史。
+    const applyBody = extractBraceMatchedBody('function applyAuthorAsset(asset) {')
+    expect(applyBody).not.toMatch(/talkList/)
 
-    // 2) 呼叫點在 onLoad 這個進頁生命週期鉤子裡，且在任何看起來像「載入角色/歷史」
-    //    的呼叫（getRole）之前執行——不是被塞進歷史載入完成後的回呼裡才觸發。
+    // 2) 呼叫點在進頁路徑裡，且在任何看起來像「載入角色/歷史」的呼叫（getRole）
+    //    之前執行——不是被塞進歷史載入完成後的回呼裡才觸發。
+    //    進頁路徑：onLoad 依有沒有本機草稿分派到 bootRole（一般遊玩／蓋掉線上規則），
+    //    卡片的資產載入在 bootRole 裡；純預覽沒有卡，不在這條契約內。
     const onLoadBody = extractBraceMatchedBody('onLoad((options) => {')
-    const callIdx = onLoadBody.indexOf('loadAuthorAsset(')
-    const getRoleIdx = onLoadBody.indexOf('getRole(')
+    expect(onLoadBody).toMatch(/bootRole\(/)
+    const bootBody = extractBraceMatchedBody('function bootRole(targetRoleId: any, draft: AuthorDraft | null) {')
+    const callIdx = bootBody.indexOf('loadAuthorAsset(')
+    const applyIdx = bootBody.indexOf('applyAuthorAsset(')
+    const getRoleIdx = bootBody.indexOf('getRole(')
     expect(callIdx).toBeGreaterThan(-1)
+    expect(applyIdx).toBeGreaterThan(-1)
     expect(getRoleIdx).toBeGreaterThan(-1)
     expect(callIdx).toBeLessThan(getRoleIdx)
+    expect(applyIdx).toBeLessThan(getRoleIdx)
   })
 })

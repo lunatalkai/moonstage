@@ -34,7 +34,10 @@
             <!-- 作者常把分級徽章整顆藏掉；節點不在的話那條規則會靜默失效。 -->
             <div class="header-badge"></div>
           </div>
+          <!-- 本機草稿在套用中：純預覽或蓋掉線上規則時都亮著，讓作者知道現在看的不是線上版。 -->
+          <div v-if="badge" class="header-meun preview-badge" data-lt="preview-badge">{{ badge }}</div>
           <div
+            v-if="showModel"
             class="header-meun model-chip"
             role="button"
             tabindex="0"
@@ -56,13 +59,17 @@
  頂欄。作者的卡片把整條當成自己的畫布：換底色、換字體、把分級徽章整顆藏掉。
        所以這裡只放「走得掉／知道跟誰講話／換得了模型」，其餘取值全部走變數。
 */
-defineProps<{
+withDefaults(defineProps<{
   roleName: string
   avatar: string
   modelName: string
   backLabel?: string
   modelLabel?: string
-}>()
+  /** 本機草稿套用中的提示；空字串不畫 */
+  badge?: string
+  /** 純預覽沒有模型可換 */
+  showModel?: boolean
+}>(), { badge: '', showModel: true })
 
 defineEmits<{
   (e: 'back'): void
