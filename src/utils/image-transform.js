@@ -19,6 +19,14 @@
  * transformCloudflareImage('https://images.example.com/xxx.png', { width: 100, quality: 85 })
  * // => 'https://images.example.com/cdn-cgi/image/width=100,quality=85/xxx.png'
  */
+// 開著 Image Resizing 的網域：只有我們自己的。
+const RESIZING_ZONE = 'lunatalk.ai'
+
+function supportsCloudflareResizing(hostname) {
+	const host = String(hostname || '').toLowerCase()
+	return host === RESIZING_ZONE || host.endsWith('.' + RESIZING_ZONE)
+}
+
 export function transformCloudflareImage(url, options = {}) {
 	if (!url || typeof url !== 'string') return ''
 
@@ -54,6 +62,10 @@ export function transformCloudflareImage(url, options = {}) {
 	try {
 		// 解析 URL
 		const urlObj = new URL(url)
+		// Cloudflare Image Resizing 只在我們自己的網域開著。從別的平台匯入的卡，頭像還掛在
+		// 原站上；把它改寫成 /cdn-cgi/image/... 只會拿到 404，畫面上就是一顆空的頭像。
+		// 這種圖片原樣回傳，不縮圖。
+		if (!supportsCloudflareResizing(urlObj.hostname)) return url
 		const pathname = urlObj.pathname
 
 		// 返回 Cloudflare Image Resizing 格式
