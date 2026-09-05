@@ -1,0 +1,54 @@
+name: Card compatibility
+description: A card renders or behaves differently here than on its original platform.
+labels: [card-compat]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful report we get. We need enough to reproduce it: the smallest piece of the card that shows the difference is worth more than the whole card.
+        Please do not paste a private card in full. A reduced copy (one rule, one style block) is ideal. You can test it yourself first with **Preview a local file** on the entry page.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Original platform
+      options:
+        - SillyTavern
+        - MMD
+        - Other (say which below)
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it looks like there
+      description: A screenshot or a short description of the correct rendering.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What it looks like here
+      description: A screenshot or a short description of what Moonstage shows.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: The smallest piece that reproduces it
+      description: A regex rule, a style block, a script snippet, or a reduced card file. Attach a file if it is long.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: selectors
+    attributes:
+      label: Selectors or names the card relies on
+      description: If you know which class names, element ids, or macros the card targets, list them.
+      placeholder: .topTabbar, #chat, {{user}}
+  - type: input
+    id: where
+    attributes:
+      label: Where you saw it
+      placeholder: playground.lunatalk.ai, Chrome 152 on macOS
+    validations:
+      required: true

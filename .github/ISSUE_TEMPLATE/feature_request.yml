@@ -1,0 +1,29 @@
+name: Feature request
+description: Something the stage should be able to do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation, not the solution. What are you doing as a player or author when you hit the wall?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: Your idea, if you have one. Mention how the original platform handles it, if it does.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Does this need the LunaTalk API to change?
+      description: Moonstage only uses the public /open/v1 API. If the feature needs new data from the server, it is still worth filing, but it will take longer.
+      options:
+        - No, this is all in the stage
+        - Yes, or probably
+        - Not sure
+    validations:
+      required: true

@@ -1,0 +1,52 @@
+name: Bug report
+description: Something in the stage misbehaves (layout, sending, sign-in, panels, archives).
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Please keep tokens, sign-in codes, and other people's conversations out of this report.
+        If the problem is that a card looks different here than on its original platform, use the **Card compatibility** template instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead.
+      placeholder: |
+        1. Opened a card
+        2. Typed a message and pressed Enter
+        3. The message was sent twice
+        Expected: sent once.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The site you were on (e.g. playground.lunatalk.ai) or "local build", plus the commit if you know it.
+      placeholder: playground.lunatalk.ai
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 152 on macOS / Safari on iPhone 15
+    validations:
+      required: true
+  - type: dropdown
+    id: card
+    attributes:
+      label: Does it happen without a card's own styling?
+      description: Try a plain card (one with no author CSS or scripts). If it only happens with a decorated card, say which kind.
+      options:
+        - Happens with plain cards too
+        - Only with a decorated card (say which kind below)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Console errors, screenshots, the card type, how often it happens.
