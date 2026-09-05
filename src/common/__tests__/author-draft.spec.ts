@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { importAuthorDraft, draftToAuthorAsset, draftToTrialPayload, parseMesExample, DraftImportError, stripFileExtension } from '../author-draft'
+import { reactive } from 'vue'
+import { importAuthorDraft, draftToAuthorAsset, draftToTrialPayload, draftCanTrial, draftParts, mergeAuthorDraft, shouldMergeInto, extractTavernCardFromPng, isPngBytes, parseMesExample, DraftImportError, stripFileExtension } from '../author-draft'
 
 describe('importAuthorDraft', () => {
   it('認得 MMD 的正則清單 API 回包（regex/content 欄位，/pattern/flags 字串原樣保留）', () => {
@@ -204,5 +205,143 @@ describe('酒館卡 → 試玩卡', () => {
     const d = importAuthorDraft(JSON.stringify({ spec: 'chara_card_v3', data: { name: '簡單', description: '一句', first_mes: '嗨' } }), '')
     const p = draftToTrialPayload(d)!
     expect(Object.keys(p).sort()).toEqual(['card', 'name', 'welcome'])
+  })
+})
+
+describe('MMD 的 V2 卡：三個檔併成一份草稿', () => {
+  const regexExport = JSON.stringify({ pageDepth: 2, statusbar: '【網頁美化】【狀態欄】', beginning: '<zzt>導覽</zzt>', regex_scripts: [{ id: -1, scriptName: '標題', findRegex: '/<zzt>([\\s\\S]*?)<\\/zzt>/g', replaceString: '<div>$1</div>' }] })
+  const worldbook = JSON.stringify({ entries: {
+    '0': { comment: '協議', disable: false, constant: true, key: '[]', keysecondary: '[]', content: '常駐內容', uid: 0 },
+    '1': { comment: '巴威', disable: false, constant: false, key: '["巴威","天災少女"]', keysecondary: '[]', content: '角色設定', uid: 1 },
+    '2': { comment: '停用', disable: true, constant: false, key: '["x"]', keysecondary: '[]', content: '不啟用', uid: 2 },
+    '3': { comment: '空', disable: false, constant: false, key: '["y"]', keysecondary: '[]', content: '', uid: 3 },
+  } })
+  const definition = '<敘事規則>\n世界定位：故事發生於基沃托斯。\n'
+
+  it('世界書匯出檔：物件形式的 entries、JSON 字串的 key、disable 旗標', () => {
+    const d = importAuthorDraft(worldbook, '世界書')
+    expect(d.format).toBe('st-worldbook')
+    expect(d.rules).toEqual([])
+    const entries = d.card!.book!.entries
+    expect(entries.map((e) => [e.name, e.keywords, e.isConstant, e.isEnabled])).toEqual([
+      ['協議', [], true, true], ['巴威', ['巴威', '天災少女'], false, true], ['停用', ['x'], false, false],
+    ])
+    expect(draftCanTrial(d)).toBe(true)
+  })
+
+  it('酒館本尊的世界書：陣列 keys 也認', () => {
+    const d = importAuthorDraft(JSON.stringify({ entries: [{ comment: 'a', key: ['k1', 'k2'], content: 'c' }] }), '')
+    expect(d.format).toBe('st-worldbook')
+    expect(d.card!.book!.entries[0].keywords).toEqual(['k1', 'k2'])
+  })
+
+  it('純文字檔＝角色設定；壞掉的 JSON 仍報格式錯', () => {
+    const d = importAuthorDraft(definition, '規則')
+    expect(d.format).toBe('text-definition')
+    expect(d.card!.description).toContain('基沃托斯')
+    expect(draftCanTrial(d)).toBe(true)
+    expect(() => importAuthorDraft('{"broken":', '')).toThrow(DraftImportError)
+    expect(() => importAuthorDraft('   ', '')).toThrow(DraftImportError)
+  })
+
+  it('三個檔按任意順序併起來，得到一份能試玩的草稿', () => {
+    let draft = importAuthorDraft(regexExport, '基沃托斯')
+    expect(draftCanTrial(draft)).toBe(false) // 只有規則與開場白，不算一張卡
+    draft = mergeAuthorDraft(draft, importAuthorDraft(worldbook, 'wb'))!
+    draft = mergeAuthorDraft(draft, importAuthorDraft(definition, 'def'))!
+    expect(draft.name).toBe('基沃托斯')
+    expect(draft.rules).toHaveLength(1)
+    expect(draft.mountTrigger).toBe('【網頁美化】【狀態欄】')
+    expect(draftParts(draft)).toEqual({ rules: true, book: true, definition: true })
+    const p = draftToTrialPayload(draft)!
+    expect(p.name).toBe('基沃托斯')
+    expect(p.card.roleDetailDesc).toContain('基沃托斯')
+    expect(p.welcome.roleWelcome).toBe('<zzt>導覽</zzt>')
+    expect(p.worldbook.entries).toHaveLength(3)
+    expect(p.worldbook.entries[0]).toMatchObject({ isConstant: true, keywords: [] })
+    expect(p.authorAsset.rules).toHaveLength(1)
+    expect(p.authorAsset.mountTrigger).toBe('【網頁美化】【狀態欄】')
+    expect(p.authorAsset.mountLayer).toBe('over')
+  })
+
+  it('再丟一次世界書就是換掉整本；規則檔也是整包換', () => {
+    let draft = mergeAuthorDraft(importAuthorDraft(definition, 'x'), importAuthorDraft(worldbook, 'wb'))!
+    draft = mergeAuthorDraft(draft, importAuthorDraft(JSON.stringify({ entries: [{ comment: 'only', key: [], content: 'new' }] }), 'wb2'))!
+    expect(draft.card!.book!.entries.map((e) => e.name)).toEqual(['only'])
+    expect(draft.card!.description).toContain('基沃托斯')
+    draft = mergeAuthorDraft(draft, importAuthorDraft(regexExport, 'r'))!
+    expect(draft.rules).toHaveLength(1)
+    expect(draft.opening).toBe('<zzt>導覽</zzt>')
+  })
+
+  it('整張酒館卡不併進別的草稿', () => {
+    const base = importAuthorDraft(definition, 'x')
+    const card = importAuthorDraft(JSON.stringify({ spec: 'chara_card_v2', data: { name: '卡', description: 'd' } }), '')
+    expect(mergeAuthorDraft(base, card)).toBeNull()
+  })
+})
+
+describe('酒館 PNG 卡與匯入來源', () => {
+  function pngWithText(chunks: Array<[string, string]>): Uint8Array {
+    const enc = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0))
+    const parts: Uint8Array[] = [Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])]
+    const chunk = (type: string, data: Uint8Array) => {
+      const len = new Uint8Array(4)
+      new DataView(len.buffer).setUint32(0, data.length)
+      parts.push(len, enc(type), data, new Uint8Array(4))
+    }
+    chunk('IHDR', new Uint8Array(13))
+    for (const [k, v] of chunks) chunk('tEXt', Uint8Array.from([...enc(k), 0, ...enc(v)]))
+    chunk('IEND', new Uint8Array(0))
+    const total = parts.reduce((n, p) => n + p.length, 0)
+    const out = new Uint8Array(total)
+    let off = 0
+    for (const p of parts) { out.set(p, off); off += p.length }
+    return out
+  }
+  const b64 = (o: any) => Buffer.from(JSON.stringify(o), 'utf-8').toString('base64')
+
+  it('從 PNG 的 chara 區塊讀出 V2 卡；有 ccv3 時優先', () => {
+    const v2 = { spec: 'chara_card_v2', data: { name: '雨夜', description: '偵探', first_mes: '嗨' } }
+    const png = pngWithText([['chara', b64(v2)]])
+    expect(isPngBytes(png)).toBe(true)
+    const d = importAuthorDraft(extractTavernCardFromPng(png), '')
+    expect(d.format).toBe('st-card')
+    expect(d.name).toBe('雨夜')
+    const v3 = { spec: 'chara_card_v3', data: { name: '雨夜三' } }
+    expect(importAuthorDraft(extractTavernCardFromPng(pngWithText([['chara', b64(v2)], ['ccv3', b64(v3)]])), '').name).toBe('雨夜三')
+  })
+
+  it('沒有卡片區塊的 PNG 報 png-no-card；不是 PNG 報格式錯', () => {
+    expect(() => extractTavernCardFromPng(pngWithText([]))).toThrow(/png-no-card/)
+    expect(() => extractTavernCardFromPng(Uint8Array.from([1, 2, 3]))).toThrow(/unknown-format/)
+    expect(isPngBytes(Uint8Array.from([1, 2, 3]))).toBe(false)
+  })
+
+  it('併入政策：MMD 什麼都併；酒館只併單獨的世界書與正則', () => {
+    const base = importAuthorDraft('設定文字', 'x')
+    const wb = importAuthorDraft(JSON.stringify({ entries: [{ comment: 'a', key: [], content: 'c' }] }), '')
+    const regex = importAuthorDraft(JSON.stringify([{ scriptName: 'a', findRegex: 'x', replaceString: 'y' }]), '')
+    const txt = importAuthorDraft('另一段設定', 'y')
+    const card = importAuthorDraft(JSON.stringify({ spec: 'chara_card_v2', data: { name: 'c' } }), '')
+    expect(shouldMergeInto('mmd', null, wb)).toBe(false)
+    expect(shouldMergeInto('mmd', base, wb)).toBe(true)
+    expect(shouldMergeInto('mmd', base, txt)).toBe(true)
+    expect(shouldMergeInto('mmd', base, card)).toBe(false)
+    expect(shouldMergeInto('tavern', base, wb)).toBe(true)
+    expect(shouldMergeInto('tavern', base, regex)).toBe(true)
+    expect(shouldMergeInto('tavern', base, txt)).toBe(false)
+    expect(shouldMergeInto('tavern', base, card)).toBe(false)
+  })
+})
+
+describe('併入的結果要能進 IndexedDB', () => {
+  it('base 是響應式代理時，併出來的草稿仍是純資料（structuredClone 不丟 DataCloneError）', () => {
+    const base = reactive(importAuthorDraft(JSON.stringify([{ scriptName: 'a', findRegex: 'x', replaceString: 'y' }]), 'r')) as any
+    const incoming = importAuthorDraft(JSON.stringify({ entries: [{ comment: 'a', key: ['k'], content: 'c' }] }), '')
+    const merged = mergeAuthorDraft(base, incoming)!
+    expect(() => structuredClone(merged)).not.toThrow()
+    expect(merged.rules).toHaveLength(1)
+    expect(merged.card!.book!.entries).toHaveLength(1)
   })
 })

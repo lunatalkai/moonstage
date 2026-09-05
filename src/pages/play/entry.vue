@@ -61,12 +61,39 @@
 						</view>
 						<view class="ms-panel-body">
 							<text class="ms-panel-desc">{{ $t('openChat.entry.fileDesc') }}</text>
-							<text class="ms-panel-desc">{{ $t('openChat.trial.note') }}</text>
+
+							<!-- 先選來源：酒館一個檔就是一張卡；MMD 是三個檔併成一張。 -->
+							<view class="ms-seg" role="tablist">
+								<view class="ms-seg-item" :class="{ 'is-on': importKind === 'tavern' }" role="tab" @click="setImportKind('tavern')">
+									<text class="ms-seg-text">{{ $t('openChat.entry.kindTavern') }}</text>
+								</view>
+								<view class="ms-seg-item" :class="{ 'is-on': importKind === 'mmd' }" role="tab" @click="setImportKind('mmd')">
+									<text class="ms-seg-text">{{ $t('openChat.entry.kindMmd') }}</text>
+								</view>
+							</view>
+							<text class="ms-panel-desc">{{ $t(importKind === 'mmd' ? 'openChat.entry.kindMmdDesc' : 'openChat.entry.kindTavernDesc') }}</text>
 
 							<view id="ms-drop" class="ms-drop" :class="{ 'is-over': dragOver }" @click="pickFile">
 								<text class="ms-drop-text">{{ $t('openChat.entry.dropHint') }}</text>
 								<text class="ms-drop-action">{{ $t('openChat.entry.chooseFile') }}</text>
-								<text class="ms-drop-formats">{{ $t('openChat.entry.formats') }}</text>
+								<text class="ms-drop-formats">{{ $t(importKind === 'mmd' ? 'openChat.entry.formatsMmd' : 'openChat.entry.formatsTavern') }}</text>
+							</view>
+
+							<!-- MMD：三個檔的到位清單，缺哪個一眼看得到。 -->
+							<view v-if="importKind === 'mmd' && selectedDraft" class="ms-checklist">
+								<text class="ms-checklist-title">{{ $t('openChat.entry.mmdChecklist', { name: draftName(selectedDraft) }) }}</text>
+								<view class="ms-checklist-row">
+									<text class="ms-check" :class="{ 'is-on': selectedParts.rules }">{{ selectedParts.rules ? '✓' : '–' }}</text>
+									<text class="ms-check-label">{{ $t('openChat.entry.mmdPartRules') }}</text>
+								</view>
+								<view class="ms-checklist-row">
+									<text class="ms-check" :class="{ 'is-on': selectedParts.book }">{{ selectedParts.book ? '✓' : '–' }}</text>
+									<text class="ms-check-label">{{ $t('openChat.entry.mmdPartBook') }}</text>
+								</view>
+								<view class="ms-checklist-row">
+									<text class="ms-check" :class="{ 'is-on': selectedParts.definition }">{{ selectedParts.definition ? '✓' : '–' }}</text>
+									<text class="ms-check-label">{{ $t('openChat.entry.mmdPartDefinition') }}</text>
+								</view>
 							</view>
 
 							<text class="ms-link ms-paste-toggle" @click="pasteOpen = !pasteOpen">{{ $t('openChat.entry.pasteToggle') }}</text>
@@ -83,6 +110,7 @@
 							</view>
 
 							<view v-if="draftError" class="ms-alert">{{ draftError }}</view>
+							<view v-if="draftNotice" class="ms-alert is-ok">{{ draftNotice }}</view>
 							<view v-if="storeReady && !storePersistent" class="ms-alert is-warn">{{ $t('openChat.entry.draftNotPersistent') }}</view>
 
 							<text class="ms-list-title">{{ $t('openChat.entry.draftRecent') }}</text>
@@ -97,7 +125,7 @@
 								<view class="ms-radio" :class="{ 'is-on': selectedDraftId === d.id }"></view>
 								<view class="ms-draft-body">
 									<text class="ms-draft-name">{{ draftName(d) }}</text>
-									<text class="ms-draft-meta">{{ formatLabel(d) }} · {{ $t('openChat.entry.draftRules', { n: d.rules.length }) }}<template v-if="d.card"> · {{ $t('openChat.trial.tag') }}</template></text>
+									<text class="ms-draft-meta">{{ draftMeta(d) }}</text>
 								</view>
 								<text class="ms-draft-delete" :aria-label="$t('openChat.entry.draftDelete')" @click.stop="deleteDraft(d)">×</text>
 							</view>
@@ -139,8 +167,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useI18n } from 'vue-i18n'
 import { useStore } from 'vuex'
 import { clearTokens, isSignedIn, redirectToLogin } from '@/common/open-oauth'
-import { importAuthorDraft, draftToTrialPayload, DraftImportError, draftDisplayName, stripFileExtension } from '@/common/author-draft'
-import type { AuthorDraft } from '@/common/author-draft'
+import { importAuthorDraft, draftToTrialPayload, draftCanTrial, draftParts, mergeAuthorDraft, shouldMergeInto, extractTavernCardFromPng, isPngBytes, DraftImportError, draftDisplayName, stripFileExtension } from '@/common/author-draft'
+import type { AuthorDraft, ImportKind } from '@/common/author-draft'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 
 const SOURCE_URL = 'https://github.com/lunatalkai/moonstage'
@@ -170,17 +198,36 @@ const selectedDraftId = ref('')
 const pasteOpen = ref(false)
 const pasteText = ref('')
 const draftError = ref('')
+const draftNotice = ref('')
+const IMPORT_KIND_KEY = 'lt.moonstage.importKind'
+const importKind = ref<ImportKind>('tavern')
+try {
+	// #ifdef H5
+	if (localStorage.getItem(IMPORT_KIND_KEY) === 'mmd') importKind.value = 'mmd'
+	// #endif
+} catch (e) { /* 私密視窗等拿不到儲存：用預設 */ }
+function setImportKind(kind: ImportKind) {
+	importKind.value = kind
+	draftError.value = ''
+	draftNotice.value = ''
+	try {
+		// #ifdef H5
+		localStorage.setItem(IMPORT_KIND_KEY, kind)
+		// #endif
+	} catch (e) { /* 同上 */ }
+}
 const storeReady = ref(false)
 const storePersistent = ref(true)
 const fileOpen = ref(true)
 const dragOver = ref(false)
 
 const selectedDraft = computed(() => drafts.value.find((d) => d.id === selectedDraftId.value) || null)
+const selectedParts = computed(() => (selectedDraft.value ? draftParts(selectedDraft.value) : { rules: false, book: false, definition: false }))
 
 // ── 試玩卡：整張酒館卡、沒有卡片編號時，建成一張會到期的私有卡上線玩 ──────
 const trialError = ref('')
 const slotsFull = ref<{ max: number; name: string } | null>(null)
-const isTrialDraft = computed(() => !!selectedDraft.value?.card && !role.value && !cardId.value.trim())
+const isTrialDraft = computed(() => !!selectedDraft.value && draftCanTrial(selectedDraft.value) && !role.value && !cardId.value.trim())
 watch(selectedDraftId, () => { trialError.value = ''; slotsFull.value = null })
 
 // ── 接下來會發生什麼 ──────────────────────────────────────────────────
@@ -360,34 +407,71 @@ function toggleDraft(d: AuthorDraft) {
 	selectedDraftId.value = selectedDraftId.value === d.id ? '' : d.id
 }
 
-function importText(text: string, fallbackName: string) {
+/**
+ * 匯入一個檔。已經選了一份草稿時，新檔併進那一份（MMD 的 V2 卡是正則匯出、世界書、
+ * 設定 txt 三個檔，使用者會一個一個丟）；整張酒館卡或沒選草稿時另開一份並選起來。
+ */
+async function importText(text: string, fallbackName: string) {
 	draftError.value = ''
-	let draft: AuthorDraft
+	draftNotice.value = ''
+	let incoming: AuthorDraft
 	try {
-		draft = importAuthorDraft(text, fallbackName)
+		incoming = importAuthorDraft(text, fallbackName)
 	} catch (e) {
-		const reason = e instanceof DraftImportError ? e.reason : 'unknown-format'
-		draftError.value = t(
-			reason === 'invalid-json' ? 'openChat.entry.draftInvalidJson'
-				: reason === 'empty' ? 'openChat.entry.draftEmptyFile'
-					: 'openChat.entry.draftUnknownFormat',
-		)
+		setImportError(e)
 		return
 	}
-	getAuthorDraftStore()
-		.then((s) => s.put(draft))
-		.then(refreshDrafts)
-		.then(() => {
-			// 剛匯入的那份就是使用者要試的：直接選起來，動作列立刻反映。
-			selectedDraftId.value = draft.id
-			pasteText.value = ''
-			pasteOpen.value = false
-		})
+	const base = selectedDraft.value
+	const merged = shouldMergeInto(importKind.value, base, incoming) && base ? mergeAuthorDraft(base, incoming) : null
+	const draft = merged || incoming
+	try {
+		const s = await getAuthorDraftStore()
+		await s.put(draft)
+	} catch (e) {
+		draftError.value = t('openChat.entry.draftSaveFailed')
+		return
+	}
+	await refreshDrafts()
+	// 剛匯入的那份就是使用者要試的：直接選起來，動作列立刻反映。
+	selectedDraftId.value = draft.id
+	if (merged) draftNotice.value = t('openChat.entry.draftMerged', { name: draftName(merged) })
+	pasteText.value = ''
+	pasteOpen.value = false
+}
+
+function setImportError(e: unknown) {
+	const reason = e instanceof DraftImportError ? e.reason : 'unknown-format'
+	draftError.value = t(
+		reason === 'invalid-json' ? 'openChat.entry.draftInvalidJson'
+			: reason === 'empty' ? 'openChat.entry.draftEmptyFile'
+				: reason === 'png-no-card' ? 'openChat.entry.draftPngNoCard'
+					: importKind.value === 'mmd' ? 'openChat.entry.draftUnknownFormatMmd'
+						: 'openChat.entry.draftUnknownFormatTavern',
+	)
+}
+
+// 一次丟多個檔：依序匯入，MMD 模式下第一個之後的自然併進前一個建出來的草稿。
+// 酒館的 PNG 卡先把藏在圖裡的 JSON 挖出來，之後跟 JSON 卡走同一條路。
+async function importFiles(list: FileList | File[] | null | undefined) {
+	if (!list) return
+	const files = Array.from(list as ArrayLike<File>)
+	for (const file of files) {
+		let text: string
+		try {
+			const bytes = await file.arrayBuffer()
+			text = isPngBytes(bytes) ? extractTavernCardFromPng(bytes) : new TextDecoder('utf-8').decode(bytes)
+		} catch (e) {
+			setImportError(e)
+			return
+		}
+		await importText(text, stripFileExtension(file.name))
+		if (draftError.value) return
+	}
 }
 
 function importFile(file: File | null | undefined) {
 	if (!file) return
-	file.text().then((text) => importText(text, stripFileExtension(file.name)))
+	importFiles([file])
 }
 
 // uni-app 的 input 元件不做檔案；直接開一個原生的選檔器（只在瀏覽器裡跑）。
@@ -395,8 +479,9 @@ function pickFile() {
 	// #ifdef H5
 	const input = document.createElement('input')
 	input.type = 'file'
-	input.accept = '.json,application/json'
-	input.onchange = () => importFile(input.files && input.files[0])
+	input.accept = importKind.value === 'mmd' ? '.json,.txt,application/json,text/plain' : '.png,.json,image/png,application/json'
+	input.multiple = true
+	input.onchange = () => importFiles(input.files)
 	input.click()
 	// #endif
 }
@@ -416,11 +501,24 @@ const FORMAT_LABELS: Record<string, string> = {
 	'mmd-payload': 'MMD',
 	'st-regex': 'SillyTavern',
 	'st-card': 'SillyTavern',
+	'st-worldbook': 'SillyTavern',
+	'text-definition': 'TXT',
 	'moonstage-asset': 'Moonstage',
 }
 
 function formatLabel(d: AuthorDraft) {
 	return FORMAT_LABELS[d.format] || d.format
+}
+
+// 清單第二行：來源 · 有哪幾種東西 · 可不可試玩
+function draftMeta(d: AuthorDraft) {
+	const parts = draftParts(d)
+	const bits = [formatLabel(d)]
+	if (parts.rules) bits.push(t('openChat.entry.draftRules', { n: d.rules.length }))
+	if (parts.book && d.card && d.card.book) bits.push(t('openChat.entry.draftBook', { n: d.card.book.entries.length }))
+	if (parts.definition) bits.push(t('openChat.entry.draftDefinition'))
+	if (draftCanTrial(d)) bits.push(t('openChat.trial.tag'))
+	return bits.join(' · ')
 }
 
 async function deleteDraft(d: AuthorDraft) {
@@ -437,7 +535,7 @@ const onDragLeave = () => { dragOver.value = false }
 const onDrop = (e: DragEvent) => {
 	e.preventDefault()
 	dragOver.value = false
-	importFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0])
+	importFiles(e.dataTransfer && e.dataTransfer.files)
 }
 onMounted(() => {
 	dropEl = document.getElementById('ms-drop')
@@ -668,6 +766,83 @@ onBeforeUnmount(() => {
 	line-height: 1.5;
 	color: #FF8A8A;
 	background: rgba(255, 43, 43, 0.10);
+}
+
+/* 來源切換：兩格分段控制，選中的走金色描邊；跟草稿清單的選中態同一語彙。 */
+.ms-seg {
+	display: flex;
+	gap: 12rpx;
+	margin: 24rpx 0 16rpx;
+	padding: 8rpx;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.ms-seg-item {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 64rpx;
+	border-radius: 9999px;
+	cursor: pointer;
+	transition: background var(--dur-fast, 150ms) linear;
+}
+
+.ms-seg-item.is-on {
+	background: rgba(245, 197, 66, 0.16);
+	box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.6);
+}
+
+.ms-seg-text {
+	font-size: 14px;
+	font-weight: 600;
+	color: rgba(245, 247, 250, 0.7);
+}
+
+.ms-seg-item.is-on .ms-seg-text {
+	color: #F5C542;
+}
+
+.ms-checklist {
+	margin-top: 24rpx;
+	padding: 20rpx 28rpx;
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.ms-checklist-title {
+	display: block;
+	margin-bottom: 12rpx;
+	font-size: 13px;
+	color: rgba(245, 247, 250, 0.6);
+}
+
+.ms-checklist-row {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	padding: 6rpx 0;
+	font-size: 14px;
+}
+
+.ms-check {
+	width: 36rpx;
+	text-align: center;
+	color: rgba(245, 247, 250, 0.35);
+}
+
+.ms-check.is-on {
+	color: #8FE3A5;
+}
+
+.ms-check-label {
+	color: rgba(245, 247, 250, 0.85);
+}
+
+.ms-alert.is-ok {
+	color: #8FE3A5;
+	background: rgba(9, 190, 79, 0.10);
 }
 
 .ms-alert.is-warn {

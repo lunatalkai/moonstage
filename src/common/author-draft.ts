@@ -62,12 +62,73 @@ export type DraftFormat =
   | 'mmd-payload'
   | 'st-regex'
   | 'st-card'
+  | 'st-worldbook'
+  | 'text-definition'
   | 'moonstage-asset'
 
 export class DraftImportError extends Error {
-  constructor(public readonly reason: 'invalid-json' | 'unknown-format' | 'empty') {
+  constructor(public readonly reason: 'invalid-json' | 'unknown-format' | 'empty' | 'png-no-card') {
     super(reason)
   }
+}
+
+/** 使用者在入口頁選的匯入來源：決定收哪些檔、怎麼併、清單怎麼標。 */
+export type ImportKind = 'tavern' | 'mmd'
+
+/**
+ * 酒館的 PNG 卡：卡片 JSON 以 base64 放在 PNG 的 tEXt 區塊，V2 關鍵字是 chara，
+ * V3 多一個 ccv3（優先）。回傳 JSON 文字，交給 importAuthorDraft 走一般路徑。
+ */
+export function extractTavernCardFromPng(bytes: ArrayBuffer | Uint8Array): string {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+  if (u8.length < 8 || sig.some((b, i) => u8[i] !== b)) throw new DraftImportError('unknown-format')
+  const view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength)
+  let pos = 8
+  let chara = ''
+  let ccv3 = ''
+  while (pos + 8 <= u8.length) {
+    const len = view.getUint32(pos)
+    const type = String.fromCharCode(u8[pos + 4], u8[pos + 5], u8[pos + 6], u8[pos + 7])
+    const dataStart = pos + 8
+    if (type === 'tEXt' && dataStart + len <= u8.length) {
+      const data = u8.subarray(dataStart, dataStart + len)
+      const nul = data.indexOf(0)
+      if (nul > 0) {
+        const keyword = latin1(data.subarray(0, nul))
+        const value = latin1(data.subarray(nul + 1))
+        if (keyword === 'ccv3') ccv3 = value
+        else if (keyword === 'chara') chara = value
+      }
+    }
+    if (type === 'IEND') break
+    pos = dataStart + len + 4
+  }
+  const encoded = ccv3 || chara
+  if (!encoded) throw new DraftImportError('png-no-card')
+  try {
+    return decodeBase64Utf8(encoded)
+  } catch (e) {
+    throw new DraftImportError('png-no-card')
+  }
+}
+
+function latin1(bytes: Uint8Array): string {
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 1) out += String.fromCharCode(bytes[i])
+  return out
+}
+
+function decodeBase64Utf8(b64: string): string {
+  const bin = typeof atob === 'function' ? atob(b64) : Buffer.from(b64, 'base64').toString('binary')
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder('utf-8').decode(bytes)
+}
+
+export function isPngBytes(bytes: ArrayBuffer | Uint8Array): boolean {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  return u8.length >= 8 && u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4e && u8[3] === 0x47
 }
 
 let counter = 0
@@ -139,6 +200,65 @@ function compact(rules: Array<TavernRule | null>): TavernRule[] {
   return rules.filter((r): r is TavernRule => !!r)
 }
 
+function baseDraft() {
+  const now = Date.now()
+  return {
+    id: newDraftId(),
+    source: 'mmd' as DraftSource,
+    mountTrigger: '',
+    mountLayer: 'over' as DraftMountLayer,
+    immersive: false,
+    opening: '',
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+export function emptyCard(): DraftCard {
+  return { description: '', personality: '', scenario: '', mesExample: '', creatorNotes: '', firstMes: '', alternateGreetings: [], book: null }
+}
+
+/**
+ * 酒館的世界書匯出檔：{ entries: { "0": {...}, "1": {...} } }（或陣列）。
+ * MMD 匯出的版本把 key／keysecondary 存成 JSON 字串，酒館本尊是陣列——兩種都認。
+ */
+function isStWorldbook(v: any): boolean {
+  if (!v || typeof v !== 'object' || !v.entries || typeof v.entries !== 'object') return false
+  const list = Array.isArray(v.entries) ? v.entries : Object.values(v.entries)
+  return list.length > 0 && list.every((e: any) => e && typeof e === 'object' && typeof e.content === 'string' && ('key' in e || 'keys' in e || 'comment' in e))
+}
+
+function keyList(v: any): string[] {
+  if (Array.isArray(v)) return strList(v)
+  if (typeof v === 'string' && v.trim()) {
+    try {
+      const parsed = JSON.parse(v)
+      if (Array.isArray(parsed)) return strList(parsed)
+    } catch (e) {
+      return v.split(',').map((x) => x.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
+function stWorldbook(v: any, fallbackName: string): DraftBook {
+  const list: any[] = Array.isArray(v.entries) ? v.entries : Object.values(v.entries)
+  const entries: DraftBookEntry[] = []
+  list.forEach((e: any, i: number) => {
+    const content = str(e.content)
+    if (!content.trim()) return
+    const keywords = keyList(e.key ?? e.keys)
+    entries.push({
+      name: str(e.comment).trim() || str(e.name).trim() || keywords[0] || `#${i + 1}`,
+      content,
+      keywords,
+      isConstant: e.constant === true,
+      isEnabled: e.disable !== true && e.enabled !== false,
+    })
+  })
+  return { name: str(v.name) || fallbackName, entries }
+}
+
 /**
  * 把使用者丟進來的檔案文字變成草稿。認得的格式見 DraftFormat；認不得就丟 DraftImportError。
  * 只讀不寫：id 與時間戳在這裡給定，儲存由呼叫端決定。
@@ -148,7 +268,12 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   try {
     parsed = JSON.parse(text)
   } catch (e) {
-    throw new DraftImportError('invalid-json')
+    // 不是 JSON 的純文字檔＝角色設定（MMD 的 V2 卡把設定單獨放一個 txt）。
+    // 看起來想當 JSON 卻壞掉的（以 { 或 [ 開頭）還是報格式錯，別把壞檔當成設定吞掉。
+    const trimmed = String(text || '').trim()
+    if (!trimmed) throw new DraftImportError('empty')
+    if (/^[\[{]/.test(trimmed)) throw new DraftImportError('invalid-json')
+    return { ...baseDraft(), name: fallbackName, format: 'text-definition', rules: [], card: { ...emptyCard(), description: trimmed } }
   }
   const now = Date.now()
   const base = {
@@ -177,6 +302,13 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   }
 
   if (!parsed || typeof parsed !== 'object') throw new DraftImportError('unknown-format')
+
+  // 酒館／MMD 的世界書匯出檔（MMD 的 V2 卡把世界書單獨放一個檔）
+  if (isStWorldbook(parsed)) {
+    const book = stWorldbook(parsed, fallbackName)
+    if (!book.entries.length) throw new DraftImportError('empty')
+    return { ...base, name: fallbackName, source: 'tavern', format: 'st-worldbook', rules: [], card: { ...emptyCard(), book } }
+  }
 
   // 單一酒館規則
   if (isStRegexScript(parsed)) {
@@ -344,7 +476,7 @@ function fullDefinition(card: DraftCard): string {
  */
 export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | null {
   const card = draft.card
-  if (!card) return null
+  if (!card || !draftCanTrial(draft)) return null
   const name = draftDisplayName(draft)
   const payload: Record<string, any> = {
     name,
@@ -355,8 +487,10 @@ export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | n
   }
   const examples = parseMesExample(card.mesExample)
   if (examples.length) payload.card.talkExample = examples
-  if (card.firstMes.trim() || card.alternateGreetings.length) {
-    payload.welcome = { roleWelcome: card.firstMes, alternates: card.alternateGreetings, prologue: [] }
+  // 開場白：酒館卡在 first_mes；MMD 匯出檔在 beginning（草稿的 opening）。
+  const firstMes = card.firstMes.trim() ? card.firstMes : draft.opening
+  if (firstMes.trim() || card.alternateGreetings.length) {
+    payload.welcome = { roleWelcome: firstMes, alternates: card.alternateGreetings, prologue: [] }
   }
   if (card.book && card.book.entries.length) {
     payload.worldbook = {
@@ -384,6 +518,63 @@ export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | n
     }
   }
   return payload
+}
+
+/** 這份草稿是哪幾種東西：規則、世界書、設定。給清單標籤與合併規則用。 */
+export function draftParts(draft: AuthorDraft) {
+  return {
+    rules: draft.rules.length > 0,
+    book: !!(draft.card && draft.card.book && draft.card.book.entries.length),
+    definition: !!(draft.card && (draft.card.description.trim() || draft.card.personality.trim() || draft.card.scenario.trim())),
+  }
+}
+
+/** 能不能建成試玩卡：要有設定或世界書其中之一，只有規則與開場白的不算一張卡。 */
+export function draftCanTrial(draft: AuthorDraft): boolean {
+  const parts = draftParts(draft)
+  return parts.definition || parts.book
+}
+
+/**
+ * 匯入來源決定要不要併進已選的草稿：
+ * - MMD：三個檔本來就是同一張卡，有選草稿就併進去（整張酒館卡除外）。
+ * - 酒館：一個檔就是一張卡；只有單獨匯出的世界書或正則腳本才併進已選的卡。
+ */
+export function shouldMergeInto(kind: ImportKind, base: AuthorDraft | null, incoming: AuthorDraft): boolean {
+  if (!base) return false
+  if (incoming.format === 'st-card') return false
+  if (kind === 'mmd') return true
+  return incoming.format === 'st-worldbook' || incoming.format === 'st-regex'
+}
+
+/**
+ * 把新匯入的檔案併進已有的草稿——MMD 的 V2 卡是三個檔（正則匯出、世界書、設定 txt），
+ * 使用者會一個一個丟。整張酒館卡本身就是完整的，不併、另開一份。
+ * 同類的部分整段覆蓋（作者改完世界書再丟一次就是要換掉），其餘不動。
+ */
+export function mergeAuthorDraft(base: AuthorDraft, incoming: AuthorDraft): AuthorDraft | null {
+  if (incoming.format === 'st-card') return null
+  // base 多半是畫面上的響應式代理（Proxy）；IndexedDB 的結構化複製不吃代理，
+  // 先整份轉成純資料。草稿本來就只有 JSON 能表達的東西，來回一次不掉資訊。
+  const plain: AuthorDraft = JSON.parse(JSON.stringify(base))
+  const merged: AuthorDraft = { ...plain, updatedAt: Date.now() }
+  const card = { ...(plain.card || emptyCard()) }
+  if (incoming.format === 'st-worldbook') {
+    card.book = incoming.card ? incoming.card.book : null
+  } else if (incoming.format === 'text-definition') {
+    card.description = incoming.card ? incoming.card.description : ''
+  } else {
+    merged.rules = incoming.rules
+    merged.mountTrigger = incoming.mountTrigger
+    merged.mountLayer = incoming.mountLayer
+    merged.immersive = incoming.immersive
+    merged.source = incoming.source
+    merged.format = incoming.format
+    if (incoming.opening) merged.opening = incoming.opening
+  }
+  merged.card = card
+  if (!merged.name) merged.name = incoming.name
+  return merged
 }
 
 /** 給畫布用的資產形狀：跟 authorAssetServe 回的一樣，所以套用路徑不用分岔。 */
