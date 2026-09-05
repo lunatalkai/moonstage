@@ -149,14 +149,38 @@ Two lists on `/role/detail` look alike and are not:
 
 Either list may be empty, and an older server omits both. Treat a missing field as an empty list.
 
-Anything not on this list is not part of the contract. Card authoring, moderation,
-payments, analytics and account management are never coming to v1.
+Anything not on this list is not part of the contract. Moderation, payments, analytics
+and account management are not part of v1 and are not planned for it.
 
 Rewinding the story (backward) is reachable from the message menu — long-press a
 message on a touch device, or open the "…" on a pointer device, then pick "rewind to
 here". It asks once before dropping everything after that message. A third-party
 deployment pointing at an older server can turn the call off with `BACKWARD_AVAILABLE`
 in the canvas page; the entry then says it is unavailable instead of hanging.
+
+### Authoring a card
+
+A signed-in author can create and edit their own private cards through v1. Every route
+runs the same service logic, ownership rules, validation and quotas as the official
+card-writer tools; v1 is only the HTTP shape. Cards created here are **private**: the
+author can play them by id, nobody else can reach them until they are published and pass
+review. Text fields are plain text or Markdown as the card format defines; nothing is
+rewritten on the way in.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/role` | create an empty private card — `{ roleName, language?, cardType?, contentRatingIntent?, idempotencyKey? }` → `{ roleId, roleVisibility, reviewStatus }` |
+| PATCH | `/role/:roleId` | basic profile — `{ roleName?, roleDesc?, roleTag?, userName?, roleDetailDesc? }`; only sent fields change |
+| POST | `/role/:roleId/document` | write card text as one document — `{ fields: { roleName?, roleDesc?, roleTag?, userName?, roleType?, roleAvatar?, roleBackground?, roleDetailDesc?, roleWelcome?, talkExample?, roleOutputContract?, jailbreak? } }`. Only the fields you send are written; an absent field is left alone, so an older client never blanks a newer field |
+| PATCH | `/role/:roleId/welcome` | opening lines — `{ roleWelcome, alternates?, prologue? }`. `alternates` and `prologue` are full replacements: omit to keep, send `[]` to clear |
+| POST | `/role/:roleId/visibility` | `{ visibility: "private" }` — the only value v1 accepts; going public is a publish |
+| GET | `/role/validate` | `?roleId=` → the same report the card-writer shows before publishing |
+| POST | `/role/:roleId/publish` | submit for review — `{ userConfirmed: true, confirmationSummary }` → `{ roleId, reviewStatus }` |
+| POST | `/image/upload` | multipart `file` (+ optional `roleId`) for avatars and backgrounds; same size limit and quota as the site |
+| GET | `/worldbook/mine` | the author's worldbooks |
+| POST | `/worldbook` | `{ name, description?, iconUrl?, tags?, visibility?, language? }` → `{ worldbookId, name, visibility }` |
+| POST | `/worldbook/:worldbookId/document` | metadata, entries and binding as one document — `{ metadata?: { name, description, tags }, entries?: [{ op: "create" \| "update" \| "delete", entryId?, name, content, keywords, category?, isConstant?, isEnabled? }], binding?: { roleId } }` → `{ createdEntryIds, updatedCount, deletedCount, bound }` |
+| GET | `/worldbook/bindings` | `?roleId=` → worldbooks bound to a card |
 
 ## Errors
 
