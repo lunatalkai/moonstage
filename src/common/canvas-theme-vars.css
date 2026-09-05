@@ -1,0 +1,186 @@
+/**
+ * Open Canvas 的外觀變數。
+ *
+ * author-theme-vars.css 是兩端逐位元組相同的舊契約（--lt-chat-*），這份不動它——
+ * 動了就得同步另一端，而畫布只活在這個客戶端上。所以畫布自己的變數放這裡，
+ * 名字一律 --lt-canvas-*，跟舊契約不打架。
+ *
+ * ── 為什麼所有取值都走變數 ──
+ * 這張畫布的美術是卡片的，不是我們的。頁面只提供一組能看的預設值，作者要換掉
+ * 任何一項都不必跟我們的規則比特異性——他改變數就好；真要改結構就直接寫 CSS，
+ * 我們的規則全部在 @layer lt-base 裡，他不寫 layer 就天然贏過我們。
+ *
+ * ── 為什麼刻意樸素 ──
+ * 畫布的預設外觀不是「我們的設計」，是「卡片還沒接手時不至於難看」。
+ * 加漸層、加光暈、加品牌金只會讓卡片的美化看起來髒。
+ */
+
+:root {
+  /* ── 頁面 ── */
+  --lt-canvas-bg: #0f1217;
+  --lt-canvas-fg: #e8eaed;
+  --lt-canvas-muted: rgba(232, 234, 237, 0.56);
+  --lt-canvas-line: rgba(255, 255, 255, 0.10);
+  --lt-canvas-radius: 16px;
+  --lt-canvas-gap: 12px;
+  /* 預設字體對齊酒館使用者的環境，不用主站品牌字體 Nunito：
+     MMD 的訊息、標題、body 實測都是系統堆疊
+     `-apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif`（15px，行高 normal），
+     SillyTavern 預設是 `"Noto Sans", sans-serif`。兩邊都是「系統／中性無襯線」，
+     Nunito 的圓體在這種畫布上一眼就不對。CJK 交給 system-ui（PingFang／微軟正黑）與 Noto 兜底。 */
+  --lt-canvas-font: -apple-system, system-ui, "Segoe UI", "Helvetica Neue", Helvetica, Arial,
+    "PingFang TC", "PingFang SC", "Microsoft JhengHei", "Microsoft YaHei", "Noto Sans", "Noto Sans TC",
+    "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", sans-serif;
+  --lt-canvas-font-size: 15px;
+  --lt-canvas-line-height: normal;
+  /*
+     對話欄的寬度。
+
+     先前照 MMD 在 1440 下量到的氣泡寬度反推成 860px。那個數字在 16:9 的螢幕上
+     兩側各留下一大片空地，而卡片的美化往往鋪滿整個視窗——欄位縮在中間一條，
+     看起來像沒對齊。手機橫著拿時更明顯。
+
+     改成「有多少用多少，但別寬到一行讀不完」：兩側各留 24px，上限 1200px。
+     手機的滿版規則在下面的斷點裡。
+  */
+  --lt-canvas-column-width: min(1200px, calc(100vw - 48px));
+
+  /* ── 頂欄 ── */
+  --lt-canvas-header-bg: rgba(15, 18, 23, 0.72);
+  --lt-canvas-header-fg: var(--lt-canvas-fg);
+  --lt-canvas-header-height: 52px;
+  --lt-canvas-header-blur: 12px;
+  --lt-canvas-title-size: 15px;
+  --lt-canvas-title-weight: 600;
+  --lt-canvas-avatar-size: 30px;
+  --lt-canvas-avatar-radius: 9999px;
+
+  /* ── 訊息 ── */
+  --lt-canvas-row-gap: 14px;
+  --lt-canvas-name-size: 12px;
+  --lt-canvas-name-color: var(--lt-canvas-muted);
+  --lt-canvas-bubble-ai-bg: rgba(255, 255, 255, 0.05);
+  --lt-canvas-bubble-user-bg: rgba(255, 255, 255, 0.09);
+  --lt-canvas-bubble-fg: var(--lt-canvas-fg);
+  --lt-canvas-bubble-radius: 14px;
+  --lt-canvas-bubble-padding: 10px 14px;
+  --lt-canvas-bubble-max-width: 100%;
+  --lt-canvas-msg-avatar-size: 32px;
+
+  /* ── 動作列 ── */
+  /* 平時淡、懸停全亮。0.28 是酒館的值，但那是給角落的三個點用的；搬到氣泡底下
+     成為一整列之後，在作者的滿版插圖上 0.28 幾乎看不見（實測 BA 卡），提到 0.5。 */
+  --lt-canvas-actions-opacity: 0.6;
+  --lt-canvas-actions-opacity-hover: 1;
+  /* 觸控裝置沒有懸停，動作列用這個常駐透明度：看得見、但不搶氣泡的戲 */
+  --lt-canvas-actions-opacity-touch: 0.88;
+  --lt-canvas-actions-size: 22px;
+
+  /* ── 輸入區 ── */
+  --lt-canvas-composer-bg: rgba(15, 18, 23, 0.82);
+  --lt-canvas-composer-field-bg: rgba(255, 255, 255, 0.05);
+  --lt-canvas-composer-border: rgba(255, 255, 255, 0.10);
+  --lt-canvas-composer-radius: 18px;
+  --lt-canvas-composer-fg: var(--lt-canvas-fg);
+  --lt-canvas-placeholder-color: rgba(232, 234, 237, 0.38);
+  --lt-canvas-send-size: 32px;
+  --lt-canvas-send-bg: rgba(255, 255, 255, 0.08);
+  --lt-canvas-send-fg: var(--lt-canvas-fg);
+
+  /* ── 選單 ── */
+  --lt-canvas-menu-bg: rgba(24, 27, 33, 0.98);
+  --lt-canvas-menu-fg: var(--lt-canvas-fg);
+  --lt-canvas-menu-radius: 14px;
+  --lt-canvas-menu-scrim: rgba(0, 0, 0, 0.48);
+
+  /* ── 停止鍵（I-2）── */
+  --lt-canvas-stop-bg: rgba(24, 27, 33, 0.92);
+  --lt-canvas-stop-fg: #ffffff;
+  --lt-canvas-stop-border: rgba(255, 255, 255, 0.18);
+
+  /* ── 功能面板與彈層 ── */
+  --lt-canvas-panel-bg: rgba(24, 27, 33, 0.98);
+  --lt-canvas-panel-fg: var(--lt-canvas-fg);
+  --lt-canvas-panel-item-bg: rgba(255, 255, 255, 0.05);
+  --lt-canvas-sheet-bg: rgba(24, 27, 33, 0.98);
+  --lt-canvas-sheet-fg: var(--lt-canvas-fg);
+  --lt-canvas-sheet-radius: 16px;
+  --lt-canvas-sheet-scrim: rgba(0, 0, 0, 0.48);
+  --lt-canvas-sheet-max-height: 76vh;
+  --lt-canvas-accent: #f5c542;
+  --lt-canvas-accent-bg: rgba(245, 197, 66, 0.14);
+
+  /*
+    彈層「裡面那一層」的取值。
+
+    為什麼要單獨一組：彈層裡裝的東西（模型選單、人設、指令、筆記）不可以自己帶
+    一套配色。作者的卡把彈層漆成亮色時，裡面若還留著自己的深色底與白字，玩家看到
+    的是深色字疊在深色面板上——讀不到，而且整片看起來像兩個不同的產品疊在一起。
+
+    所以裡面每一個取值都走這幾個名字，作者覆蓋這幾個變數就能把整片換色。
+    白色半透明不能寫死：它在亮底上等於什麼都沒畫，列與列的分隔會整個消失。
+  */
+  --lt-canvas-sheet-item-bg: rgba(255, 255, 255, 0.05);
+  --lt-canvas-sheet-item-bg-hover: rgba(255, 255, 255, 0.08);
+  --lt-canvas-sheet-item-bg-on: rgba(255, 255, 255, 0.14);
+  --lt-canvas-sheet-line: rgba(255, 255, 255, 0.10);
+  /* 說明文字、eyebrow：比 muted 再淡一階 */
+  --lt-canvas-sheet-faint: rgba(232, 234, 237, 0.38);
+  /* 蓋在彈層之上的第二層（排序選單、高消費確認）需要一個不透明的底，
+     否則底下的清單會透出來 */
+  --lt-canvas-sheet-pop-bg: rgba(24, 27, 33, 0.98);
+
+  /* 危險操作（刪除、超出上限）。狀態色不隨主題走：它講的是「這件事會出事」，
+     不是外觀。 */
+  --lt-canvas-danger: #ff6b6b;
+}
+
+/*
+  手機：對話欄滿版。
+
+  這一條必須寫在這裡（layer 外）而不是 canvas.css 的斷點裡：那個檔的斷點規則全在
+  @layer lt-base 裡，而上面的預設值不在任何 layer——沒有 layer 的宣告永遠贏過有
+  layer 的，於是斷點裡那句 100% 從來沒生效過，手機上整條欄兩側各被吃掉 24px，
+  輸入欄位只剩下兩百多像素（2026-09-04 owner 截圖）。
+*/
+@media (max-width: 768px) {
+  :root {
+    --lt-canvas-column-width: 100%;
+  }
+}
+
+
+/*
+  訊息選單每一格的圖示槽。
+
+  這一格是留給作者的（舊頁面每個選項前有一張圖，卡片會對 .option-item uni-image
+  寫樣式），但 uni 對 uni-image 的基礎樣式（320×240、不在任何 layer 裡）會贏過
+  canvas.css 裡 layer 內的 display:none，於是每一格被撐到 266px 高、文字被擠成直排
+  （2026-09-05 owner 截圖）。放在 layer 外、用比基礎樣式高的特異度壓掉；作者要用這
+  一格，寫得比這條更具體就能拿回來。
+*/
+.msg-option-scope .option-item > uni-image {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/*
+  「+」面板每一格的圖示槽（同上一條的病）：槽裡的 uni-image 被 uni 的基礎樣式撐成
+  320×240，槽只有 20px，圖示就以那個大框為基準畫到槽外面（2026-09-05 owner 截圖：
+  框裡空的、圖示在上面）。layer 外、特異度高過元素選擇器，把它釘回槽的大小。
+*/
+.more-scope .item-icon > uni-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.more-scope .item-icon > uni-image > svg {
+  display: block;
+  width: 70%;
+  height: 70%;
+}

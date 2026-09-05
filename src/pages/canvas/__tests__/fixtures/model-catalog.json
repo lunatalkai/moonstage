@@ -1,0 +1,341 @@
+[
+  {
+    "group": "Global Top",
+    "desc": "",
+    "families": [
+      {
+        "family": "DeepSeek V4 Flash",
+        "description": "DeepSeek's base model and a popular choice on the platform.",
+        "isMember": false,
+        "isSupportMax": true,
+        "contextBudgetOptions": [
+          {
+            "text": "64K",
+            "value": 1,
+            "tokens": 64000
+          },
+          {
+            "text": "96K",
+            "value": 2,
+            "tokens": 96000
+          },
+          {
+            "text": "128K",
+            "value": 3,
+            "tokens": 128000
+          },
+          {
+            "text": "144K",
+            "value": 4,
+            "tokens": 144000
+          },
+          {
+            "text": "168K",
+            "value": 5,
+            "tokens": 168000
+          }
+        ],
+        "thinkingDepthOptions": [
+          {
+            "value": "off",
+            "labelKey": "modelSelect.thinkingOff",
+            "descriptionKey": "modelSelect.thinkingOffTips"
+          },
+          {
+            "value": "high",
+            "labelKey": "modelSelect.thinkingHigh",
+            "descriptionKey": "modelSelect.thinkingHighTips"
+          },
+          {
+            "value": "max",
+            "labelKey": "modelSelect.thinkingMax",
+            "descriptionKey": "modelSelect.thinkingMaxTips"
+          }
+        ],
+        "defaultThinkingDepth": "off",
+        "variants": [
+          {
+            "name": "DeepSeek V4 Flash",
+            "value": "deepseek-v4-flash-ripple",
+            "description": "DeepSeek's base model and a popular choice on the platform.",
+            "isMember": false,
+            "fast": 5,
+            "smart": 5,
+            "safe": 4,
+            "costScore": 25,
+            "isSupportMax": true,
+            "maxScore": 200,
+            "contextBudgetOptions": [
+              {
+                "text": "64K",
+                "value": 1,
+                "tokens": 64000
+              },
+              {
+                "text": "96K",
+                "value": 2,
+                "tokens": 96000
+              },
+              {
+                "text": "128K",
+                "value": 3,
+                "tokens": 128000
+              },
+              {
+                "text": "144K",
+                "value": 4,
+                "tokens": 144000
+              },
+              {
+                "text": "168K",
+                "value": 5,
+                "tokens": 168000
+              }
+            ],
+            "thinkingDepthOptions": [
+              {
+                "value": "off",
+                "labelKey": "modelSelect.thinkingOff",
+                "descriptionKey": "modelSelect.thinkingOffTips"
+              },
+              {
+                "value": "high",
+                "labelKey": "modelSelect.thinkingHigh",
+                "descriptionKey": "modelSelect.thinkingHighTips"
+              },
+              {
+                "value": "max",
+                "labelKey": "modelSelect.thinkingMax",
+                "descriptionKey": "modelSelect.thinkingMaxTips"
+              }
+            ],
+            "defaultThinkingDepth": "off",
+            "thinkingControl": "toggleable",
+            "channelLabel": "凌波"
+          },
+          {
+            "name": "DeepSeek V4 Flash",
+            "value": "deepseek-v4-flash-mist",
+            "description": "DeepSeek's base model and a popular choice on the platform.",
+            "isMember": false,
+            "fast": 5,
+            "smart": 5,
+            "safe": 4,
+            "costScore": 25,
+            "isSupportMax": true,
+            "maxScore": 200,
+            "contextBudgetOptions": [
+              {
+                "text": "64K",
+                "value": 1,
+                "tokens": 64000
+              },
+              {
+                "text": "96K",
+                "value": 2,
+                "tokens": 96000
+              },
+              {
+                "text": "128K",
+                "value": 3,
+                "tokens": 128000
+              },
+              {
+                "text": "144K",
+                "value": 4,
+                "tokens": 144000
+              },
+              {
+                "text": "168K",
+                "value": 5,
+                "tokens": 168000
+              }
+            ],
+            "thinkingDepthOptions": [
+              {
+                "value": "off",
+                "labelKey": "modelSelect.thinkingOff",
+                "descriptionKey": "modelSelect.thinkingOffTips"
+              },
+              {
+                "value": "high",
+                "labelKey": "modelSelect.thinkingHigh",
+                "descriptionKey": "modelSelect.thinkingHighTips"
+              },
+              {
+                "value": "max",
+                "labelKey": "modelSelect.thinkingMax",
+                "descriptionKey": "modelSelect.thinkingMaxTips"
+              }
+            ],
+            "defaultThinkingDepth": "off",
+            "thinkingControl": "toggleable",
+            "channelLabel": "朝霧"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "Dynamic Lane",
+    "desc": "",
+    "families": [
+      {
+        "family": "DeepSeek V4 Flash",
+        "description": "DeepSeek's base model and a popular choice on the platform.",
+        "isMember": false,
+        "isSupportMax": true,
+        "contextBudgetOptions": [
+          {
+            "text": "64K",
+            "value": 1,
+            "tokens": 64000
+          },
+          {
+            "text": "96K",
+            "value": 2,
+            "tokens": 96000
+          },
+          {
+            "text": "128K",
+            "value": 3,
+            "tokens": 128000
+          },
+          {
+            "text": "144K",
+            "value": 4,
+            "tokens": 144000
+          },
+          {
+            "text": "168K",
+            "value": 5,
+            "tokens": 168000
+          }
+        ],
+        "thinkingDepthOptions": [
+          {
+            "value": "off",
+            "labelKey": "modelSelect.thinkingOff",
+            "descriptionKey": "modelSelect.thinkingOffTips"
+          },
+          {
+            "value": "high",
+            "labelKey": "modelSelect.thinkingHigh",
+            "descriptionKey": "modelSelect.thinkingHighTips"
+          },
+          {
+            "value": "max",
+            "labelKey": "modelSelect.thinkingMax",
+            "descriptionKey": "modelSelect.thinkingMaxTips"
+          }
+        ],
+        "defaultThinkingDepth": "off",
+        "variants": [
+          {
+            "name": "DeepSeek V4 Flash",
+            "value": "official-deepseek-v4-flash-provider-n",
+            "description": "DeepSeek's base model and a popular choice on the platform.",
+            "isMember": false,
+            "fast": 5,
+            "smart": 5,
+            "safe": 4,
+            "costScore": 120,
+            "isSupportMax": true,
+            "maxScore": 960,
+            "billingType": "dynamic",
+            "estMinScore": 36,
+            "estMaxScore": 64,
+            "contextBudgetOptions": [
+              {
+                "text": "64K",
+                "value": 1,
+                "tokens": 64000
+              },
+              {
+                "text": "96K",
+                "value": 2,
+                "tokens": 96000
+              },
+              {
+                "text": "128K",
+                "value": 3,
+                "tokens": 128000
+              },
+              {
+                "text": "144K",
+                "value": 4,
+                "tokens": 144000
+              },
+              {
+                "text": "168K",
+                "value": 5,
+                "tokens": 168000
+              }
+            ],
+            "thinkingDepthOptions": [
+              {
+                "value": "off",
+                "labelKey": "modelSelect.thinkingOff",
+                "descriptionKey": "modelSelect.thinkingOffTips"
+              },
+              {
+                "value": "high",
+                "labelKey": "modelSelect.thinkingHigh",
+                "descriptionKey": "modelSelect.thinkingHighTips"
+              },
+              {
+                "value": "max",
+                "labelKey": "modelSelect.thinkingMax",
+                "descriptionKey": "modelSelect.thinkingMaxTips"
+              }
+            ],
+            "defaultThinkingDepth": "off",
+            "thinkingControl": "toggleable",
+            "channelLabel": "Provider N"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "免費",
+    "desc": "",
+    "families": [
+      {
+        "family": "免費模型一",
+        "description": "會員免費模型,回覆速度快,日常暢聊零消耗。",
+        "isMember": false,
+        "isSupportMax": false,
+        "contextBudgetOptions": [
+          {
+            "text": "64K",
+            "value": 1,
+            "tokens": 64000
+          }
+        ],
+        "variants": [
+          {
+            "name": "免費模型一",
+            "value": "BaseBot-1",
+            "description": "會員免費模型,回覆速度快,日常暢聊零消耗。",
+            "isMember": false,
+            "fast": 5,
+            "smart": 3,
+            "safe": 2,
+            "costScore": 0,
+            "isSupportMax": false,
+            "maxScore": 100,
+            "contextBudgetOptions": [
+              {
+                "text": "64K",
+                "value": 1,
+                "tokens": 64000
+              }
+            ],
+            "thinkingControl": "none"
+          }
+        ]
+      }
+    ]
+  }
+]

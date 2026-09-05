@@ -1,0 +1,30 @@
+{
+    "name": "Moonstage",
+    "appid": "",
+    "description": "Open chat stage for LunaTalk character cards",
+    "versionName": "1.0.0",
+    "versionCode": "100",
+    "transformPx": false,
+    "app-plus": {
+        "usingComponents": true,
+        "nvueStyleCompiler": "uni-app",
+        "compilerVersion": 3
+    },
+    "uniStatistics": {
+        "enable": false
+    },
+    "vueVersion": "3",
+    "h5": {
+        "devServer": {
+            "port": 8800,
+            "https": false
+        },
+        "router": {
+            "mode": "history",
+            "base": "/"
+        },
+        "title": "Moonstage"
+    },
+    "locale": "auto",
+    "fallbackLocale": "en"
+}

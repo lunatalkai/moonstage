@@ -1,0 +1,89 @@
+/* ===== uni.showModal 全域玻璃化 =====
+ *
+ * uni-app H5 把 uni.showModal 渲染成一組固定 DOM（uni-h5 內建樣式）：
+ *   UNI-MODAL > .uni-mask + .uni-modal > (__hd | __bd | __ft > .uni-modal__btn)
+ * 內建預設是 iOS 白底彈窗（#fff / radius 3px / 遮罩 alpha 0），壓在 LunaTalk
+ * 暗色玻璃介面上非常突兀，且 .uni-mask 完全透明使彈窗與背景沒有層次。
+ *
+ * 全站 180+ 處 uni.showModal 呼叫共用這組 DOM，因此覆蓋樣式放全域一處即可，
+ * 不需要（也不該）逐處改呼叫。玻璃配方對齊 App.vue 既有的 .ll-flyout 浮層。
+ *
+ * ⚠️ 按鈕文字色是 uni-h5 寫在 inline style 的（cancelColor / confirmColor）：
+ *   - 取消鍵預設 #000，在暗底上不可讀 → 必須 !important 覆蓋。
+ *   - 確定鍵這裡刻意「不」覆蓋 color，讓危險操作傳入的紅色（刪除 / 移除確認）
+ *     仍然顯示為紅色。預設值改由 App.vue 的 showModal 包裝注入品牌金，
+ *     用 CSS !important 會連危險紅一起吃掉，破壞危險操作的視覺警示。
+ *
+ * ⚠️ 僅 H5 生效。APP-PLUS 原生端 uni.showModal 走系統原生彈窗，CSS 無效，
+ *   該端的一致性只能靠 confirmColor / cancelColor 參數。
+ */
+
+/* 遮罩：內建 alpha 0 → 給出真正的層次 */
+uni-modal .uni-mask {
+	background-color: rgba(0, 0, 0, 0.55) !important;
+	backdrop-filter: blur(4px) !important;
+	-webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* 面板：玻璃穿透，不寫死 opaque 底 */
+uni-modal .uni-modal {
+	/* 內建是 width:80% + max-width:300px，只覆蓋 width 會被 max-width 截住 */
+	width: min(320px, 84vw) !important;
+	max-width: min(320px, 84vw) !important;
+	border-radius: 16px !important;
+	background: rgba(15, 18, 23, 0.86) !important;
+	backdrop-filter: blur(24px) saturate(1.4) !important;
+	-webkit-backdrop-filter: blur(24px) saturate(1.4) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+	overflow: hidden;
+}
+
+/* 標題 */
+uni-modal .uni-modal__hd {
+	padding: 20px 20px 8px !important;
+	font-size: 16px !important;
+	font-weight: 600 !important;
+	color: rgba(245, 247, 250, 0.95) !important;
+}
+
+/* 內容 */
+uni-modal .uni-modal__bd {
+	padding: 0 20px 20px !important;
+	font-size: 14px !important;
+	line-height: 1.6 !important;
+	color: rgba(232, 234, 237, 0.72) !important;
+	word-break: break-word;
+}
+
+/* 按鈕列分隔線 */
+uni-modal .uni-modal__ft {
+	border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+	line-height: 48px !important;
+}
+uni-modal .uni-modal__ft::after {
+	display: none !important;
+}
+/* 內建 __btn::after 是淺灰(#D5D5D6)分隔線，暗底上刺眼；改由 __btn_default 的
+ * border-right 提供暗色分隔，這裡把內建那條關掉，避免兩條線疊在一起。 */
+uni-modal .uni-modal__btn::after {
+	display: none !important;
+}
+uni-modal .uni-modal__btn {
+	font-size: 15px !important;
+	font-weight: 500 !important;
+	transition: background 0.15s ease !important;
+}
+uni-modal .uni-modal__btn:active,
+uni-modal .uni-modal__btn:hover {
+	background: rgba(255, 255, 255, 0.06) !important;
+}
+uni-modal .uni-modal__btn_default {
+	/* 內建 inline color #000 在暗底不可讀，必須覆蓋 */
+	color: rgba(232, 234, 237, 0.72) !important;
+	border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+uni-modal .uni-modal__btn_primary {
+	font-weight: 600 !important;
+	/* color 交給 inline（confirmColor）：危險操作的紅色必須保留 */
+}

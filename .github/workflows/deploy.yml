@@ -1,0 +1,72 @@
+name: Deploy to playground
+
+# Builds main and publishes the static output into the hosting repo that serves
+# playground.lunatalk.ai. Where that is (repo, branch, directory) is configured
+# through repository secrets so the hosting setup stays out of the source tree.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-playground
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run i18n:check
+
+      - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npm run build:h5:prod
+
+      - run: ./scripts/check-build-output.sh
+
+      - name: Checkout hosting repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.HOSTING_REPO }}
+          path: target-repo
+          ssh-key: ${{ secrets.WORKER_ASSETS_DEPLOY_KEY }}
+          fetch-depth: 0
+
+      - name: Publish build output
+        env:
+          HOSTING_BRANCH: ${{ secrets.HOSTING_BRANCH }}
+          HOSTING_DIR: ${{ secrets.HOSTING_DIR }}
+        run: |
+          test -n "$HOSTING_BRANCH" && test -n "$HOSTING_DIR"
+          cd target-repo
+          if git ls-remote --exit-code --heads origin "$HOSTING_BRANCH" >/dev/null 2>&1; then
+            git checkout -B "$HOSTING_BRANCH" "origin/$HOSTING_BRANCH"
+          else
+            git checkout -b "$HOSTING_BRANCH"
+          fi
+          rm -rf "./$HOSTING_DIR"
+          mkdir -p "./$HOSTING_DIR"
+          tar cf - -C ../dist/build/h5 . | tar xf - -C "./$HOSTING_DIR/"
+          git config user.name 'Moonstage CI'
+          git config user.email 'opensource@lunatalk.ai'
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to publish"
+          else
+            git commit -m "Publish Moonstage ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+          fi
+          git push origin "$HOSTING_BRANCH"

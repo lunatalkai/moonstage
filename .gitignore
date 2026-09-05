@@ -1,0 +1,22 @@
+.idea/
+dist
+node_modules
+.hbuilderx
+unpackage
+artifacts/
+.DS_store
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+.DS_Store
+
+# Runtime log files
+*.log
+
+# 個人本機環境覆寫（含各人的 server 位址、埠號），不進版控。
+# .env.development / .env.staging / .env.production 是團隊共用的，要進版控。
+.env*.local

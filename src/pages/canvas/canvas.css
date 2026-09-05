@@ -1,0 +1,4274 @@
+/**
+ * Open Canvas 的頁面樣式。
+ *
+ * ── 為什麼整份包在 @layer 裡 ──
+ * 卡片注入的 <style> 不寫 layer，而未分層的規則在串接順序上永遠贏過任何 layer，
+ * 跟先後、跟特異性都無關。所以「頁面讓位給卡片」不靠 !important、不靠選擇器比大小，
+ * 靠的就是這一層。這也是為什麼這份檔案裡一個 !important 都不能有：我們一寫，
+ * 作者就得跟著寫，而他手上那張卡在原平台不需要寫。
+ *
+ * ── layer 外面只有兩條 ──
+ * 停止鍵。生成中沒有停止鍵是產品邊界（I-2）——卡片可以把它變成別的樣子，
+ * 但不該因為它藏了 `.chat-bottom` 就順手把停止鍵一起帶走。所以它的基本可用性
+ * 寫在 layer 外，跟卡片同一個層級；卡片若直接指名 #mes_stop 覆蓋，那是作者的
+ * 明示選擇，我們不再用 !important 跟他打。
+ *
+ * PC 欄寬置中。uni-app H5 框架自己的 base.css 有一條不分層、特異性 0 的全域星號
+ * margin 歸零規則，天然贏過我們整份 layer 化樣式——把置中留在 layer 裡，
+ * margin:auto 會被那條規則歸零，欄位貼死在畫面左邊。寫在 layer 外用特異性
+ * （ID／class 選擇器都高於 `*`）贏過它；卡片若也不分層寫同名選擇器，插入時間晚於
+ * 我們，同特異性下後宣告的贏，卡片一樣贏得了這裡——跟 layer 讓位的效果相同，
+ * 只是換了贏的機制。這裡故意不用 transform 位移置中：#chat 裡的內容是卡片訊息
+ * 的 v-html，MMD 卡常把整組 `position: fixed` 面板塞在第一則訊息內文裡——
+ * transform 會讓 #chat 自己變成這些 fixed 子孫的 containing block，跟 defect 1
+ * 同一種錯，只是從掛載容器換成了訊息氣泡。margin:auto 不建立 containing block，
+ * 不會有這個副作用。
+ */
+
+#mes_stop {
+  position: fixed;
+  right: 16px;
+  bottom: 96px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--lt-canvas-stop-border);
+  background: var(--lt-canvas-stop-bg);
+  color: var(--lt-canvas-stop-fg);
+  cursor: pointer;
+}
+
+#mes_stop[hidden] {
+  display: none;
+}
+
+#mes_stop > svg {
+  width: 14px;
+  height: 14px;
+}
+
+#chat,
+.header-box,
+.chat-bottom-wapper,
+.shortcut-bar-wrapper {
+  max-width: var(--lt-canvas-column-width);
+  margin: 0 auto;
+}
+
+/*
+  快捷列與輸入框之間要有 margin，而且只能寫在 layer 外：uni 的 `*{margin:0}` 不在
+  layer 裡，layer 內任何 margin 都輸給它。兩個元件只靠 padding 頂著的話，作者一給
+  它們各畫一條邊框，兩條線就貼在一起（owner 2026-09-05 截圖）。
+*/
+.shortcut-bar-wrapper {
+  margin-bottom: 8px;
+}
+
+/*
+  彈層裡「淡一階的字」是相對的，不是一個固定的顏色。
+
+  寫死一個淺灰只在深色底上成立：作者的卡把彈層漆成亮色時，說明文字、欄位標題、
+  單位那些字會整批消失——而它們消失得很安靜，畫面上只是「那一行沒有字」。
+  改成從當下的文字顏色調出來：底是什麼顏色、字是什麼顏色，淡一階就跟著算。
+
+  這一條刻意寫在 layer 外面。作者只換了彈層的文字顏色、沒有動我們的變數時，
+  layer 裡的規則會輸給他的 color 卻贏不了自己的預設值——那正是要避免的情況。
+*/
+.u-popup__content {
+  /* 「一般的字」就是這一片現在的文字顏色。彈層裡的每一處都走這個名字，
+     所以作者換掉彈層的 color，整片的字就跟著換。 */
+  --lt-canvas-fg: currentColor;
+  /* 兩階「淡一點的字」。比例是量出來的，不是挑好看的：在亮色主題上，62% 的
+     說明文字只有 3.6:1，低於正文可讀的門檻；78% 拉到 4.5 以上，而它跟主要文字
+     仍然分得出層次。 */
+  --lt-canvas-muted: color-mix(in srgb, currentColor 78%, transparent);
+  --lt-canvas-sheet-faint: color-mix(in srgb, currentColor 62%, transparent);
+  /*
+    列的底色與分隔線同理：白色半透明在亮底上等於什麼都沒畫，一整份清單會變成
+    沒有列、沒有分隔的一片。從當下的文字顏色調出來，深底得到淺色的層次、
+    亮底得到深色的層次。
+  */
+  --lt-canvas-sheet-item-bg: color-mix(in srgb, currentColor 6%, transparent);
+  --lt-canvas-sheet-item-bg-hover: color-mix(in srgb, currentColor 10%, transparent);
+  --lt-canvas-sheet-item-bg-on: color-mix(in srgb, currentColor 16%, transparent);
+  --lt-canvas-sheet-line: color-mix(in srgb, currentColor 14%, transparent);
+  /*
+    這幾個在 :root 是 `var(--lt-canvas-fg)` 或白色半透明——var() 在定義處就解掉了，
+    上面重定義的 --lt-canvas-fg 傳不進去，模型選單整片字色仍是 :root 的淺灰
+    （2026-09-05 全頁盤點：日間亮色彈層上淺灰字、白色透明底）。這裡一併重定義。
+  */
+  --lt-canvas-sheet-fg: currentColor;
+  --lt-canvas-panel-fg: currentColor;
+  /* 蓋在清單上的第二層（排序提示、高消費確認）：沒有卡片的區塊底色就用字色調一個不透明感 */
+  --lt-canvas-sheet-pop-bg: var(--lt-canvas-block-bg, color-mix(in srgb, currentColor 8%, transparent));
+  --lt-canvas-panel-item-bg: color-mix(in srgb, currentColor 6%, transparent);
+  --lt-canvas-placeholder-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+
+@layer lt-base {
+  /* ── 頁面骨架 ────────────────────────────────────────────────── */
+
+  .canvas-root {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--lt-canvas-font);
+    font-size: var(--lt-canvas-font-size);
+    line-height: var(--lt-canvas-line-height);
+    color: var(--lt-canvas-fg);
+    background: var(--lt-canvas-bg);
+    overflow: hidden;
+  }
+
+  /* ── 頂欄 ─────────────────────────────────────────────────────── */
+
+  .page-header-scope {
+    position: relative;
+    z-index: 30;
+    flex: 0 0 auto;
+  }
+
+  .topTabbar {
+    background: var(--lt-canvas-header-bg);
+    backdrop-filter: blur(var(--lt-canvas-header-blur));
+    -webkit-backdrop-filter: blur(var(--lt-canvas-header-blur));
+    border-bottom: 1px solid var(--lt-canvas-line);
+    color: var(--lt-canvas-header-fg);
+  }
+
+  .header-box {
+    /* 欄寬與置中（max-width/margin）搬到 layer 外了——見檔頭「layer 外面只有
+       兩條」的說明。這裡只留卡片仍可自由覆寫、不涉及 fixed 定位基準的部分。 */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--lt-canvas-header-height);
+    padding: 0 10px;
+  }
+
+  .icon-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  .icon-back > svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .header-role-img {
+    width: var(--lt-canvas-avatar-size);
+    height: var(--lt-canvas-avatar-size);
+    flex: 0 0 auto;
+    border-radius: var(--lt-canvas-avatar-radius);
+    overflow: hidden;
+    background: var(--lt-canvas-line);
+  }
+
+  .header-role-img uni-image,
+  .header-role-img uni-image > div,
+  .avatar uni-image,
+  .avatar uni-image > div {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .header-roleName {
+    font-size: var(--lt-canvas-title-size);
+    font-weight: var(--lt-canvas-title-weight);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .header-icon-meun {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .header-meun {
+    display: flex;
+    align-items: center;
+    color: inherit;
+  }
+
+  .header-meun-rating {
+    display: none;
+  }
+
+  .model-chip {
+    max-width: 40vw;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-line);
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── 舞台 ─────────────────────────────────────────────────────── */
+
+  .chat-scope-box {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .scroll-view {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #chat {
+    /* 欄寬與置中搬到 layer 外了，見檔頭說明。
+       底部多加的那一段是輸入區被作者往上推時蓋住捲動區的量（canvas-composer-overhang.ts）。 */
+    padding: 12px 12px calc(24px + var(--lt-canvas-composer-overhang, 0px));
+    box-sizing: border-box;
+  }
+
+  .chat-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lt-canvas-row-gap);
+  }
+
+  .chat-scroll-anchor {
+    height: 1px;
+  }
+
+  .lt-canvas-root {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* ── 訊息 ─────────────────────────────────────────────────────── */
+
+  /* 兩排 grid：頭像＋名字一排（.mesAvatarWrapper / .ch_name 各佔一格），
+     氣泡另起一排、橫跨兩欄、滿版寬度（.mes_block 的 grid-area 同時蓋住
+     "avatar" 與 "name" 兩欄）。
+
+     為什麼不是舊版的單排 flex（頭像＋整個 .mes_block 並排）：
+     那樣氣泡的容器寬度 = 列寬 − 頭像欄寬 − gap，頭像固定寬度在手機窄螢幕
+     上佔掉可觀比例，氣泡左邊被頭像推進去一截、右邊卻直接貼齊列的右邊界，
+     兩側內距不對稱（owner 2026-09-04 回報：AI 氣泡右邊幾乎貼死螢幕邊緣，
+     左邊卻空一大塊）。改成兩排之後，氣泡的容器（.mes_block）左右邊界永遠
+     跟 .mes 本身對齊，不管頭像欄寬多少，兩側內距天然對稱。
+
+     User 訊息沒有頭像／名字（見下面兩條 display:none），"avatar" 欄在該列
+     沒有任何可見內容時，auto 欄寬會收成 0——不用另外覆寫 grid-template-columns。 */
+  .mes {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "avatar name"
+      "block block";
+    column-gap: 8px;
+    row-gap: 4px;
+  }
+
+  .mesAvatarWrapper {
+    grid-area: avatar;
+    align-self: center;
+  }
+
+  .avatar {
+    width: var(--lt-canvas-msg-avatar-size);
+    height: var(--lt-canvas-msg-avatar-size);
+    border-radius: 9999px;
+    overflow: hidden;
+    background: var(--lt-canvas-line);
+  }
+
+  .mes.User .mesAvatarWrapper {
+    display: none;
+  }
+
+  .ch_name {
+    grid-area: name;
+    align-self: center;
+    min-width: 0;
+  }
+
+  .mes_block {
+    grid-area: block;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mes.User .mes_block {
+    align-items: flex-end;
+  }
+
+  .ch_name {
+    font-size: var(--lt-canvas-name-size);
+    color: var(--lt-canvas-name-color);
+  }
+
+  /*
+     使用者那一列也要有名字。
+
+     先前把它藏掉，只靠「靠右＋底色深一階」分辨誰說的；但氣泡寬度上限是 100%，
+     稍長一點的訊息就跟 AI 的一樣寬，而作者的卡通常把兩種氣泡漆成同一個樣子——
+     聊久了根本分不出哪句是自己說的（owner 2026-09-04 回報）。名字是不靠顏色、
+     不靠寬度就能認出來的標記，靠右放，跟 AI 那列的名字對稱。
+  */
+  .mes.User .ch_name {
+    display: block;
+    text-align: right;
+  }
+
+  .mes.User .mes_text {
+    max-width: 92%;
+  }
+
+  .mes_text {
+    max-width: var(--lt-canvas-bubble-max-width);
+    padding: var(--lt-canvas-bubble-padding);
+    border-radius: var(--lt-canvas-bubble-radius);
+    background: var(--lt-canvas-bubble-ai-bg);
+    color: var(--lt-canvas-bubble-fg);
+    overflow-wrap: anywhere;
+  }
+
+  .mes_text.right {
+    background: var(--lt-canvas-bubble-user-bg);
+  }
+
+  .mes_text img,
+  .mes_text video,
+  .mes_text canvas {
+    max-width: 100%;
+  }
+
+  /*
+     思考過程與 Agent 準備過程。
+
+     它們住在氣泡外面（.mes_block 裡、.mes_text 前面），直接壓在卡片的背景圖上。
+     先前只有灰字沒有底，亮色背景一來整段就看不見（owner 2026-09-04：準備過程
+     完全沒底色，沒人看得完）。給它們一片跟彈層同一組變數的底：作者把彈層漆成
+     亮色時這裡跟著亮、字跟著深，不用另外照顧。
+  */
+  /*
+     思考過程、準備軌跡這兩塊都住在氣泡文流裡：底色與邊框從 currentColor 調，文字 inherit。
+     先前用彈層的深色底（--lt-canvas-sheet-bg），在亮色卡上就是一塊黑膏藥
+     （owner 2026-09-05：「正在回想先前的劇情」那格沒吃到美化）。
+  */
+  .mes_reasoning_details {
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-block-radius, var(--lt-canvas-radius));
+    border: var(--lt-canvas-block-border, 1px solid color-mix(in srgb, currentColor 22%, transparent));
+    background: var(--lt-canvas-block-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: inherit;
+  }
+
+  .mes_reasoning_details > summary {
+    cursor: pointer;
+    opacity: 0.75;
+  }
+
+  .mes_reasoning {
+    white-space: pre-wrap;
+    padding: 8px 0 0;
+    line-height: 1.6;
+  }
+
+  /* 等回覆時的準備軌跡：跟準備過程面板同一組底色，做過的步驟壓暗、當下這步亮著。 */
+  .lt-prep-live {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-block-radius, var(--lt-canvas-radius));
+    border: var(--lt-canvas-block-border, 1px solid color-mix(in srgb, currentColor 22%, transparent));
+    background: var(--lt-canvas-block-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .lt-prep-live-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .lt-prep-live-line.is-past {
+    opacity: 0.6;
+  }
+
+  .lt-prep-live-dot {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent);
+    position: relative;
+    top: 0.55em;
+    animation: lt-canvas-sk 900ms cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  }
+
+  .lt-prep-live-line.is-past .lt-prep-live-dot {
+    background: currentColor;
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .lt-prep-live-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* 中斷卡（照 mobile 的節點名）：跟著卡片文字色走，「繼續」是這裡唯一的主行動。 */
+  .agent-resume-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-block-radius, var(--lt-canvas-radius));
+    border: var(--lt-canvas-block-border, 1px solid color-mix(in srgb, currentColor 22%, transparent));
+    background: var(--lt-canvas-block-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: inherit;
+    font-size: 13px;
+  }
+
+  .agent-resume-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .agent-resume-card__text {
+    font-weight: 600;
+  }
+
+  .agent-resume-card__sub {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  .agent-resume-card__btn {
+    flex: 0 0 auto;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent);
+    color: var(--lt-canvas-accent-fg, #0F1419);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /* 軌跡在上、指示器在下：兩者之間留一口氣 */
+  .lt-prep-live + .chat-typing-indicator {
+    position: relative;
+    top: 8px;
+  }
+
+  /*
+     指示器在氣泡裡一律橫排、寬度照內容：作者的卡常對氣泡裡的子節點寫
+     display:block／width，藥丸會被壓成一條、三個點疊成直排、文字擠掉
+     （owner 2026-09-05 截圖）。這裡把方向與寬度釘死，配色仍跟卡片走。
+  */
+  .mes_text .chat-typing-indicator {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    max-width: 100%;
+    min-width: max-content;
+  }
+
+  .mes_text .chat-typing-indicator .typing-dots {
+    display: inline-flex;
+    flex-direction: row;
+  }
+
+  .mes_text .chat-typing-indicator .typing-label {
+    display: inline;
+    white-space: nowrap;
+  }
+
+  /*
+     動作列：在 .mes_block 的文流裡、緊接氣泡之後，常駐 DOM、只調透明度。
+     桌機平時淡、懸停浮起；觸控裝置沒有懸停，就用一個看得見的常駐透明度——
+     舊版在觸控裝置整組 display:none、桌機絕對定位在氣泡右上角，MMD 卡的作者
+     面板一蓋、長按再被卡片吃掉，玩家就什麼都找不到（owner 2026-09-04 回報）。
+     不寫 margin：uni-app 的 `*{margin:0}` 不在 layer 裡，會把它吃掉；間距用 gap／padding。
+  */
+  .select-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding-top: 2px;
+    opacity: var(--lt-canvas-actions-opacity);
+    transition: opacity 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* 玩家那一列的動作靠左（跟 MMD 舊版 `.mes.User .select-box{left:0}` 同一側）：
+     靠右會頂到畫面右緣，而作者的卡常把固定面板（狀態／索引那一排）貼在右緣——
+     實測 BA 卡在手機上 ⋯ 被它蓋住。 */
+  .mes.User .select-box {
+    /* .mes_block 對玩家那列是 align-items:flex-end，動作列自己得說「我靠左」 */
+    align-self: flex-start;
+    justify-content: flex-start;
+  }
+
+  .mes:hover .select-box,
+  .select-box:focus-within {
+    opacity: var(--lt-canvas-actions-opacity-hover);
+  }
+
+  .extraMesButtonsHint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--lt-canvas-actions-size);
+    height: var(--lt-canvas-actions-size);
+    border-radius: 9999px;
+    cursor: pointer;
+    color: inherit;
+  }
+
+  .extraMesButtonsHint:hover,
+  .extraMesButtonsHint:focus-visible {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  .extraMesButtonsHint > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /*
+     重新生成：只有最新一則 AI 有這顆。藥丸形，跟其他 chip 同一個高度。
+
+     顏色一律從 currentColor 來，不寫死自己的灰：這一列的文字色是作者的卡在設的
+     （亮色主題設深色字），寫死淺灰等於在白底上畫白字——BA 卡上看不見（2026-09-05
+     owner 回報）。邊框與底色也用 currentColor 調出來，卡片換色就一起換。
+  */
+  .lt-msg-regen {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: var(--lt-canvas-actions-size);
+    padding: 0 10px;
+    border-radius: var(--lt-canvas-pill-radius, 9999px);
+    border: var(--lt-canvas-pill-border, 1px solid color-mix(in srgb, currentColor 32%, transparent));
+    background: var(--lt-canvas-pill-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: var(--lt-canvas-pill-fg, inherit);
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .lt-msg-regen:hover,
+  .lt-msg-regen:focus-visible {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  .lt-msg-regen > svg {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 auto;
+  }
+
+  /* 上下文用量：只有百分比與一個等級色。接近上限那一級用品牌金提醒——
+     下一輪很可能會先整理記憶再回覆。 */
+  .lt-context-chip {
+    display: inline-flex;
+    align-items: center;
+    height: var(--lt-canvas-actions-size);
+    padding: 0 9px;
+    border-radius: var(--lt-canvas-pill-radius, 9999px);
+    border: var(--lt-canvas-pill-border, 1px solid color-mix(in srgb, currentColor 32%, transparent));
+    background: var(--lt-canvas-pill-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: var(--lt-canvas-pill-fg, inherit);
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .lt-context-chip.is-high {
+    border-color: var(--lt-canvas-accent);
+  }
+
+  .lt-context-chip.is-full {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  /* 酒館用三個點展開這一組。我們的完整動作清單在浮層裡，
+     這一組預設收起——節點必須在，作者才改得到。 */
+  .extraMesButtons {
+    display: none;
+  }
+
+  @media (hover: none) {
+    .select-box {
+      opacity: var(--lt-canvas-actions-opacity-touch);
+    }
+  }
+
+  /* 還在等回覆的那一列：沒有名字、沒有動作。那顆氣泡還不是一則訊息，
+     掛上身分與動作會讓玩家以為可以對「還沒說出口的話」做事。 */
+  .mes.is-loading .ch_name,
+  .mes.is-loading .select-box {
+    display: none;
+  }
+
+  .swipeRightBlock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .swipeRightBlock.is-empty {
+    display: none;
+  }
+
+  .swipe_left,
+  .swipe_right {
+    cursor: pointer;
+    padding: 0 6px;
+    user-select: none;
+  }
+
+  /* MMD 的「你可以选择开场」：訊息列之後的獨立區塊，一條一條是玩家可挑的第一句話。
+     刻意樸素——卡片沒寫 layer 就天然贏過這裡，改色改排版都不用比特異性。 */
+  .prologue-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 4px 12px 12px;
+  }
+
+  .prologue-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lt-canvas-muted);
+  }
+
+  .prologue-content {
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-line);
+    background: var(--lt-canvas-bubble-ai-bg);
+    color: var(--lt-canvas-fg);
+    cursor: pointer;
+    transition: border-color 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                background 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .prologue-content:hover {
+    border-color: var(--lt-canvas-fg);
+  }
+
+  /* ── 角色介紹 ─────────────────────────────────────────────────── */
+
+  .avatar-body .intro-body {
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .avatar-body .intro-body.is-open {
+    -webkit-line-clamp: unset;
+    display: block;
+  }
+
+  .avatar-body .select-box,
+  .avatar-body .ch_name,
+  .avatar-body .mesAvatarWrapper {
+    display: none;
+  }
+
+  /* 沒有描述文字的介紹列：節點留著（作者的 display:none 規則要打得到），
+     畫面上收起來。作者若對 .item／.mes 寫了 display，這條會讓位——那是他的畫布。 */
+  .avatar-body.is-empty {
+    display: none;
+  }
+
+  /* ── 輸入區 ───────────────────────────────────────────────────── */
+
+  .composer-scope {
+    position: relative;
+    flex: 0 0 auto;
+    z-index: 20;
+  }
+
+  .chat-bottom {
+    background: var(--lt-canvas-composer-bg);
+    border-top: 1px solid var(--lt-canvas-line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* .chat-bottom-wapper / .shortcut-bar-wrapper 的欄寬與置中搬到 layer 外了，
+     見檔頭說明。 */
+
+  /* 橫向捲動一律 edge-to-edge：內容滑到螢幕邊緣才消失，內距交給 inner。 */
+  .shortcut-bar-wrapper {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .shortcut-bar {
+    display: inline-flex;
+    gap: 8px;
+    padding: 8px 12px 0;
+  }
+
+  .shortcut-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-line);
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /*
+     輸入區這一列：幫答｜輸入欄位｜＋。
+
+     色字都走 currentColor：作者的卡會在這一層設一個文字顏色（亮色主題設深色字），
+     寫死我們自己的淺灰等於在亮底上畫白色的圖示——看不到，而且看不出哪裡不對。
+  */
+  .send-msg {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 12px 12px;
+    color: var(--lt-canvas-composer-fg);
+  }
+
+  /* 收起（單行）時幫答鍵與「＋」跟那一行字垂直置中；展開（多行）才貼底。
+     先前一律貼底，燈泡比「說點什麼」低一截（owner 2026-09-05）。 */
+  .send-msg:not(:has(.uni-textarea.is-expanded)) {
+    align-items: center;
+  }
+
+  .uni-textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* 幫答鍵：輸入框左側的一顆圓鈕，右上角掛每次點數。tooltip 只在 hover／聚焦時露出。 */
+  .ai-assistant {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    color: inherit;
+    opacity: 0.72;
+    cursor: pointer;
+  }
+
+  .ai-assistant.is-busy {
+    opacity: 0.5;
+    cursor: progress;
+  }
+
+  .ai-assistant-icon {
+    display: flex;
+  }
+
+  .ai-assistant-icon > svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ai-assistant .beta-badge {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    min-width: 16px;
+    padding: 0 4px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-send-bg);
+    color: var(--lt-canvas-fg);
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+  }
+
+  .ai-assistant .beta-badge:empty {
+    display: none;
+  }
+
+  .ai-assistant .tooltip {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--lt-canvas-menu-bg);
+    color: var(--lt-canvas-menu-fg);
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .ai-assistant:hover .tooltip,
+  .ai-assistant:focus-visible .tooltip {
+    opacity: 1;
+  }
+
+  .ai-assistant .tooltip-arrow {
+    position: absolute;
+    left: 12px;
+    top: 100%;
+    border: 5px solid transparent;
+    border-top-color: var(--lt-canvas-menu-bg);
+  }
+
+  .chat-input-scope {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 4px 8px;
+    border-radius: var(--lt-canvas-composer-radius);
+    border: 1px solid var(--lt-canvas-composer-border);
+    background: var(--lt-canvas-composer-field-bg);
+  }
+
+  .chat-input-scope:focus-within {
+    border-color: var(--lt-canvas-line);
+  }
+
+  .chat-input-scope.is-expanded {
+    padding: 10px;
+  }
+
+  .chat-input-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .chat-input-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--lt-canvas-line);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .chatMsgTextarea {
+    position: relative;
+    width: 100%;
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+
+  .uni-textarea-wrapper {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+
+  /*
+     提示字與輸入字的字重寫在自己身上，不從容器繼承。
+
+     作者的卡把 `.send-msg` 當成一顆確認鍵在漆（它跟 `.ok-btn`／`.save-btn` 寫在同
+     一條規則裡），連帶把整片輸入區變成粗體。粗體的提示字看起來比旁邊的功能鍵還
+     搶眼，而它只是一句「說點什麼」。規則寫在這些節點自己身上就不吃繼承——
+     作者要改仍然改得動（他不寫 layer，天然贏過這裡）。
+  */
+  .uni-textarea-placeholder {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    color: color-mix(in srgb, currentColor 45%, transparent);
+    font-weight: 400;
+    line-height: inherit;
+  }
+
+  .uni-textarea-textarea {
+    display: block;
+    width: 100%;
+    min-height: 1.5em;
+    max-height: 30vh;
+    padding: 0;
+    border: 0;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 400;
+    line-height: inherit;
+  }
+
+  /* 隱藏的送出代理：卡片腳本點的是它，畫面上的主鍵是兩列裡的 .lt-send。MMD 同樣把它藏成 0×0。 */
+  .chat-send-proxy {
+    display: none;
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+
+  .chat-input-collapsed-row,
+  .chat-input-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 36px;
+  }
+
+  .chat-input-scope.is-multiline .chat-input-collapsed-row {
+    align-items: flex-end;
+  }
+
+  .chat-input-row-lead,
+  .chat-input-row-tail {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    min-height: 20px;
+  }
+
+  .chat-input-collapsed-display {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 6px;
+    cursor: text;
+  }
+
+  .chat-input-collapsed-text {
+    display: block;
+    max-height: 7em;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: inherit;
+    font-weight: 400;
+  }
+
+  .chat-input-collapsed-placeholder {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: color-mix(in srgb, currentColor 45%, transparent);
+    font-weight: 400;
+  }
+
+  /* 這一輪要花多少點，兩列都在。點它開模型設定——玩家看到數字的當下，
+     想調的就是模型，不用先去別的地方找入口。 */
+  .mind-type {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    color: inherit;
+    opacity: 0.72;
+    font-weight: 400;
+    cursor: pointer;
+  }
+
+  .mind-type-score {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .icon-box {
+    display: flex;
+    align-items: center;
+  }
+
+  /* 一道閃電，不是一個方塊。先前那個用邊框畫的電池在小尺寸下就是一小塊實色，
+     沒有人看得出它在講什麼——旁邊那個數字是「這一輪要花多少點」。 */
+  .icon-battery {
+    display: block;
+    width: 12px;
+    height: 14px;
+  }
+
+  .icon-battery > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .lt-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--lt-canvas-send-size);
+    height: var(--lt-canvas-send-size);
+    border-radius: 9999px;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .lt-send > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .lt-send.is-send-disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .lt-send .is-spinning {
+    animation: lt-canvas-spin 900ms linear infinite;
+  }
+
+  @keyframes lt-canvas-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .more-options-scope {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding-bottom: 6px;
+  }
+
+  .more-options-scope .btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    color: inherit;
+    opacity: 0.72;
+    cursor: pointer;
+  }
+
+  .more-options-scope .btn-icon > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* ── 訊息選單 ─────────────────────────────────────────────────── */
+
+  /*
+     兩種形態：
+     ・置中覆蓋層（沒有呼出位置、或編輯態）：暗幕 + 訊息預覽 + 選單。
+     ・貼點浮層（is-anchored）：暗幕透明、預覽收起，選單絕對定位在手指／⋯ 按鈕旁
+       （DESIGN §3.2 popover 層 40–79；§3.4 自動翻轉由 canvas-menu-position.ts 算）。
+     暗幕節點在兩種形態都留著：點空白處關閉靠的就是它。
+  */
+  .msg-option-scope {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--lt-canvas-menu-scrim);
+  }
+
+  .msg-option-scope.is-open {
+    display: flex;
+  }
+
+  .msg-option-scope.is-anchored {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+
+  .msg-content-box {
+    max-width: 480px;
+    max-height: 28vh;
+    overflow: hidden;
+    color: var(--lt-canvas-menu-fg);
+  }
+
+  .msg-option-scope.is-anchored .msg-content-box {
+    display: none;
+  }
+
+  /* 改寫態只留編輯區：預覽與選單收起來（節點仍在，作者的規則不落空）。
+     先前三塊同時在，畫面上多了一個預覽框、選單也沒收（owner 2026-09-05）。 */
+  .msg-option-scope.is-editing .msg-content-box,
+  .msg-option-scope.is-editing .msg-options-box {
+    display: none;
+  }
+
+  .msg-options-box {
+    width: min(320px, 90vw);
+    border-radius: var(--lt-canvas-menu-radius);
+    background: var(--lt-canvas-menu-bg);
+    color: var(--lt-canvas-menu-fg);
+    overflow: hidden;
+  }
+
+  .msg-option-scope.is-anchored .msg-options-box {
+    position: absolute;
+    width: min(240px, calc(100vw - 16px));
+    border: 1px solid var(--lt-canvas-sheet-line);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  }
+
+  .option-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+  }
+
+  .option-item.is-disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .option-separator {
+    height: 1px;
+    background: var(--lt-canvas-line);
+  }
+
+  /* ── 「＋」功能面板 ───────────────────────────────────────────── */
+  /*
+     住在 .chat-bottom 裡（照 MMD），兩端同一份、沒有 PC 側欄。
+     用 [hidden] 收起來而不是 v-if 拿掉節點：作者的卡對這一族寫了外觀，
+     節點缺席等於那套外觀從沒存在過。
+  */
+  .more-scope {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 8px;
+    max-width: var(--lt-canvas-column-width);
+    margin: 0 auto;
+    padding: 8px 12px 12px;
+    background: var(--lt-canvas-panel-bg);
+    color: var(--lt-canvas-panel-fg);
+    border-top: 1px solid var(--lt-canvas-line);
+  }
+
+  .more-scope[hidden] {
+    display: none;
+  }
+
+  .more-scope .item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 64px;
+    padding: 8px 4px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-panel-item-bg);
+    cursor: pointer;
+  }
+
+  /* 停用（存檔滿了）：只降權，不拿掉節點、不吃掉點擊——點下去由頁面說明為什麼不能用 */
+  .more-scope .item.is-disabled,
+  .shortcut-bar .item.is-disabled {
+    opacity: 0.45;
+  }
+
+  .more-scope .item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    color: inherit;
+  }
+
+  .more-scope .item-icon svg {
+    display: block;
+    width: 70%;
+    height: 70%;
+  }
+
+  .more-scope .item-title {
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: center;
+    color: var(--lt-canvas-panel-fg);
+  }
+
+  .msg-modify-scope {
+    display: none;
+    width: min(480px, 92vw);
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .msg-modify-scope.is-open {
+    display: flex;
+  }
+
+  .modify-input-box {
+    border-radius: var(--lt-canvas-menu-radius);
+    background: var(--lt-canvas-menu-bg);
+    padding: 10px 12px;
+  }
+
+  .edit_textarea {
+    width: 100%;
+    min-height: 30vh;
+    border: 0;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--lt-canvas-menu-fg);
+    font: inherit;
+  }
+
+  .confirm-edit-scope {
+    display: flex;
+    align-items: center;
+  }
+
+  .confirm-edit-scope .cancel-btn,
+  .confirm-edit-scope .ok-btn {
+    flex: 1 1 0;
+    text-align: center;
+    padding: 10px 0;
+    border-radius: var(--lt-canvas-menu-radius);
+    background: var(--lt-canvas-menu-bg);
+    color: var(--lt-canvas-menu-fg);
+    cursor: pointer;
+  }
+
+  .confirm-edit-scope .btn-gap {
+    width: 8px;
+  }
+
+  /* ── 系統訊息 ─────────────────────────────────────────────────── */
+
+  .mes[is_system='true']:not(.avatar-body) .mes_text {
+    background: transparent;
+    color: var(--lt-canvas-muted);
+    font-size: 13px;
+  }
+
+  .lt-system-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .lt-system-action {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-line);
+    font-size: 12px;
+    color: var(--lt-canvas-fg);
+    cursor: pointer;
+  }
+
+  /* ── 彈層 ─────────────────────────────────────────────────────── */
+  /*
+     z-index 刻意低於停止鍵（見檔頭：#mes_stop 是 60）。生成中打開設定，
+     停止鍵仍然浮在最上面按得到——這是 I-2 的產品邊界，不是層級偏好。
+  */
+
+  .u-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .u-popup[hidden] {
+    display: none;
+  }
+
+  .u-mask {
+    position: absolute;
+    inset: 0;
+    background: var(--lt-canvas-sheet-scrim);
+  }
+
+  /*
+     所有彈層都是同一個寬度：一條置中的窄欄。
+
+     它們是彈出的面板，不是頁面。跟著對話欄寬（現在最寬 1200px）走的話，一份
+     只有幾格的表單會被拉成一整片，而同一個東西在桌機與手機上長成兩種樣子，
+     玩家要學兩次。手機的滿寬規則在下面的斷點裡。
+  */
+  .u-popup__content {
+    position: relative;
+    width: min(560px, calc(100vw - 32px));
+    max-height: var(--lt-canvas-sheet-max-height);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    border-top-left-radius: var(--lt-canvas-sheet-radius);
+    border-top-right-radius: var(--lt-canvas-sheet-radius);
+    background: var(--lt-canvas-sheet-bg);
+    color: var(--lt-canvas-sheet-fg);
+  }
+
+  /*
+     裝著模型選單的那一片。
+
+     它是一個彈出的面板，不是一個頁面：桌機上收成一條置中的窄欄，讀起來跟手機上
+     是同一個東西。寬到整個視窗的話，同一份內容在兩種寬度會長成兩種樣子，玩家要
+     學兩次。手機的滿寬規則在下面的斷點裡。
+  */
+  /*
+     裡面那一片自己帶了關閉鍵時，殼上這顆就收起來——同一個角落擺兩顆 ×，玩家不知道
+     該按哪一顆，而它們做的是同一件事。節點留著：作者的卡對這些名字寫了外觀。
+
+     逐個點名而不是用一個共同的鉤子：這些名字是各自那一片在原平台的名字
+     （`.mp-close` 模型設定、`.close-btn` 自訂指令、`.icon-back` 用戶人設），
+     作者認得的是它們。
+  */
+  .u-popup__content:has(.mp-close) .u-popup__content__close,
+  .u-popup__content:has(.np-close) .u-popup__content__close,
+  .u-popup__content:has(.close-btn) .u-popup__content__close,
+  .u-popup__content:has(.header-scope .icon-back) .u-popup__content__close {
+    display: none;
+  }
+
+  /* 殼上那顆關閉鍵浮在內容之上：卡片常在右上角放自己的固定工具列，
+     不抬高的話它會被蓋住，按下去沒有反應。 */
+  .u-popup__content__close {
+    position: absolute;
+    z-index: 2;
+    top: 8px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  /* ── 模型設定／對話設定 ───────────────────────────────────────── */
+
+  .model-setting-scope,
+  .history-setting-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    color: var(--lt-canvas-sheet-fg);
+  }
+
+  /* 標題列右側要讓開殼上那顆絕對定位的關閉鍵，否則兩顆 × 疊在同一個點上，
+     按到哪一顆看運氣。 */
+  .mp-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .mp-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .mp-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .mp-info-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-panel-item-bg);
+  }
+
+  .mp-model-name {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mp-energy-pill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    flex: 0 0 auto;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mp-setting-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .mp-model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mp-group-title {
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    padding-bottom: 4px;
+  }
+
+  .mp-model-family + .mp-model-family {
+    margin-top: 12px;
+  }
+
+  .mp-family-title {
+    font-size: 13px;
+    padding-bottom: 6px;
+  }
+
+  .mp-model-item-lane {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-line);
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .mp-model-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid transparent;
+    background: var(--lt-canvas-panel-item-bg);
+    cursor: pointer;
+  }
+
+  .mp-model-item + .mp-model-item {
+    margin-top: 8px;
+  }
+
+  .mp-model-item.selected {
+    border-color: var(--lt-canvas-accent);
+  }
+
+  .mp-model-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mp-model-item-meta {
+    display: inline-flex;
+    gap: 6px;
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .mp-model-item-score {
+    flex: 0 0 auto;
+    min-width: 48px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--lt-canvas-accent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mp-empty {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .mp-card,
+  .mp-switch-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-panel-item-bg);
+  }
+
+  .mp-card-head,
+  .mp-sw-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mp-card-title,
+  .mp-sw-title {
+    font-size: 13px;
+  }
+
+  .mp-card-hint,
+  .mp-sw-desc {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .mp-tokens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mp-token-btn {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-line);
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .mp-token-btn.selected {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  /* ── 模型選單（彈層版）───────────────────────────────────────── */
+
+  /*
+     只有 `.mp-setting-body` 會捲。這一段裡沒有第二個捲動容器、沒有固定高度、
+     沒有浮在清單上的東西（高消費確認除外，它是 modal）。
+
+     捲動容器兩側各吃掉彈層的 16px 內距再自己補回來：橫滑的 rail 要滑到彈層
+     邊緣才消失（DESIGN §3.3），而一個 overflow 容器裡的負 margin 不會「露出去」，
+     只會變成橫向捲動——所以是容器自己先寬到邊。
+  */
+  .model-setting-scope {
+    flex: 1 1 auto;
+  }
+
+  /*
+     負 margin 在這裡不能用：uni-app 的 `* { margin: 0 }` 不在任何 layer 裡，
+     會贏過 @layer 裡的所有 margin（畫布置中那一條也是為此寫在 layer 外）。
+     所以「寬到邊」一律用 position + width 做，這一段裡也不寫任何 margin。
+  */
+  .model-setting-scope .mp-setting-body {
+    position: relative;
+    left: -16px;
+    box-sizing: border-box;
+    width: calc(100% + 32px);
+    flex: 1 1 auto;
+    padding: 0 16px;
+    overscroll-behavior: contain;
+  }
+
+  .ms-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 8px;
+    font-family: var(--lt-canvas-font);
+    color: var(--lt-canvas-sheet-fg);
+  }
+
+  .ms-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  .ms-hint,
+  .ms-note,
+  .ms-src {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-src {
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  /* 搜尋：一顆藥丸輸入框 */
+  .ms-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: var(--lt-canvas-pill-radius, 9999px);
+    border: var(--lt-canvas-pill-border, 1px solid color-mix(in srgb, currentColor 22%, transparent));
+    background: var(--lt-canvas-pill-bg, color-mix(in srgb, currentColor 6%, transparent));
+    color: var(--lt-canvas-pill-fg, inherit);
+  }
+
+  .ms-search-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+  }
+
+  .ms-search-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ms-search-clear {
+    flex: 0 0 auto;
+    padding: 0 4px;
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+
+  .ms-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    color: inherit;
+  }
+
+  .ms-search-input::placeholder {
+    color: inherit;
+    opacity: 0.55;
+  }
+
+  /* 橫滑 rail：容器不留內距，內層給兩端 16px */
+  .ms-rail {
+    position: relative;
+    left: -16px;
+    box-sizing: border-box;
+    width: calc(100% + 32px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ms-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ms-rail-inner {
+    display: inline-flex;
+    gap: 8px;
+    padding: 0 16px;
+    white-space: nowrap;
+  }
+
+  .ms-chip,
+  .ms-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: var(--lt-canvas-pill-radius, 9999px);
+    border: var(--lt-canvas-pill-border, 1px solid color-mix(in srgb, currentColor 32%, transparent));
+    background: var(--lt-canvas-pill-bg, color-mix(in srgb, currentColor 7%, transparent));
+    font-size: 12px;
+    color: var(--lt-canvas-pill-fg, inherit);
+    cursor: pointer;
+    user-select: none;
+    transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+      color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ms-chip.is-on,
+  .ms-pill.is-on {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .ms-sort {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* 設定卡 */
+  .ms-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--lt-canvas-sheet-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .ms-card-title {
+    font-size: 13px;
+  }
+
+  .ms-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ms-switch-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .ms-switch-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .ms-switch-label {
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-listhead {
+    padding-top: 4px;
+  }
+
+  /* 清單：一列一張卡，詳情長在同一張卡裡 */
+  .ms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ms-family {
+    border-radius: var(--lt-canvas-sheet-radius);
+    border: 1px solid transparent;
+    background: var(--lt-canvas-sheet-item-bg);
+    transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ms-family.is-current {
+    border-color: var(--lt-canvas-accent);
+  }
+
+  .ms-family.is-active {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+  }
+
+  .ms-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .ms-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .ms-tile-img {
+    width: 22px;
+    height: 22px;
+    display: block;
+  }
+
+  .ms-tile-mono {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--lt-canvas-sheet-fg);
+    opacity: 0.6;
+  }
+
+  .ms-name-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .ms-name-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .ms-name {
+    font-size: 14px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .ms-meta {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ms-price-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex: 0 0 auto;
+    gap: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms-price {
+    font-size: 13px;
+  }
+
+  .ms-price.is-accent {
+    color: var(--lt-canvas-accent);
+  }
+
+  .ms-price-was {
+    font-size: 11px;
+    text-decoration: line-through;
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  .ms-caret {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    color: var(--lt-canvas-sheet-faint);
+    transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ms-caret.is-open {
+    transform: rotate(180deg);
+  }
+
+  /* 徽章：整頁只有「目前使用」與折扣是金色，其餘退到背景 */
+  .ms-badge {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 1px 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 10px;
+    line-height: 16px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-badge.is-accent {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  /* 狀態燈：只有例外態才亮 */
+  .ms-dot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+  }
+
+  .ms-dot-warning,
+  .ms-dot-fill-warning,
+  .ms-dot-fill-yellow {
+    background: #ffb703;
+  }
+
+  .ms-dot-danger,
+  .ms-dot-fill-danger,
+  .ms-dot-fill-red {
+    background: var(--lt-canvas-danger);
+  }
+
+  .ms-dot-fill-green {
+    background: #09be4f;
+  }
+
+  .ms-dot-unknown,
+  .ms-dot-fill-unknown,
+  .ms-dot-none,
+  .ms-dot-fill-none {
+    background: var(--lt-canvas-sheet-line);
+  }
+
+  /* 詳情：跟列在同一張卡裡，上緣一條線分開 */
+  .ms-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--lt-canvas-sheet-line);
+  }
+
+  .ms-detail-desc {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--lt-canvas-muted);
+    white-space: pre-line;
+  }
+
+  .ms-detail-eyebrow {
+    padding-top: 4px;
+  }
+
+  .ms-detail-name {
+    font-size: 14px;
+  }
+
+  /* 線路列：一顆單選圓點 */
+  .ms-opt {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    cursor: pointer;
+  }
+
+  .ms-opt.is-on {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+  }
+
+  .ms-opt-line1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  /* 圓點用文字色描邊：走 muted 的話，作者把彈層漆成亮色時它會淡到看不見 */
+  .ms-radio {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 1.5px solid currentColor;
+    opacity: 0.45;
+    background: transparent;
+  }
+
+  .ms-radio.is-on {
+    border: 5px solid var(--lt-canvas-accent);
+    opacity: 1;
+  }
+
+  .ms-opt-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ms-opt-price {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms-opt-meta {
+    padding-left: 24px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-opt-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0 0 24px;
+    border-top: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 12px;
+    color: var(--lt-canvas-accent);
+  }
+
+  .ms-opt-entry-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+
+  .ms-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 36px;
+    border-radius: 9999px;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .ms-signals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ms-kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .ms-kv-k {
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-kv-v {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms-kv-v.is-none {
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  /* 線路可用率（第二層） */
+  .ms-lane-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    align-self: flex-start;
+    font-size: 12px;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  .ms-lane-back-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .ms-lane-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .ms-chip-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-lane-pct {
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ms-lane-pct-cap {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-lane-empty {
+    padding: 12px 0;
+  }
+
+  .ms-buckets {
+    display: flex;
+    gap: 0.35%;
+    height: 28px;
+  }
+
+  .ms-bucket {
+    flex: 0 0 auto;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--lt-canvas-sheet-line);
+    opacity: 0.85;
+  }
+
+  .ms-bucket-sel {
+    opacity: 1;
+    outline: 1px solid var(--lt-canvas-sheet-fg);
+  }
+
+  .ms-bucket-green {
+    background: #09be4f;
+  }
+
+  .ms-bucket-amber {
+    background: #ffb703;
+  }
+
+  .ms-bucket-red {
+    background: var(--lt-canvas-danger);
+  }
+
+  .ms-bucket-none {
+    background: var(--lt-canvas-sheet-line);
+  }
+
+  .ms-bucket-tipwrap {
+    position: relative;
+    height: 40px;
+  }
+
+  .ms-bucket-dot {
+    position: absolute;
+    top: -2px;
+    width: 6px;
+    height: 6px;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    background: var(--lt-canvas-sheet-fg);
+  }
+
+  .ms-bucket-tip {
+    position: absolute;
+    top: 8px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--lt-canvas-sheet-pop-bg);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .ms-bucket-tip-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ms-bucket-tip-t {
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-bucket-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  .ms-bucket-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .ms-bucket-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .ms-bucket-sw {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  /* 空態 */
+  .ms-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 32px 0;
+    text-align: center;
+  }
+
+  .ms-empty-title {
+    font-size: 14px;
+  }
+
+  /* 骨架列：形狀跟真列一樣，等資料的時候版面不跳 */
+  .sk {
+    border-radius: 6px;
+    background: var(--lt-canvas-sheet-item-bg-on);
+    animation: lt-canvas-sk 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+  }
+
+  .ms-sk-line {
+    height: 12px;
+  }
+
+  .ms-sk-line.is-thin {
+    height: 9px;
+  }
+
+  @keyframes lt-canvas-sk {
+    from { opacity: 0.45; }
+    to { opacity: 1; }
+  }
+
+  /* 高消費確認：modal，蓋在彈層（z 50）之上 */
+  .ms-cost-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--lt-canvas-sheet-scrim);
+  }
+
+  .ms-cost {
+    width: min(360px, 100%);
+    padding: 20px;
+    border-radius: var(--lt-canvas-sheet-radius);
+    background: var(--lt-canvas-sheet-pop-bg);
+    color: var(--lt-canvas-sheet-fg);
+  }
+
+  .ms-cost-title {
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .ms-cost-suggest {
+    text-align: center;
+  }
+
+  /* ── 彈層底部的收尾鍵（模型設定／歷史對話共用）───────────────── */
+
+  /*
+     一定要限定在彈層裡。`bottom` 與 `btn` 是很平凡的名字，卡片的訊息內文裡
+     常常就有一個 class="bottom" 或 class="btn"——不限定的話，我們的藥丸樣式會
+     跑進卡片的內容裡，而那種走樣只在剛好用到這兩個名字的卡片上看得到。
+  */
+  .u-popup__content .bottom {
+    display: flex;
+    flex: 0 0 auto;
+    padding-top: 4px;
+  }
+
+  .u-popup__content .bottom .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* ── 一次性確認 ───────────────────────────────────────────────── */
+
+  .confirm-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 0;
+  }
+
+  .confirm-content {
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .confirm-bottom {
+    display: flex;
+    align-items: center;
+  }
+
+  .confirm-bottom .ok-btn,
+  .confirm-bottom .cancel-btn {
+    flex: 1 1 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .confirm-bottom .ok-btn {
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .confirm-bottom .cancel-btn {
+    border: 1px solid var(--lt-canvas-line);
+    color: var(--lt-canvas-muted);
+  }
+
+  .confirm-bottom .btn-gap {
+    width: 12px;
+    flex: 0 0 auto;
+  }
+
+  /* ── 一疊選項（更換背景）─────────────────────────────────────── */
+
+  .modify-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .modify-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .modify-scope .modify-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid transparent;
+    background: var(--lt-canvas-panel-item-bg);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .modify-scope .modify-item.is-current {
+    border-color: var(--lt-canvas-accent);
+  }
+
+  /* ── 歷史對話 ─────────────────────────────────────────────────── */
+
+  .conversation-list-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .cl-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .cl-title-count {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--lt-canvas-muted);
+  }
+
+  /* 滿檔提示：清單頂端一句話，底色用列的底色，不另起顏色 */
+  .cl-full {
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .cl-empty {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cl-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid transparent;
+    background: var(--lt-canvas-panel-item-bg);
+    cursor: pointer;
+  }
+
+  .cl-item.is-current {
+    border-color: var(--lt-canvas-accent);
+    cursor: default;
+  }
+
+  .cl-item-avatar {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--lt-canvas-line);
+  }
+
+  .cl-item-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .cl-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .cl-item-name {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cl-item-time {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cl-item-tag {
+    flex: 0 0 auto;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+    font-size: 11px;
+  }
+
+  .cl-item.is-editing {
+    cursor: default;
+  }
+
+  .cl-item-summary {
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cl-item-meta {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  .cl-rename-input {
+    width: 100%;
+    min-height: 32px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+    color: var(--lt-canvas-fg);
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .cl-rename-input:focus {
+    border-color: var(--lt-canvas-accent);
+  }
+
+  /* 列上的動作：鉛筆與刪除都是 32px 的圓形 icon 鍵；刪除視覺降權（淡一階，不上色） */
+  .cl-item-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .cl-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--lt-canvas-muted);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .cl-action:hover,
+  .cl-action:focus-visible {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+    color: var(--lt-canvas-fg);
+  }
+
+  .cl-action svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+
+  .cl-action-delete {
+    color: var(--lt-canvas-sheet-faint);
+  }
+
+  .cl-action-done {
+    color: var(--lt-canvas-accent);
+  }
+
+  /* ── 用戶人設 ─────────────────────────────────────────────────── */
+
+  .role-setting {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .role-setting .header-scope .header-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-right: 36px;
+  }
+
+  .role-setting .page-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .role-setting .icon-back,
+  .role-setting .complete-btn {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .role-setting .icon-back {
+    color: var(--lt-canvas-muted);
+  }
+
+  .role-setting .complete-btn {
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .role-setting .card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  /*
+     每一格的標題用同一個名字、同一個取值。
+
+     先前性別那一格的標題看起來比另外兩格淡——不是我們給了它別的顏色，是作者的卡
+     只認得 `.input-wrapper` 與 `.textarea-wrapper` 兩種卡，替它們的標題上了色，
+     漏掉了性別那一張。只要三格都走同一個變數，作者改一次就三格一起改。
+  */
+  .role-setting .label {
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .role-setting .input-dark,
+  .role-setting .textarea-dark {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    box-sizing: border-box;
+  }
+
+  .role-setting .textarea-dark {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  .role-setting .char-count {
+    align-self: flex-end;
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .role-setting .radio-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .role-setting .gender-item {
+    flex: 1 1 auto;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .role-setting .gender-item.selected {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .role-setting-error {
+    font-size: 12px;
+    color: var(--lt-canvas-danger);
+  }
+
+  /* 虛構框架：四檔排成一列（由弱到強），底下寫出這一檔什麼時候該用。 */
+  .role-setting .sandbox-item {
+    flex: 1 1 auto;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .role-setting .sandbox-item.selected {
+    border-color: var(--lt-canvas-accent);
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .role-setting .sandbox-hint,
+  .role-setting .advanced-desc {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
+  }
+
+  /* 進階：絕大多數玩家不需要，收起來；節點常駐，作者打得到。 */
+  .role-setting .advanced-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .role-setting .advanced-body[hidden] {
+    display: none;
+  }
+
+  .role-setting .advanced-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .role-setting .advanced-reset {
+    font-size: 12px;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  .role-setting .advanced-reset[hidden] {
+    display: none;
+  }
+
+  /* ── 自訂指令 ─────────────────────────────────────────────────── */
+
+  .custom-instruction-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .custom-instruction-scope .list-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  /*
+     右上角的關閉鍵是絕對定位、蓋在殼的角落上（MMD 就是這樣）。標題列自己的
+     右側鍵要讓開那一塊，否則兩顆會疊在一起——按下去的是哪一顆看運氣。
+  */
+  .custom-instruction-scope .header-scope {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 36px;
+  }
+
+  .custom-instruction-scope .header-scope .title {
+    flex: 1 1 auto;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .custom-instruction-scope .close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .custom-instruction-scope .add-btn {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .custom-instruction-scope .add-btn.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .custom-instruction-scope .sub-title,
+  .custom-instruction-scope .ci-count {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .custom-instruction-scope .empty-default-show {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .custom-instruction-scope .empty-default-show[hidden] {
+    display: none;
+  }
+
+  .custom-instruction-scope .content-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .custom-instruction-scope .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .custom-instruction-scope .item .left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .custom-instruction-scope .item-text {
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+
+  .custom-instruction-scope .item-origin {
+    align-self: flex-start;
+    padding: 1px 8px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-sheet-line);
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .custom-instruction-scope .item .right {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .custom-instruction-scope .ci-btn {
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .custom-instruction-scope .ci-btn-primary {
+    border-color: transparent;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .custom-instruction-scope .ci-btn-danger {
+    color: var(--lt-canvas-danger);
+  }
+
+  .custom-instruction-scope .edit-scope .form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .custom-instruction-scope .custom-textarea-box {
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .custom-instruction-scope .custom-textarea,
+  .custom-instruction-scope .custom-textarea-box textarea {
+    width: 100%;
+    min-height: 64px;
+    padding: 10px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .custom-instruction-scope .ci-add-error,
+  .custom-instruction-scope .ci-error {
+    font-size: 12px;
+    color: var(--lt-canvas-danger);
+  }
+
+  .custom-instruction-scope .ci-add-error[hidden] {
+    display: none;
+  }
+
+  .custom-instruction-scope .ci-loading {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .custom-instruction-scope .ci-retry {
+    margin-left: 8px;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  /* ── AI 筆記 ──────────────────────────────────────────────────── */
+
+  .notepad-scope {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+
+  .np-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-right: 36px;
+  }
+
+  .np-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .np-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9999px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .np-subtitle,
+  .np-footnote,
+  .np-loading {
+    font-size: 11px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-footnote {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .np-footnote.is-over {
+    color: var(--lt-canvas-danger);
+  }
+
+  .np-input-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .np-textarea {
+    width: 100%;
+    min-height: 220px;
+    padding: 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .np-error {
+    padding: 24px 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-retry {
+    margin-left: 8px;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  .np-templates[hidden] {
+    display: none;
+  }
+
+  .np-templates {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .np-template-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    font-size: 13px;
+  }
+
+  .np-template-empty {
+    padding: 16px 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-template-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .np-template-apply {
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  /* 模板分享碼：貼碼→先看→匯入；產生→複製／停止分享。輸入框是 h() 建的真 input，
+     殼的固定寬高打不進來，這裡的寬度規則才會生效。 */
+  .np-code-hint[hidden],
+  .np-preview[hidden],
+  .np-share[hidden] {
+    display: none;
+  }
+
+  .np-import {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .np-code-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--lt-canvas-line);
+    border-radius: 9999px;
+    background: var(--lt-canvas-sheet-item-bg);
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .np-code-btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-pill-radius, 9999px);
+    border: var(--lt-canvas-pill-border, 1px solid color-mix(in srgb, currentColor 32%, transparent));
+    background: var(--lt-canvas-pill-bg, color-mix(in srgb, currentColor 7%, transparent));
+    color: var(--lt-canvas-pill-fg, inherit);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .np-code-btn.is-disabled,
+  .np-preview-ok.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .np-code-hint {
+    padding: 0 12px;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-preview,
+  .np-share {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    font-size: 13px;
+  }
+
+  .np-preview-title {
+    font-weight: 600;
+  }
+
+  .np-preview-body {
+    max-height: 40vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+
+  .np-preview-actions,
+  .np-share-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+  }
+
+  .np-preview-ok,
+  .np-share-copy,
+  .np-share-close,
+  .np-template-share {
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  .np-preview-cancel,
+  .np-template-delete-cancel {
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  /* 刪除與停止分享是破壞動作：觸屏上視覺降權，不用醒目色。 */
+  .np-template-delete,
+  .np-template-delete-ok,
+  .np-share-revoke {
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .np-template-delete-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--lt-canvas-muted);
+    font-size: 12px;
+  }
+
+  .np-share-code {
+    padding: 8px 0;
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    user-select: all;
+    cursor: pointer;
+  }
+
+  .np-share-hint {
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  /* 從別段對話抄筆記；覆蓋是不可逆的，所以確認就留在那一列上。 */
+  .np-copy[hidden],
+  .np-discard[hidden],
+  .np-save-template-btn[hidden] {
+    display: none;
+  }
+
+  .np-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .np-copy-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    font-size: 13px;
+  }
+
+  .np-copy-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .np-copy-empty {
+    padding: 16px 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-copy-pick,
+  .np-copy-ok,
+  .np-discard-ok {
+    flex: 0 0 auto;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  .np-copy-cancel,
+  .np-discard-keep {
+    flex: 0 0 auto;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  .np-copy-confirm-text,
+  .np-discard-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--lt-canvas-muted);
+  }
+
+  .np-discard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    font-size: 13px;
+  }
+
+  .np-copy-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .np-copy-btn.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .np-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .np-template-btn,
+  .np-save-template-btn,
+  .np-save-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .np-save-btn {
+    flex: 1 1 auto;
+    border-color: transparent;
+    background: var(--lt-canvas-accent-bg);
+    color: var(--lt-canvas-accent);
+  }
+
+  .np-save-btn.is-disabled,
+  .np-template-btn.is-disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .np-save-template-btn[hidden] {
+    display: none;
+  }
+
+  .np-message {
+    font-size: 12px;
+    color: var(--lt-canvas-danger);
+  }
+
+  .np-message[hidden] {
+    display: none;
+  }
+
+  /* ── 這則回覆的組成 ─────────────────────────────────────────── */
+  /*
+     mobile 聊天頁的「上下文用量」彈窗搬過來的。那份的每一條都寫死了深色底與
+     灰白字（它只活在主站的深色主題裡）；這裡一條都不能搬：畫布的殼是作者漆的，
+     作者把彈層漆成亮色時，寫死的深底就是一個黑框、寫死的白字就讀不到。
+     所以字色全部 inherit，底色與分隔線一律用殼從 currentColor 調出來的那幾個
+     變數（.u-popup__content 上定義）；只有圓環的分段保留語意色，那是資料的顏色，
+     由元件以 fill 屬性帶進來，不在這裡寫。
+
+     這一段不寫 margin：uni-app 的 `* { margin: 0 }` 不在 layer 裡，會贏過這裡的
+     每一條 margin；間距全靠 gap 與 padding。
+  */
+
+  .context-breakdown-scope {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    color: inherit;
+  }
+
+  .cb-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding-right: 36px;
+  }
+
+  .cb-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cb-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .cb-subtitle,
+  .cb-note,
+  .cb-metric-label,
+  .cb-row-sub,
+  .cb-row-percent,
+  .cb-billing-item-label {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cb-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  /* 載入中：骨架。光帶走 transform，不動 background-position。 */
+  .cb-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  .cb-loading-row {
+    position: relative;
+    height: 44px;
+    border-radius: var(--lt-canvas-radius);
+    overflow: hidden;
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .cb-loading-row::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(120deg, transparent 0%, var(--lt-canvas-sheet-item-bg-on) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: cb-shimmer 1.8s infinite ease-in-out;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  @keyframes cb-shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cb-loading-row::after {
+      animation: none;
+      transform: translateX(0);
+    }
+  }
+
+  .cb-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px 16px;
+    text-align: center;
+  }
+
+  .cb-empty-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cb-retry {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 13px;
+    color: var(--lt-canvas-accent);
+    cursor: pointer;
+  }
+
+  /* 圓環＋總計 */
+  .cb-overview {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .cb-donut {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+  }
+
+  .cb-donut-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .cb-donut-segment {
+    cursor: pointer;
+    /* 分段之間留一條細縫；顏色跟著殼的文字色走，深底淺縫、亮底深縫。 */
+    stroke: currentColor;
+    stroke-opacity: 0.18;
+    stroke-width: 0.8;
+    outline: none;
+    transition: transform var(--dur-fast, 150ms) var(--ease-in-out, ease), opacity var(--dur-fast, 150ms) var(--ease-in-out, ease);
+  }
+
+  .cb-donut-inner {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 72px;
+    height: 72px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .cb-donut-value {
+    max-width: 68px;
+    font-size: 15px;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+
+  .cb-donut-label {
+    max-width: 68px;
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--lt-canvas-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cb-donut-percent {
+    font-size: 10px;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+
+  .cb-metrics {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cb-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .cb-metric-value {
+    font-size: 15px;
+    line-height: 1.15;
+    font-weight: 700;
+  }
+
+  /* 選中的那桶（放大版一列）與 MOD 明細 */
+  .cb-active-detail {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .cb-mod-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cb-mod-head.is-expandable {
+    cursor: pointer;
+  }
+
+  .cb-mod-head.is-expandable:hover {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+  }
+
+  .cb-mod-chevron {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    color: var(--lt-canvas-muted);
+    transform: rotate(45deg);
+    transition: transform var(--dur-fast, 150ms) var(--ease-in-out, ease);
+  }
+
+  .cb-mod-head.is-expanded .cb-mod-chevron {
+    transform: rotate(-135deg);
+  }
+
+  .cb-mod-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cb-mod-detail-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .cb-mod-detail-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+  }
+
+  .cb-mod-detail-tokens {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* 清單 */
+  .cb-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .cb-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: var(--lt-canvas-radius);
+    cursor: default;
+    transition: background var(--dur-fast, 150ms) var(--ease-in-out, ease), opacity var(--dur-fast, 150ms) var(--ease-in-out, ease);
+  }
+
+  .cb-row.is-selectable {
+    cursor: pointer;
+  }
+
+  .cb-row.is-selectable:hover {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+  }
+
+  .cb-row.is-active {
+    background: var(--lt-canvas-sheet-item-bg-on);
+  }
+
+  .cb-row.is-unavailable {
+    opacity: 0.55;
+  }
+
+  .cb-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cb-dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+  }
+
+  .cb-row-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .cb-row-title {
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+
+  .cb-row-value {
+    width: 96px;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+
+  .cb-row-tokens {
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* 本輪消耗 */
+  .cb-billing {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--lt-canvas-radius);
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .cb-billing.is-unavailable {
+    opacity: 0.72;
+  }
+
+  .cb-billing-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .cb-billing-total {
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .cb-billing-label {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .cb-billing-total-value {
+    font-size: 17px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .cb-billing-total-value.is-empty {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lt-canvas-muted);
+  }
+
+  .cb-billing-hit {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border-radius: 9999px;
+    background: var(--lt-canvas-accent-bg);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .cb-billing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .cb-billing-item {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    text-align: center;
+  }
+
+  .cb-billing-item.is-cache {
+    background: var(--lt-canvas-accent-bg);
+  }
+
+  .cb-billing-item-label {
+    white-space: nowrap;
+  }
+
+  .cb-billing-item-value {
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  /* ── AI 筆記／永久記憶 ────────────────────────────────────────── */
+  /*
+     mobile memoryPage 搬過來的彈窗版。那一頁的每一條都寫死了深色底、灰白字與
+     金色標籤（它只活在主站的深色主題裡）；這裡一條都不能搬：畫布的殼是作者漆的，
+     作者把彈層漆成亮色時，寫死的深底就是一個黑框、寫死的白字就讀不到、金字在白底
+     上也不到對比門檻。所以字色全部 inherit，底色、邊框、標籤一律從 currentColor
+     調出來（殼在 .u-popup__content 上定義的那幾個變數，或直接 color-mix）。
+
+     這一段不寫 margin：uni-app 的 `* { margin: 0 }` 不在 layer 裡，會贏過這裡的
+     每一條 margin；間距全靠 gap 與 padding。
+  */
+
+  .memory-scope {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    color: inherit;
+  }
+
+  .mem-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    padding-right: 36px;
+  }
+
+  .mem-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .mem-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .mem-subtitle,
+  .mem-time,
+  .mem-empty-text,
+  .mem-error-text {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--lt-canvas-muted);
+  }
+
+  .mem-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 9999px;
+    color: var(--lt-canvas-muted);
+    cursor: pointer;
+  }
+
+  /* 載入中：骨架。光帶走 transform，不動 background-position。 */
+  .mem-loading {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 8px;
+  }
+
+  .mem-loading-row {
+    position: relative;
+    height: 72px;
+    border-radius: var(--lt-canvas-radius);
+    overflow: hidden;
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .mem-loading-row::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: linear-gradient(120deg, transparent 0%, var(--lt-canvas-sheet-item-bg-on) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: mem-shimmer 1.8s infinite ease-in-out;
+    pointer-events: none;
+    will-change: transform;
+  }
+
+  @keyframes mem-shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mem-loading-row::after {
+      animation: none;
+      transform: translateX(0);
+    }
+  }
+
+  .mem-empty,
+  .mem-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 16px;
+    text-align: center;
+  }
+
+  .mem-empty-text,
+  .mem-error-text {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .mem-retry {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    font-size: 13px;
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .mem-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mem-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    border: 1px solid color-mix(in srgb, currentColor 8%, transparent);
+    transition: opacity var(--dur-fast, 150ms) var(--ease-in-out, ease);
+  }
+
+  .mem-card.is-deleting {
+    opacity: 0.5;
+  }
+
+  .mem-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* 來源標籤：角色自己記的用較實的底＋邊框，自動整理的用較淡的底。
+     兩者都從 currentColor 調——深底得到淺色標籤、亮底得到深色標籤。 */
+  .mem-source {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    color: inherit;
+  }
+
+  .mem-source.is-agent {
+    background: var(--lt-canvas-sheet-item-bg-on);
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  }
+
+  .mem-source.is-auto {
+    background: var(--lt-canvas-sheet-item-bg);
+    border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    color: var(--lt-canvas-muted);
+  }
+
+  .mem-time {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 刪除：低頻的更正動作，不是這頁的主要用途——放在標題列尾端、只給圖示，
+     hover 才浮出底色。 */
+  .mem-delete {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 9999px;
+    color: var(--lt-canvas-sheet-faint);
+    cursor: pointer;
+    transition: background var(--dur-fast, 150ms) var(--ease-in-out, ease), color var(--dur-fast, 150ms) var(--ease-in-out, ease);
+  }
+
+  .mem-delete svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+
+  .mem-delete:hover,
+  .mem-delete:focus-visible {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+    color: inherit;
+  }
+
+  .mem-delete[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* 觸屏沒有 hover：鍵留著（可發現），但再淡一階，不搶內容的注意力。
+     視覺縮小、熱區不縮：用偽元素把可點範圍撐到 44px，版面不動。 */
+  @media (pointer: coarse) {
+    .mem-delete {
+      position: relative;
+      color: color-mix(in srgb, currentColor 40%, transparent);
+    }
+
+    .mem-delete::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+    }
+  }
+
+  .mem-value {
+    font-size: 14px;
+    line-height: 1.65;
+    word-break: break-word;
+    white-space: pre-wrap;
+    color: inherit;
+  }
+
+  .mem-value.is-clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mem-expand {
+    align-self: flex-start;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--lt-canvas-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+    cursor: pointer;
+  }
+
+  .mem-expand:hover,
+  .mem-expand:focus-visible {
+    color: inherit;
+  }
+
+  /* ── 手機 ─────────────────────────────────────────────────────── */
+
+  @media (max-width: 768px) {
+    /* 欄寬的 100% 在 canvas-theme-vars.css（layer 外），這裡寫了也不會生效。 */
+
+    #chat {
+      padding: 10px 10px calc(20px + var(--lt-canvas-composer-overhang, 0px));
+    }
+
+    .u-popup__content {
+      max-height: 88vh;
+    }
+
+    /*
+       輸入區：幫答與「＋」收進輸入框那一列裡。
+
+       桌機上「鍵｜欄位｜鍵」三段並排沒有問題，欄位有一千像素可用；手機上同一
+       個排法把欄位擠到剩兩百多像素，展開輸入之後兩側各留一條空白、中間一小條
+       在打字。改成欄位滿版、兩顆鍵浮在欄位那一列的兩端——收起時是
+       「💡｜點數｜說點什麼｜送出｜＋」一顆藥丸，展開時欄位往上長，兩顆鍵留在
+       底列原位不動，玩家的手不必換位置。
+
+       DOM 一個節點都沒動（作者的卡對 `.send-msg > .ai-assistant`、
+       `.more-options-scope` 寫了外觀），只是定位方式換了。
+    */
+    .send-msg {
+      position: relative;
+      gap: 0;
+      padding: 8px 8px 10px;
+    }
+
+    .send-msg .ai-assistant,
+    .send-msg .more-options-scope {
+      position: absolute;
+      z-index: 1;
+      padding: 0;
+    }
+
+    /* 收起：欄位 4px 內距＋36px 的列；展開：10px 內距＋36px 的列。
+       鍵要對準那一列的垂直中心，兩態差 6px。幫答鍵 34px、＋ 30px、送出 32px，
+       各自的 bottom 要讓三顆的中心落在同一條線（實測差 2px 就看得出來）。 */
+    .send-msg .ai-assistant {
+      left: 16px;
+      bottom: 15px;
+    }
+
+    .send-msg .more-options-scope {
+      right: 16px;
+      bottom: 17px;
+    }
+
+    .send-msg:has(.uni-textarea.is-expanded) .ai-assistant {
+      bottom: 22px;
+    }
+
+    .send-msg:has(.uni-textarea.is-expanded) .more-options-scope {
+      bottom: 24px;
+    }
+
+    .chat-input-collapsed-row,
+    .chat-input-bottom-row {
+      padding-left: 40px;
+      padding-right: 36px;
+    }
+
+    /* 收起態一列時置中：提示字、點數、送出鍵跟浮在兩端的兩顆鍵同一個中心
+       （先前貼底，字比鍵低 6–8px；owner 2026-09-05 截圖）。留著多行草稿時列會長高，
+       那時才貼底——由下面 :has(.chat-input-collapsed-text) 那段接手。 */
+    .chat-input-collapsed-row {
+      align-items: center;
+    }
+
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-collapsed-row {
+      align-items: flex-end;
+    }
+
+    /*
+       收起態有草稿時，預覽獨佔一整行、控制鍵另起一列。
+
+       原本「點數｜預覽｜送出」擠在同一列，兩顆鍵又浮在兩端，預覽只剩 165px，
+       多行草稿在中間擠成一小坨（owner 2026-09-04 截圖）。改成預覽在上、
+       跟展開態同一個骨架：上面是字，底列是「幫答｜點數 …… 送出｜＋」。
+       沒有草稿（只有提示字）時仍是一列藥丸，不多佔高度。
+    */
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-collapsed-row {
+      flex-wrap: wrap;
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-collapsed-display {
+      flex: 1 1 100%;
+      order: -1;
+      padding: 4px 4px 6px;
+    }
+
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-row-lead {
+      padding-left: 40px;
+    }
+
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-row-tail {
+      padding-right: 36px;
+    }
+
+    /* 幫答的說明氣泡貼著欄位左緣浮出，不要被欄位裁掉 */
+    .ai-assistant .tooltip {
+      left: -8px;
+    }
+
+    /* 幫答鍵右上角掛著每次點數的小標，鍵進了欄位之後那個小標會壓到最後一行字：
+       文字區底下留一小段，讓最後一行停在小標上方。 */
+    .chat-input-scope.is-expanded .chatMsgTextarea {
+      padding-bottom: 8px;
+    }
+  }
+}

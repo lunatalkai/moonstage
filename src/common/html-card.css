@@ -1,0 +1,707 @@
+/* ========== 主題調色板（作者覆蓋這一層） ========== */
+:root {
+  --hc-primary: #6c5ce7;
+  --hc-secondary: #fd79a8;
+  --hc-accent: #ffeaa7;
+  --hc-dark: #1a1a2e;
+  --hc-danger: #e74c3c;
+  --hc-success: #2ecc71;
+  --hc-warning: #f39c12;
+  --hc-txt-c: #fff;
+
+  /* V3 擴展變量 */
+  --hc-radius: 12px;            /* 全局圓角 */
+  --hc-card-bg: rgba(0,0,0,0.3); /* 卡片背景 */
+  --hc-border: rgba(255,255,255,0.12); /* 邊框色 */
+  --hc-glow-color: var(--hc-primary);  /* 光暈色（光效系列使用） */
+}
+
+/* ========== 組件級變量（繼承自調色板） ========== */
+:root {
+  /* hc-bar 進度條 */
+  --hc-bar-fill: var(--hc-primary);
+  --hc-bar-danger: var(--hc-danger);
+  --hc-bar-warning: var(--hc-warning);
+  --hc-bar-bg: rgba(0, 0, 0, 0.4);
+  --hc-bar-height: 24px;
+  --hc-bar-radius: 4px;
+  --hc-bar-label-color: #fff;
+
+  /* hc-stat 狀態值 */
+  --hc-stat-label-color: var(--hc-txt-c);
+  --hc-stat-value-color: var(--hc-txt-c);
+  --hc-stat-font-size: 14px;
+
+  /* hc-btn / hc-action 按鈕 */
+  --hc-action-bg: var(--hc-primary);
+  --hc-action-color: #fff;
+  --hc-action-radius: 8px;
+  --hc-action-border: none;
+  --hc-action-padding: 10px 16px;
+
+  /* hc-tag 標籤 */
+  --hc-tag-bg: rgba(255, 255, 255, 0.1);
+  --hc-tag-color: var(--hc-txt-c);
+  --hc-tag-radius: 12px;
+
+  /* hc-toggle / hc-collapse 折疊 */
+  --hc-toggle-header-bg: rgba(255, 255, 255, 0.05);
+  --hc-toggle-title-color: var(--hc-txt-c);
+  --hc-toggle-arrow-color: var(--hc-txt-c);
+}
+
+/**
+ * HTML Card 預定義樣式
+ * 用於 AI 生成的 HTML 卡片，減少內聯樣式的 token 消耗
+ * AI 可以使用這些 class，並通過 style 屬性覆蓋顏色等自定義樣式
+ * 前綴 hc- = html-card，避免與其他樣式衝突
+ */
+
+/* ========== 段落 ========== */
+.hc-p {
+  white-space: normal;
+  margin: 0 0 15px 0;
+  line-height: 1.8;
+}
+
+.hc-p:last-child {
+  margin-bottom: 0;
+}
+
+/* ========== 容器 ========== */
+.hc-c {
+  white-space: normal;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  --hc-txt-c: #fff;
+  color: var(--hc-txt-c);
+}
+
+.hc-c:last-child {
+  margin-bottom: 0;
+}
+
+/* 淺色容器 - 預設深色文字 + 淺灰白背景 */
+.hc-c.hc-light {
+  --hc-txt-c: #333;
+  background: #f5f5f5;
+}
+
+/* 淺色容器內的分隔線 */
+.hc-c.hc-light .hc-hr {
+  border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 淺色容器內的對話/旁白 */
+.hc-c.hc-light .hc-d {
+  color: #333;
+}
+
+.hc-c.hc-light .hc-n {
+  color: #666;
+}
+
+/* ========== 標題 ========== */
+.hc-h {
+  white-space: normal;
+  margin: 0 0 10px 0;
+  font-weight: bold;
+}
+
+.hc-h:last-child {
+  margin-bottom: 0;
+}
+
+/* 大標題 */
+.hc-h1 {
+  white-space: normal;
+  margin: 0 0 15px 0;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* 中標題 */
+.hc-h2 {
+  white-space: normal;
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* 小標題 */
+.hc-h3 {
+  white-space: normal;
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* ========== 狀態值 ========== */
+.hc-v {
+  font-weight: bold;
+}
+
+/* ========== 彈性佈局 ========== */
+/* 預設就允許換行，避免手機窄版面在無 .hc-wrap 時把子項擠出邊界裁切；
+   已額外疊加 .hc-wrap 的卡片行為不變（同樣是 flex-wrap: wrap） */
+.hc-f {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hc-fw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 兩端對齊 */
+.hc-fj {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* flex 填滿剩餘空間 */
+.hc-fill {
+  flex: 1;
+  min-width: 0;
+}
+
+/* flex 換行修飾符 */
+.hc-wrap {
+  flex-wrap: wrap;
+}
+
+/* ========== 文字對齊 ========== */
+.hc-tc {
+  text-align: center;
+}
+
+.hc-tr {
+  text-align: right;
+}
+
+/* ========== 間距輔助 ==========
+   實作移到本檔最末（搜尋「間距輔助（實作）」）。原因寫在那裡：
+   間距工具必須贏過各元件的 :last-child 歸零規則，而那需要同時滿足
+   「優先權相同」與「後出現」兩個條件——放在這裡兩個都不成立。 */
+
+.hc-pt {
+  padding-top: 15px;
+}
+
+.hc-pb {
+  padding-bottom: 15px;
+}
+
+/* ========== 分隔線 ========== */
+.hc-hr {
+  white-space: normal;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 15px 0;
+}
+
+/* ========== 狀態欄 ========== */
+.hc-st {
+  white-space: normal;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.hc-st:last-child {
+  margin-bottom: 0;
+}
+
+/* 狀態行 */
+.hc-sr {
+  margin-bottom: 8px;
+}
+
+.hc-sr:last-child {
+  margin-bottom: 0;
+}
+
+/* ========== 對話樣式 ========== */
+/* 對話（角色說話）- 斜體，預設白色 */
+.hc-d {
+  white-space: normal;
+  font-style: italic;
+  margin: 0 0 15px 0;
+  line-height: 1.8;
+  color: #fff;
+}
+
+/* 旁白/描述 - 較小字級，預設淺灰色 */
+.hc-n {
+  white-space: normal;
+  font-size: 13px;
+  margin: 0 0 15px 0;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ========== 選項列表 ========== */
+.hc-ol {
+  white-space: normal;
+  margin: 15px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hc-ol li {
+  margin-bottom: 10px;
+  padding-left: 25px;
+  position: relative;
+}
+
+.hc-ol li:last-child {
+  margin-bottom: 0;
+}
+
+.hc-ol li::before {
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+}
+
+/* ========== 網格佈局 ========== */
+.hc-g2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.hc-g3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+/* ========== Web Components 外部間距 ========== */
+hc-meter,
+hc-bar {
+  display: block;
+  width: 100%;
+}
+
+hc-btn,
+hc-collapse {
+  display: block;
+  margin-bottom: 12px;
+  white-space: normal;
+}
+
+hc-btn:last-child,
+hc-collapse:last-child {
+  margin-bottom: 0;
+}
+
+hc-tag {
+  display: inline-block;
+  white-space: normal;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+/* ========== 漸變背景（可用於任何元素） ========== */
+.hc-bg-dark {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+
+.hc-bg-red {
+  background: linear-gradient(135deg, #e94560, #ff6b9d);
+}
+
+.hc-bg-blue {
+  background: linear-gradient(135deg, #00d4ff, #0099cc);
+}
+
+.hc-bg-green {
+  background: linear-gradient(135deg, #28a745, #20c997);
+}
+
+.hc-bg-purple {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.hc-bg-orange {
+  background: linear-gradient(135deg, #f39c12, #e74c3c);
+}
+
+/* ========== 半透明背景（可用於任何元素） ========== */
+.hc-bg-glass {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hc-bg-dim {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.hc-bg-dim-light {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ========== 頭像/圖標容器 ========== */
+.hc-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+/* 小尺寸頭像 */
+.hc-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* 大尺寸頭像 */
+.hc-avatar-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+/* ========== V2 新增語義類 ========== */
+
+/* 帶邊框發光效果的強調卡片（用於重要事件、系統提示） */
+.hc-panel {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  margin-bottom: 15px;
+}
+
+.hc-panel:last-child {
+  margin-bottom: 0;
+}
+
+/* 引用/回憶/內心獨白 — 左邊線 + 斜體 */
+.hc-quote {
+  border-left: 3px solid var(--hc-primary, #6c5ce7);
+  padding: 10px 15px;
+  margin: 12px 0;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 淺色容器內的引用 */
+.hc-c.hc-light .hc-quote {
+  border-left-color: var(--hc-primary, #6c5ce7);
+  color: #666;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* 系統訊息/通知 — 居中 + 小字 + 醒目背景 */
+.hc-notice {
+  text-align: center;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  margin: 12px 0;
+}
+
+/* 角色名標籤（對話前綴） */
+.hc-speaker {
+  display: inline-block;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--hc-primary, #6c5ce7);
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+/* 數值徽章（用於顯示金幣、經驗值等單一數值） */
+.hc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: bold;
+  background: var(--hc-accent, #ffeaa7);
+  color: var(--hc-dark, #1a1a2e);
+}
+
+/* 帶圖標的資訊行（用於屬性/技能列表項） */
+.hc-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.hc-info-row:last-child {
+  margin-bottom: 0;
+}
+
+/* 選項卡片（比 hc-btn 更豐富的選項展示） */
+.hc-option {
+  display: block;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.hc-option:last-child {
+  margin-bottom: 0;
+}
+
+/* 選項分組容器 */
+.hc-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ========== V3 視覺效果（主題差異化核心） ========== */
+
+/* ---- 光暈邊框（霓虹/科幻/奇幻風） ---- */
+.hc-glow {
+  border: 1px solid var(--hc-primary);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hc-primary) 40%, transparent),
+              inset 0 0 8px color-mix(in srgb, var(--hc-primary) 10%, transparent);
+  border-radius: 12px;
+}
+
+/* ---- 發光文字（標題/角色名/重要台詞） ---- */
+.hc-glow-text {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--hc-primary) 60%, transparent),
+               0 0 20px color-mix(in srgb, var(--hc-primary) 30%, transparent);
+}
+
+/* ---- 漸變文字（標題裝飾） ---- */
+.hc-gradient-text {
+  background: linear-gradient(135deg, var(--hc-primary), var(--hc-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- 微光掃過（神秘/載入/稀有物品） ---- */
+.hc-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.hc-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: hc-shimmer 3s ease-in-out infinite;
+}
+@keyframes hc-shimmer {
+  0% { left: -50%; }
+  100% { left: 150%; }
+}
+
+/* ---- 極光漸變背景（緩慢流動，用於氛圍容器） ---- */
+.hc-bg-aurora {
+  background: linear-gradient(-45deg, var(--hc-primary), var(--hc-secondary), var(--hc-accent, #ffeaa7), var(--hc-primary));
+  background-size: 300% 300%;
+  animation: hc-aurora 10s ease infinite;
+}
+@keyframes hc-aurora {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ---- 呼吸光暈邊框（用於活躍狀態/魔法物品） ---- */
+.hc-pulse-border {
+  border: 1px solid var(--hc-primary);
+  animation: hc-pulse 2.5s ease-in-out infinite;
+}
+@keyframes hc-pulse {
+  0%,100% { box-shadow: 0 0 4px color-mix(in srgb, var(--hc-primary) 20%, transparent); }
+  50% { box-shadow: 0 0 16px color-mix(in srgb, var(--hc-primary) 50%, transparent); }
+}
+
+/* ---- 場景容器（全寬沉浸式背景卡片） ---- */
+.hc-scene {
+  position: relative;
+  padding: 24px 20px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  min-height: 80px;
+}
+.hc-scene::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+}
+.hc-scene > * {
+  position: relative;
+  z-index: 1;
+}
+.hc-scene:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- 文字描邊（在彩色背景上提升可讀性） ---- */
+.hc-text-outline {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* ---- 漸變分隔線 ---- */
+.hc-hr-gradient {
+  border: none;
+  height: 1px;
+  margin: 15px 0;
+  background: linear-gradient(90deg, transparent, var(--hc-primary), transparent);
+}
+
+/* ---- 柔光卡片（日常/溫馨/甜系風格） ---- */
+.hc-soft {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 15px;
+}
+.hc-soft:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- 標記高亮（關鍵詞/重要信息/物品名） ---- */
+.hc-mark {
+  background: color-mix(in srgb, var(--hc-accent, #ffeaa7) 25%, transparent);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ---- 陰影深度（賦予卡片立體感） ---- */
+.hc-shadow {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.hc-shadow-lg {
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+}
+
+/* ========== 更多漸變背景 ========== */
+.hc-bg-pink {
+  background: linear-gradient(135deg, #ff6b9d, #c44569);
+}
+.hc-bg-cyan {
+  background: linear-gradient(135deg, #00d4ff, #0099cc);
+}
+.hc-bg-gold {
+  background: linear-gradient(135deg, #f9ca24, #f0932b);
+}
+.hc-bg-night {
+  background: linear-gradient(135deg, #0c0c1d, #1a1a3e, #2d1b4e);
+}
+.hc-bg-forest {
+  background: linear-gradient(135deg, #0a3d0a, #1a5c1a, #2d6a2d);
+}
+.hc-bg-blood {
+  background: linear-gradient(135deg, #4a0000, #8b0000, #660000);
+}
+
+/* ========== Reduced Motion ========== */
+/* ========== 移動端響應式（聊天氣泡寬度通常 < 400px） ========== */
+@media (max-width: 480px) {
+  .hc-g2 {
+    grid-template-columns: 1fr;
+  }
+  .hc-g3 {
+    grid-template-columns: 1fr;
+  }
+  .hc-fj {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hc-c {
+    padding: 14px;
+  }
+  .hc-scene {
+    padding: 16px 14px;
+  }
+  .hc-h1 {
+    font-size: 20px;
+  }
+  .hc-h2 {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-shimmer::after,
+  .hc-bg-aurora,
+  .hc-pulse-border {
+    animation: none;
+  }
+}
+
+/* ========== 間距輔助（實作） ==========
+   作者用 hc-mt / hc-mb / hc-my 手動加間距。它們必須放在本檔「最末」，
+   而且選擇器要重複一次類名，兩個條件缺一不可：
+
+   本檔有十三個 `:last-child` 歸零選擇器。單一類別選擇器的優先權低於
+   「類別 + 虛擬類別」，所以寫成 `.hc-mb` 時，只要作者把它加在容器裡的最後一個元素上，
+   就會被其中之一靜默歸零——**加在中間有效、加在最後無效**，對作者而言就是
+   「這東西時靈時不靈」。
+
+   為什麼是重複三次而不是兩次：其中 `.hc-ol li:last-child` 多帶一個元素選擇器，
+   優先權高於「兩個類別」，寫兩次仍會輸給它（清單最後一項就是會踩到的情境）。
+   重複三次才蓋得過全部十三條。
+
+   用重複類名而不是 `!important`，是為了讓作者仍能用 inline style 覆蓋單一元素——
+   `!important` 會把那條路也堵死。整塊留在檔案最末，同分時才由出現順序取勝。
+
+   由來：卡片作者 ice9901 回報「部分失效的組件，例如 hc-mb 和 hc-mt」，並因此
+   暫停了說明書的改寫工作。 */
+.hc-mt.hc-mt.hc-mt {
+  margin-top: 15px;
+}
+
+.hc-mb.hc-mb.hc-mb {
+  margin-bottom: 15px;
+}
+
+.hc-my.hc-my.hc-my {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
