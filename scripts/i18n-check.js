@@ -359,7 +359,7 @@ const LATIN_RE = /[A-Za-z]/;
 // 品牌名 / 技術符號 / 通用縮寫：這些在任何語言下保持原樣都是正當的。
 // 比對時大小寫不敏感，且會先剝除佔位符與標點。
 const SCRIPT_RESIDUE_ALLOWED_VALUES = new Set([
-  'lunatalk', 'vip', 'html', 'tokens', 'token', 'pt', 'ai', 'ok', 'max', 'min',
+  'lunatalk', 'moonstage', 'vip', 'html', 'tokens', 'token', 'pt', 'ai', 'ok', 'max', 'min',
   'r18', 'nsfw', 'sfw', 'id', 'url', 'app', 'h5', 'api', 'css', 'json', 'mcp',
   'png', 'jpg', 'gif', 'webp', 'mp3', 'wav', 'flac', 'mb', 'kb', 'gb',
   'claude', 'gpt', 'gemini', 'flux', 'deepseek', 'sora', 'midjourney',
