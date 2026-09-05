@@ -123,6 +123,12 @@ path and the identity differ.
 | POST | `/conversation/notepad/save` | `{ conversationId, content }` |
 | GET | `/notepad/templates` · `/notepad/template?templateId=` | the player's own notepad templates. The list is `{ list, maxCount, maxLength, maxTitle }` and carries no `content` — fetch one template to get its text |
 | POST | `/notepad/template/save` · `/notepad/template/delete` | manage them — `{ templateId?, title, content }` / `{ templateId }`. The name field is `title` |
+| POST | `/notepad/template/share` · `/notepad/template/share/revoke` | share a template as a code — `{ templateId }` → `{ code, ... }`; revoke turns the code off. A share code is the only way a template moves between players |
+| GET | `/share/preview` | what a share code contains before importing — `?code=` → the template's title and text, read-only |
+| POST | `/share/import` | copy a shared template into the player's own list — `{ code }` → the new `templateId`. Counts against the player's template limit |
+| GET | `/conversation/prompt-diagnostics` | how the last completed reply's context was composed — `?conversationId=` `&breakdownVersion=2` → estimated token buckets (system, card, history, notepad, worldbook recall, memory, input), cache hit rate and this turn's cost. `supported: false` for models without accounting; `status: notReady` until one reply has completed |
+| GET | `/conversation/memory/:conversationId/atoms` | the durable memory the AI keeps for a conversation, newest first — `{ atoms: [{ atomId, atomValue, importance, createTime }] }` |
+| DELETE | `/conversation/memory/:conversationId/atoms/:atomId` | forget one memory. Cannot be undone; the AI may re-learn it from later turns |
 | GET | `/models` | model catalog with pricing tiers — `?contextLevel=` `&roleId=`. Groups → families → variants; a variant is one **channel** of that model. `channelLabel` is the only channel name that may reach a player |
 | GET | `/models/uptime-history` | recent availability of one channel — `?model=` `&hours=` |
 | GET | `/player/agent-mode` | whether this card runs the deeper multi-step preparation, and whether the chosen model supports it — `?roleId=` `&model=` |
