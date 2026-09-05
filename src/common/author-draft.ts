@@ -31,6 +31,7 @@ export interface AuthorDraft {
 
 export type DraftFormat =
   | 'mmd-regex-list'
+  | 'mmd-export'
   | 'mmd-payload'
   | 'st-regex'
   | 'st-card'
@@ -167,6 +168,27 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
       rules: compact(scripts.map(stRule)),
       opening: str(data.first_mes),
     }
+  }
+
+  // MMD 的匯出檔（作者從原站「導出正則」拿到的那份）：頂層 regex_scripts 用酒館的欄位名，
+  // 旁邊是 statusbar（掛載點）、beginning（開場白）、pageDepth（數字）。
+  if (Array.isArray(parsed.regex_scripts) && ('statusbar' in parsed || 'beginning' in parsed || 'pageDepth' in parsed)) {
+    return {
+      ...base,
+      name: fallbackName || str(parsed.roleName || parsed.name),
+      format: 'mmd-export',
+      rules: compact(parsed.regex_scripts.map(stRule)),
+      mountTrigger: str(parsed.statusbar),
+      mountLayer: layerFromPageDepth(parsed.pageDepth),
+      opening: str(parsed.beginning),
+    }
+  }
+
+  // 只有一包酒館規則、沒有卡的其他部分：當成酒館正則腳本集。
+  if (Array.isArray(parsed.regex_scripts) && !parsed.spec) {
+    const rules = compact(parsed.regex_scripts.map(stRule))
+    if (!rules.length) throw new DraftImportError('empty')
+    return { ...base, name: fallbackName, source: 'tavern', format: 'st-regex', rules }
   }
 
   // MMD 匯入酬載：rules + statusbar + pageDepth + welcome

@@ -221,6 +221,7 @@ function draftName(d: AuthorDraft) {
 
 const FORMAT_LABELS: Record<string, string> = {
 	'mmd-regex-list': 'MMD',
+	'mmd-export': 'MMD',
 	'mmd-payload': 'MMD',
 	'st-regex': 'SillyTavern',
 	'st-card': 'SillyTavern',

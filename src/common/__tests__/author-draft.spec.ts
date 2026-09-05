@@ -38,6 +38,26 @@ describe('importAuthorDraft', () => {
     expect(d.rules[0]).toMatchObject({ find: '/<ba-init>/g', replace: '<b>hud</b>' })
   })
 
+  it('認得 MMD 的匯出檔：頂層 regex_scripts（酒館欄位名）+ statusbar + beginning + pageDepth 數字', () => {
+    const d = importAuthorDraft(JSON.stringify({
+      pageDepth: 2,
+      statusbar: '【網頁美化】【狀態欄點火】',
+      beginning: '第一句開場',
+      regex_scripts: [
+        { id: 1, scriptName: '網頁美化', findRegex: '/【網頁美化】/g', replaceString: '<style>.kg{}</style>' },
+        { id: 2, scriptName: '狀態欄', findRegex: '/<hud>([\\s\\S]*?)<\\/hud>/g', replaceString: '<div>$1</div>' },
+      ],
+    }), '我的卡')
+    expect(d.format).toBe('mmd-export')
+    expect(d.source).toBe('mmd')
+    expect(d.name).toBe('我的卡')
+    expect(d.mountTrigger).toBe('【網頁美化】【狀態欄點火】')
+    expect(d.mountLayer).toBe('over')
+    expect(d.opening).toBe('第一句開場')
+    expect(d.rules).toHaveLength(2)
+    expect(d.rules[0]).toMatchObject({ id: 1, name: '網頁美化', find: '/【網頁美化】/g', replace: '<style>.kg{}</style>', enabled: true })
+  })
+
   it('酒館規則：留 trimStrings、對應 disabled 與 promptOnly，只作用在使用者輸入的規則不進顯示層', () => {
     const d = importAuthorDraft(JSON.stringify([
       { scriptName: '狀態', findRegex: '/<s>(.*?)<\\/s>/g', replaceString: '<i>$1</i>', trimStrings: ['x'], placement: [2], disabled: false },
