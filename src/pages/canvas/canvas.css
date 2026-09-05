@@ -108,6 +108,46 @@
   --lt-canvas-placeholder-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
+/*
+ * 頭像（頂欄與訊息列）。uni-app 的 base.css 給 uni-image 一個不分層的預設尺寸
+ * （320×240）和一個 opacity:0 的 <img>；這組尺寸留在 layer 裡永遠輸給它，頭像只剩
+ * 圖片左上角的一小塊。跟置中那條一樣寫在 layer 外靠特異性贏，卡片後宣告仍贏得了。
+ *
+ * 可見的那一層是 <img>，不是背景 div：作者的卡把頭像當 img 寫（`.avatar img`、
+ * `.header-role-img img`），而替圖示上色的規則只認 uni-image 的背景 div
+ * （`uni-image div[style*="background-image"]`）——div 留在底下當底色，
+ * img 蓋在上面，頭像就不會被當成圖示染成一塊純色。
+ */
+.header-role-img uni-image,
+.avatar uni-image {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header-role-img uni-image > div,
+.avatar uni-image > div {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+}
+
+/* 不倚賴 uni-app 的 image.css：那份只在頁面用到 <image> 元件時才載入，畫布頁沒有。 */
+.header-role-img uni-image > img,
+.avatar uni-image > img {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  object-fit: cover;
+}
+
 @layer lt-base {
   /* ── 頁面骨架 ────────────────────────────────────────────────── */
 
@@ -182,17 +222,6 @@
     border-radius: var(--lt-canvas-avatar-radius);
     overflow: hidden;
     background: var(--lt-canvas-line);
-  }
-
-  .header-role-img uni-image,
-  .header-role-img uni-image > div,
-  .avatar uni-image,
-  .avatar uni-image > div {
-    display: block;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
   }
 
   .header-roleName {

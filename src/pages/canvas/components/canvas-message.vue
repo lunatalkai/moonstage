@@ -18,6 +18,8 @@
       <div class="avatar">
         <component :is="'uni-image'">
           <div :style="message.avatar ? { backgroundImage: 'url(' + message.avatar + ')' } : null"></div>
+          <span></span>
+          <img v-if="message.avatar" :src="message.avatar" draggable="false" alt="" />
         </component>
       </div>
     </div>

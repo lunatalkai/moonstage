@@ -24,6 +24,9 @@
                  用動態元件寫成原生標籤，才不會被當成沒註冊的組件。 -->
             <component :is="'uni-image'">
               <div :style="avatar ? { backgroundImage: 'url(' + avatar + ')' } : null"></div>
+              <span></span>
+              <!-- 跟 uni-app 的 image 一樣有一個 img；可見的是它（見 canvas.css 頭像那段）。 -->
+              <img v-if="avatar" :src="avatar" draggable="false" alt="" />
             </component>
           </div>
           <div class="header-roleName" data-lt="title">{{ roleName }}</div>
