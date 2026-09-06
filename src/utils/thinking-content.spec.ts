@@ -26,6 +26,18 @@ describe('thinking-content', () => {
     expect(split.thinkingContent).toBe('大小寫混的也算')
   })
 
+  it('中文的思維鏈標籤也折進思考框：思维链／思維鏈／思考过程／思考過程／思考／推理（owner 2026-09-06：攤在正文玩家分不出哪段是思考）', () => {
+    const split = splitThinkingContent('<思維鏈>\n用戶選擇了【出言嘲諷】\n</思維鏈>\n正文<思考>想一下</思考><推理>推</推理>')
+    expect(split.visibleContent).toBe('\n正文')
+    expect(split.thinkingContent).toBe('用戶選擇了【出言嘲諷】\n想一下\n推')
+  })
+
+  it('卡片自己有規則處理的標籤讓給卡片：keep 回 true 的原樣留在正文', () => {
+    const split = splitThinkingContent('<思考>卡片要自己畫</思考><thought>折</thought>', { keep: (name) => name === '思考' })
+    expect(split.visibleContent).toBe('<思考>卡片要自己畫</思考>')
+    expect(split.thinkingContent).toBe('折')
+  })
+
   it('leaves ordinary content unchanged', () => {
     const split = splitThinkingContent('普通回覆')
 

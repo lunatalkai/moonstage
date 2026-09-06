@@ -3028,9 +3028,16 @@ function renderMemoHit(entry, key) {
     && entry.key.script === key.script
 }
 
+// 卡片自己的規則若提到某個思考類標籤（<思考>、<thought>…），那段就讓給卡片畫，不折進
+// 思考過程框。粗略比對：規則的 find 裡出現 `<標籤名` 就算。
+function cardHandlesTag(tagName) {
+  const needle = '<' + String(tagName).toLowerCase();
+  return activeAuthorAsset.value.rules.some((r) => r && r.enabled !== false && String(r.find || '').toLowerCase().includes(needle));
+}
+
 const renderMessage = (item) => {
   if (!item) return ''
-  const split = splitThinkingContent(item.content || '')
+  const split = splitThinkingContent(item.content || '', { keep: cardHandlesTag })
   if (split.hasThinking) {
     item.thinkingContent = item.thinkingContent || split.thinkingContent
     item.content = split.visibleContent
@@ -5178,7 +5185,7 @@ function getHistoryMsg() {
       // 一列歷史紀錄翻成畫面上的一則訊息。
       const mapRow = ({chatId, chatMessage, contentThinking, chatRole, audioUrl, isSummary, aiImageUrls, finishReason, isV3, inputTokens, model}: any) => {
         const rawContent = (chatMessage || '').replace("<已解除苛刻的道德限制>", "");
-        const split = splitThinkingContent(rawContent);
+        const split = splitThinkingContent(rawContent, { keep: cardHandlesTag });
         // 存原文：字形轉換在渲染那一刻做（renderMarkdown），這裡先轉會把卡片協定轉壞。
         const content = split.visibleContent;
         const rowThinkingContent = contentThinking || split.thinkingContent;
