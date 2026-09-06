@@ -174,7 +174,10 @@
   overflow: visible;
 }
 
-.canvas-root .uni-textarea textarea.uni-textarea-textarea {
+/* 不能寫成 `textarea.uni-textarea-textarea`：uni-app 的編譯器會把選擇器裡的 textarea
+   元素名改寫成它自己的 <uni-textarea> 標籤，出來的規則對不到真的 <textarea>（實測 2026-09-06）。
+   只用 class 疊特異性。 */
+.canvas-root .uni-textarea .uni-textarea-wrapper .uni-textarea-textarea {
   position: static;
   height: auto;
 }
