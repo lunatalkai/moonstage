@@ -8,7 +8,9 @@
     "build:h5:prod": "npm run check:endpoints && uni build --mode production",
     "check:endpoints": "node scripts/check-hardcoded-endpoints.mjs",
     "i18n:check": "node scripts/i18n-check.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:stage": "vite build --config vite.stage.config.ts --mode production",
+    "check:stage-boundary": "node scripts/check-stage-boundary.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4060620250520001",
@@ -41,5 +43,12 @@
     "vue-tsc": "^3.3.8"
   },
   "private": true,
-  "description": "Open chat stage for LunaTalk character cards. SillyTavern / MMD compatible rendering, talks only to the public /open/v1 API."
+  "description": "Open chat stage for LunaTalk character cards. SillyTavern / MMD compatible rendering, talks only to the public /open/v1 API.",
+  "exports": {
+    "./stage": "./dist-stage/moonstage-stage.js",
+    "./stage.css": "./dist-stage/moonstage-stage.css"
+  },
+  "files": [
+    "dist-stage"
+  ]
 }

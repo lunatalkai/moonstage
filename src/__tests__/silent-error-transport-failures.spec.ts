@@ -15,7 +15,7 @@ const read = (rel: string) => readFileSync(resolve(__dirname, '../..', rel), 'ut
 // Apple HIG 的對應判準：做不到的時候要讓人知道做不到、並幫他理解原因；
 // 沒有回饋的動作會讓人重複按，對計費型產品是實害。
 describe('靜默錯誤清單不得吞掉傳輸層失敗', () => {
-  const main = read('src/main.js')
+  const main = read('src/api/http-setup.js') // 攔截器從 main.js 搬到這裡（舞台套件共用）
 
   it('逾時、網路錯誤與 401 一律不受靜默清單影響', () => {
     // 三個分支都必須是無條件呈現，不能再掛 shouldSilenceError 判斷。
