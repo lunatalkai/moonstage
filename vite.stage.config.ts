@@ -115,6 +115,8 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       cssCodeSplit: false,
       sourcemap: false,
+      // 圖示等靜態檔全部內嵌：套件是單一 ESM 給別的站台 import，沒有自己的 /assets 可放檔案
+      assetsInlineLimit: 512 * 1024,
       lib: {
         entry: path.resolve(__dirname, 'src/stage/index.ts'),
         formats: ['es'],

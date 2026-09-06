@@ -379,6 +379,26 @@
 <script lang="ts" setup>
 	// @ts-nocheck
 	import { CanvasInput } from '@/pages/canvas/components/canvas-field'
+	import icon_deepseek from '@/static/icon/models/deepseek.png';
+	import icon_gpt from '@/static/icon/models/gpt.png';
+	import icon_claude from '@/static/icon/models/claude.png';
+	import icon_llama from '@/static/icon/models/llama.svg';
+	import icon_qwen from '@/static/icon/models/qwen.svg';
+	import icon_gemini from '@/static/icon/models/gemini.png';
+	import icon_mistral from '@/static/icon/models/mistral.svg';
+	import icon_yi from '@/static/icon/models/yi.svg';
+	import icon_glm from '@/static/icon/models/glm.png';
+	import icon_kimi from '@/static/icon/models/kimi.svg';
+	import icon_xiaomimimo from '@/static/icon/models/xiaomimimo.svg';
+	import icon_grok from '@/static/icon/models/grok.png';
+	import icon_minimax from '@/static/icon/models/minimax.png';
+	import icon_bytedance from '@/static/icon/models/bytedance.png';
+	import icon_ling from '@/static/icon/models/ling.png';
+	import icon_nvidia from '@/static/icon/models/nvidia.svg';
+	import icon_hunyuan from '@/static/icon/models/hunyuan.svg';
+	import icon_gemma from '@/static/icon/models/gemma.svg';
+	import icon_default from '@/static/icon/models/default.svg';
+	import lunaLogo from '@/static/logo.png';
 	/*
 		型別檢查在這一份關掉。
 
@@ -1325,7 +1345,7 @@ const truncationText = (completionRate: number) => {
 	 *    色相，彼此可辨（primitives §5.1）。
 	 */
 	const modelIconFor = (family) => {
-		if (isFreeFamily(family)) return '/static/logo.png';
+		if (isFreeFamily(family)) return lunaLogo;
 		const name = String((family && family.family) || '');
 		const path = getModelIconPath(name);
 		return path && path !== modelIconMap.default ? path : '';
@@ -1817,36 +1837,41 @@ const truncationText = (completionRate: number) => {
 	};
 
 	// Model logo source: @lobehub/icons-static-svg (qwen, kimi, xiaomimimo).
+	// Model logo source: @lobehub/icons-static-svg (qwen, kimi, xiaomimimo).
+	//
+	// 圖示用 import 而不是寫死 `/static/...` 路徑：舞台當套件嵌進別的站台時沒有 playground 的
+	// /static/，路徑字串會變成破圖（Hearthroom 2026-09-06 截圖）；import 由 build 決定去處
+	// （playground 出檔案、套件 build 內嵌），兩邊都對。
 	const modelIconMap = {
-		'deepseek': '/static/icon/models/deepseek.png',
-		'gpt': '/static/icon/models/gpt.png',
-		'openai': '/static/icon/models/gpt.png',
-		'claude': '/static/icon/models/claude.png',
-		'llama': '/static/icon/models/llama.svg',
-		'qwen': '/static/icon/models/qwen.svg',
-		'gemini': '/static/icon/models/gemini.png',
-		'mistral': '/static/icon/models/mistral.svg',
-		'yi': '/static/icon/models/yi.svg',
-		'glm': '/static/icon/models/glm.png',
-		'chatglm': '/static/icon/models/glm.png',
-		'moonshot': '/static/icon/models/kimi.svg',
-		'kimi': '/static/icon/models/kimi.svg',
-		'mimo': '/static/icon/models/xiaomimimo.svg',
-		'xiaomi': '/static/icon/models/xiaomimimo.svg',
-		'grok': '/static/icon/models/grok.png',
-		'minimax': '/static/icon/models/minimax.png',
-		'seed': '/static/icon/models/bytedance.png',
+		'deepseek': icon_deepseek,
+		'gpt': icon_gpt,
+		'openai': icon_gpt,
+		'claude': icon_claude,
+		'llama': icon_llama,
+		'qwen': icon_qwen,
+		'gemini': icon_gemini,
+		'mistral': icon_mistral,
+		'yi': icon_yi,
+		'glm': icon_glm,
+		'chatglm': icon_glm,
+		'moonshot': icon_kimi,
+		'kimi': icon_kimi,
+		'mimo': icon_xiaomimimo,
+		'xiaomi': icon_xiaomimimo,
+		'grok': icon_grok,
+		'minimax': icon_minimax,
+		'seed': icon_bytedance,
 		// InclusionAI 官方 Ling 系列標誌（來源：官方 Hugging Face 模型庫）。
-		'ling': '/static/icon/models/ling.png',
-		'nemotron': '/static/icon/models/nvidia.svg',
-		'nvidia': '/static/icon/models/nvidia.svg',
+		'ling': icon_ling,
+		'nemotron': icon_nvidia,
+		'nvidia': icon_nvidia,
 		// 這兩個是 2026-08-29 新上的家族。族名不含既有任何一個 key（gemma 不是
 		// gemini、hunyuan 不是任何既有品牌），所以在補進來之前它們是掉到 default 的
 		// ——畫面上那格會是首字塊，看起來像「這個模型還沒做好」。
-		'hunyuan': '/static/icon/models/hunyuan.svg',
-		'tencent': '/static/icon/models/hunyuan.svg',
-		'gemma': '/static/icon/models/gemma.svg',
-		'default': '/static/icon/models/default.svg'
+		'hunyuan': icon_hunyuan,
+		'tencent': icon_hunyuan,
+		'gemma': icon_gemma,
+		'default': icon_default
 	};
 
 	const getModelIconPath = (name) => {

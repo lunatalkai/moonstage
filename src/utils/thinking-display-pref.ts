@@ -17,7 +17,7 @@ export function getShowThinkingProcess(roleId?: string | null): boolean {
   try {
     const raw = useStageHost().storage.get(storageKey(roleId))
     if (raw === '' || raw === undefined || raw === null) return true
-    return raw !== false && raw !== 'false' && raw !== '0'
+    return raw !== 'false' && raw !== '0'
   } catch (e) {
     return true
   }
