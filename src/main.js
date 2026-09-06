@@ -10,6 +10,8 @@ import loading from './utils/loadingManager.js';
 import toast from './utils/toastManager.js';
 import { getFreshAccessToken, refreshAccessToken, clearTokens, redirectToLogin } from './common/open-oauth';
 import { API_BASE } from './config/env';
+import { setupHttp } from './api/http-setup';
+import requestUrl from './config/request-url';
 
 // #ifdef H5
 
@@ -214,204 +216,21 @@ let i18nConfig = {
 	messages
 }
 
-// 所有請求都走開放 API v1，同源相對路徑由 dev proxy / 反向代理接。
-var host = API_BASE;
-http.create({
-	host: host,
-	timeout: 30000, // 默认 30 秒超时
-})
-
-// 不需要顯示 loading 的接口（輪詢、背景請求）
-const silentApis = [
-	'/conversation/operations',
-	'/conversation/replay',
-	'/conversation/ws-ticket',
-];
-
-const isSilentRequest = (url) => {
-	return silentApis.some(api => url && url.includes(api));
-};
-
-// 呼叫端會自己呈現錯誤的背景 API，不再彈全域 toast
-const silentErrorApis = [
-	'/conversation/operations',   // 背景恢復查詢；拿不到就靜默回退，不打擾使用者
-	'/conversation/rewrite-by-id', // 重寫的錯誤由聊天頁的系統訊息卡呈現，避免重複 toast
-	'/role/author-asset/serve',   // 玩家路徑：沒有資產就是「這張卡沒裝修」，不是使用者要處理的錯誤
-	'/trial-cards',               // 試玩卡：入口頁自己開視窗講清楚是哪一段、哪一條超限，不要再疊一個 toast
-];
-
-const isSilentErrorRequest = (url) => {
-	return silentErrorApis.some(api => url && url.includes(api));
-};
-
-// 請求攔截：身分只有 Bearer 一個來源，沒有站台金鑰、沒有帳號識別標頭、不帶 cookie。
-http.interceptors.request.use(async config => {
-	const showLoading = config.showLoading !== false && !isSilentRequest(config.url);
-	if (showLoading) {
-		loading.show(config.loadingText || '');
-	}
-	config._showedLoading = showLoading;
-
-	const header = (config.header && typeof config.header === 'object') ? config.header : {};
-	config.header = header;
-
-	header['language'] = uni.getLocale();
-	header['from'] = 'web';
-	// 伺服器依此決定內容可見範圍。不送的話會被保守判定為 APP，分級較高的卡會被濾掉。
-	header['X-Client-Platform'] = 'web';
-	header['X-API-Version'] = '2';
-
-	const accessToken = await getFreshAccessToken();
-	if (accessToken) {
-		header['Authorization'] = `Bearer ${accessToken}`;
-	} else {
-		delete header['Authorization'];
-	}
-	return config
-})
-
-//响应拦截
-http.interceptors.response.use(response => {
-	// 隐藏 Loading
-	loading.hide();
-
-	// 处理不同状态码
-	const statusCode = response.statusCode;
-	const shouldSilenceError = isSilentErrorRequest(response._requestUrl);
-
-	// 超时或取消的请求
-	//
-	// 傳輸層失敗（逾時 / 斷線 / 401）一律呈現，不受 silentErrorApis 影響。
-	// 那份清單的前提是「這支 API 的錯誤由呼叫端自己呈現」——對業務錯誤成立
-	// （例如 rewriteChatById 的操作層失敗會變成 chat 的系統訊息卡），但傳輸層
-	// 根本沒走到 server 回應那一步，沒有任何替代呈現。無條件靜默的結果是
-	// 按下去毫無反應，使用者只會重複按（對計費型產品是實害），我們在日誌裡
-	// 也看不到。2026-08-01 兩位使用者回報「按了沒反應、重整就好」即卡在此。
-	if (statusCode === -9999) {
-		toast.timeout();
-		return Promise.reject(response);
-	}
-
-	// 被阻止的重复请求
-	if (statusCode === -9998) {
-		return Promise.reject(response);
-	}
-
-	// 网络错误（傳輸層，理由同上：一律呈現）
-	if (statusCode === -1 || !statusCode) {
-		toast.networkError();
-		return Promise.reject(response);
-	}
-
-	// 服务器错误 5xx
-	if (statusCode >= 500) {
-		if (!shouldSilenceError) {
-			toast.serverError(response.data?.error || response.data?.message);
-		}
-		return Promise.reject(response);
-	}
-
-	// 401：先當成 access token 過期，換一張重送一次；換不到才是真的要重新登入。
-	if (statusCode === 401) {
-		const original = response._requestConfig;
-		if (original && !original._openAuthRetried) {
-			original._openAuthRetried = true;
-			return refreshAccessToken().then(token => {
-				if (token) return http.request(original);
-				clearTokens();
-				toast.unauthorized();
-				redirectToLogin();
-				return Promise.reject(response);
-			});
-		}
-		clearTokens();
-		toast.unauthorized();
-		redirectToLogin();
-		return Promise.reject(response);
-	}
-
-	// 其他客户端错误 4xx (除了 400，因为可能是业务错误需要特殊处理)
-	if (statusCode >= 402 && statusCode < 500) {
-		if (!shouldSilenceError) {
-			toast.error(response.data?.error || response.data?.message);
-		}
-		return Promise.reject(response);
-	}
-
-	return response;
+// 請求層（host、loading／toast、bearer、401 換 token）搬到 src/api/http-setup.js，
+// 舞台套件與 playground 共用同一份；這裡只是把 playground 的實作餵進去。
+setupHttp(http, {
+	host: API_BASE,
+	loading,
+	toast,
+	getLocale: () => uni.getLocale(),
+	getFreshAccessToken,
+	refreshAccessToken,
+	clearTokens,
+	redirectToLogin,
 })
 
 // 開放 API v1（`${host}/open/v1/**`）。這份清單就是這個客戶端能碰的全部——
 // 不在上面的端點不屬於開放契約，頁面不該有那個功能。
-const V1 = '/open/v1';
-const requestUrl = {
-	// 對話核心迴圈
-	chatStart: `${V1}/conversation/start`,
-	chatStop: `${V1}/conversation/stop`,
-	rewriteChat: `${V1}/conversation/rewrite-by-id`,
-	rewriteChatByContent: `${V1}/conversation/rewrite`,
-	chatOperationStatus: `${V1}/conversation/operations`,
-	getReplay: `${V1}/conversation/replay`,
-	historyMessageList: `${V1}/conversation/messages`,
-	chatList: `${V1}/conversation/list`,
-	deleteConversation: `${V1}/conversation/delete`,
-	chatDelete: `${V1}/conversation/delete-message`,
-	saveAndStartNew: `${V1}/conversation/save-and-start-new`,
-	// 存檔：這張卡的對話清單（依 roleId）、改名、切到某一段、在最新節點分叉。
-	// 每張卡最多 20 段——save-and-start-new 與 fork 滿了回 409 conversation_limit_reached。
-	conversationArchives: `${V1}/conversation/archives`,
-	conversationTitle: `${V1}/conversation/title`,
-	conversationSwitch: `${V1}/conversation/switch`,
-	conversationFork: `${V1}/conversation/fork`,
-	// 劇情回溯。路由是通的（2026-09-03 對正式站實測回 400 missing_conversation_id，
-	// 不是 404）；缺的是使用者這一端的入口——原本的檢查點選單屬於對話歷史面板，
-	// 這個客戶端沒有那個面板。目前只有「伺服器回傳一個沒跑完的回溯」時才會走到。
-	loadConversation: `${V1}/conversation/backward`,
-	chatWsTicket: `${V1}/conversation/ws-ticket`,
-	// 幫答：替玩家寫下一句，填進輸入框由玩家送出。
-	chatSuggestReply: `${V1}/conversation/suggest-reply`,
-
-	// 角色與遊玩所需的讀路徑
-	getRoleDetail: `${V1}/role/detail`,
-	// 試玩卡：把本機的酒館卡建成一張會自動到期的私有卡（PUT/GET/DELETE …/{clientKey}）。
-	trialCards: `${V1}/trial-cards`,
-	authorAssetServe: `${V1}/role/author-asset/serve`,
-	// 外觀偏好（桌布、字體）。送出那一輪不讀它——讀的是下面那一份。
-	playerPreference: `${V1}/player/preference`,
-	playerPreferenceSave: `${V1}/player/preference/save`,
-	// 這張卡的遊玩設定：稱呼、自我介紹、模型／線路、上下文檔位、思考深度。
-	// **送出那一輪讀的是這一份**，寫進外觀偏好不會生效。
-	playerRoleSettings: `${V1}/player/role-settings`,
-	playerRoleSettingsSave: `${V1}/player/role-settings/save`,
-	// 深入準備（Agent 模式）與劇情摘要偏好
-	playerAgentMode: `${V1}/player/agent-mode`,
-	playerCompactPreference: `${V1}/player/compact-preference`,
-	getModelListV2: `${V1}/models`,
-	modelUptimeHistory: `${V1}/models/uptime-history`,
-	// 長期指令（這段對話一直有效的要求）
-	conversationDirectives: `${V1}/conversation/directives`,
-	conversationDirectiveAdd: `${V1}/conversation/directive/add`,
-	conversationDirectiveUpdate: `${V1}/conversation/directive/update`,
-	conversationDirectiveDelete: `${V1}/conversation/directive/delete`,
-	// 手帳（只有玩家看得到的筆記）與它的範本
-	// 這則回覆的組成（上下文 chip 點開的那一片；回的是這段對話最近一次完成的回覆）
-	promptDiagnostics: `${V1}/conversation/prompt-diagnostics`,
-	// AI 記事本／永久記憶：路徑參數用 {conversationId}／{atomId}，呼叫端自己 replace（同 mobile）
-	memoryAtoms: `${V1}/conversation/memory/{conversationId}/atoms`,
-	memoryDeleteAtom: `${V1}/conversation/memory/{conversationId}/atoms/{atomId}`,
-	conversationNotepad: `${V1}/conversation/notepad`,
-	conversationNotepadSave: `${V1}/conversation/notepad/save`,
-	notepadTemplates: `${V1}/notepad/templates`,
-	notepadTemplate: `${V1}/notepad/template`,
-	notepadTemplateSave: `${V1}/notepad/template/save`,
-	notepadTemplateDelete: `${V1}/notepad/template/delete`,
-	notepadTemplateShare: `${V1}/notepad/template/share`,
-	notepadTemplateShareRevoke: `${V1}/notepad/template/share/revoke`,
-	shareCodePreview: `${V1}/share/preview`,
-	shareCodeImport: `${V1}/share/import`,
-	worldbookDetail: `${V1}/worldbook/detail`,
-	worldbookEntryList: `${V1}/worldbook/entry/list`,
-}
 
 // #ifdef VUE3
 import {

@@ -320,13 +320,16 @@ import {useUserDefine} from '@/mixins/UserDefine.js'
 import {useStore} from 'vuex' // Add this import
 
 import $fui from '@/components/firstui/fui-clipboard';
+import { useStageHost } from '@/host/stage-host';
 // 主站的訊息／對話框元件庫在畫布上不用：卡片沒有沙盒，它的 CSS 會打到
 // 那些元件而作者根本不知道它們存在。改用 uni 自己的提示與對話框。
+// 提示走 StageHost：uni-app 殼就是 uni.showToast，嵌進別的站台時由宿主決定長相。
+const stageHost = useStageHost();
 const message = {
-  error: (text: any) => uni.showToast({ title: String(text || ''), icon: 'none' }),
-  warning: (text: any) => uni.showToast({ title: String(text || ''), icon: 'none' }),
-  success: (text: any) => uni.showToast({ title: String(text || ''), icon: 'none' }),
-  info: (text: any) => uni.showToast({ title: String(text || ''), icon: 'none' }),
+  error: (text: any) => stageHost.ui.toast(String(text || ''), 'error'),
+  warning: (text: any) => stageHost.ui.toast(String(text || ''), 'warning'),
+  success: (text: any) => stageHost.ui.toast(String(text || ''), 'success'),
+  info: (text: any) => stageHost.ui.toast(String(text || ''), 'info'),
 };
 /*
   所有二次確認都走畫布自己的確認框（CanvasConfirm，節點名照 MMD 的 .confirm-scope），
@@ -377,7 +380,7 @@ import { convertVisibleHtml, convertPlainText, createDisplayScriptConverter, dir
 // 顯示字形轉換（簡↔繁）：只在畫出來那一刻、只轉玩家看得到的字。
 // 儲存與傳輸永遠是原文——卡片的正則與機讀協定都寫死在作者的字形上，
 // 早一步轉就會把它們轉壞（見 canvas-display-script.ts 檔頭與設計 §3.3.5）。
-const displayScript = createDisplayScriptConverter(directionForLocale(uni.getLocale()))
+const displayScript = createDisplayScriptConverter(directionForLocale(stageHost.locale.get()))
 import CanvasPrologue from './components/canvas-prologue.vue'
 import { captureBodySnapshot, restoreBodySnapshot } from './canvas-body-snapshot'
 import CanvasPopup from './components/canvas-popup.vue'
@@ -1256,12 +1259,12 @@ function maybeShowContextFootprintIntro(conversationId: string) {
   if (!contextFootprintOverWaterline.value || !conversationId) return;
   let shown: string[] = [];
   try {
-    shown = JSON.parse(uni.getStorageSync(contextFootprintIntroShownKey) || '[]');
+    shown = JSON.parse(stageHost.storage.get(contextFootprintIntroShownKey) || '[]');
   } catch (e) { shown = []; }
   if (!Array.isArray(shown)) shown = [];
   if (shown.includes(conversationId)) return;
   shown = shown.slice(-49).concat(conversationId);
-  try { uni.setStorageSync(contextFootprintIntroShownKey, JSON.stringify(shown)); } catch (e) {}
+  try { stageHost.storage.set(contextFootprintIntroShownKey, JSON.stringify(shown)); } catch (e) {}
   askConfirm(
     'modal',
     t('contextFootprint.introTitle'),
@@ -1417,8 +1420,8 @@ const playerBackgroundUrl = computed(() => formData.backgroundUrl || '');
 
 onLoad((options) => {
   //监听页面加载
-  from.value = uni.getStorageSync("from");
-  version.value = uni.getStorageSync("version");
+  from.value = stageHost.storage.get("from") || '';
+  version.value = stageHost.storage.get("version") || '';
 
   // 三種進場（owner 2026-09-05）：只有卡片 ID＝一般遊玩；只有草稿＝純預覽，
   // 不碰伺服器；兩個都有＝照常遊玩，但作者資產換成本機草稿。
@@ -4230,7 +4233,7 @@ const dispatchCtx: DispatchContext = {
   onOperationStatus: handleOperationStatusEvent,
   onOperationRecoveryRequired: reason => requestPendingOperationReconciliation(reason),
   tify: (s: string) => _this.fui.tify(s),
-  getLocale: () => uni.getLocale(),
+  getLocale: () => stageHost.locale.get(),
   nextTick,
   t,
   // 2026-05-07 Phase 3
@@ -6892,7 +6895,7 @@ function send() {
     thinkingDepth: formData.thinkingDepth || '',
     rewrite: unref(rewrite),
     contine: unref(contine),
-    language: uni.getLocale(),
+    language: stageHost.locale.get(),
     supportsOperationOutcome,
     clientOperationId: supportsOperationOutcome ? createClientOperationId() : '',
     operationKind: explicitOperationKind === 'retry_generation'

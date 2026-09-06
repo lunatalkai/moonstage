@@ -245,7 +245,25 @@ function storeTokens(payload: any): OpenAuthTokens {
   return tokens
 }
 
+/**
+ * 嵌進別的站台時，身分由宿主管：token 從宿主拿、失效交給宿主處理，
+ * 本檔的 OAuth 流程與本機 token 儲存整個不參與。playground 不呼叫這個，行為不變。
+ */
+export interface ExternalAuth {
+  getAccessToken(): Promise<string | null>
+  onUnauthorized(): void
+}
+let externalAuth: ExternalAuth | null = null
+let externalTokenCache = ''
+export function useExternalAuth(auth: ExternalAuth | null): void {
+  externalAuth = auth
+  externalTokenCache = ''
+}
+
 export function getTokens(): OpenAuthTokens | null {
+  if (externalAuth) {
+    return externalTokenCache ? { accessToken: externalTokenCache, refreshToken: '', expiresAt: Number.MAX_SAFE_INTEGER } : null
+  }
   const tokens = readJSON<OpenAuthTokens>(TOKENS_KEY)
   return tokens && tokens.accessToken ? tokens : null
 }
@@ -255,10 +273,15 @@ export function getAccessToken(): string {
 }
 
 export function isSignedIn(): boolean {
+  if (externalAuth) return true
   return !!getAccessToken()
 }
 
 export function clearTokens(): void {
+  if (externalAuth) {
+    externalTokenCache = ''
+    return
+  }
   removeKey(TOKENS_KEY)
   removeKey(FLOW_KEY)
 }
@@ -270,6 +293,7 @@ let refreshInFlight: Promise<string> | null = null
  * 換不到就把身分清掉，回空字串——呼叫端據此決定要不要送使用者去登入。
  */
 export function refreshAccessToken(): Promise<string> {
+  if (externalAuth) return externalAuth.getAccessToken().then((token) => { externalTokenCache = token || ''; return externalTokenCache })
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = (async () => {
     const tokens = getTokens()
@@ -307,6 +331,10 @@ export function refreshAccessToken(): Promise<string> {
 
 /** 取一張可用的 access token，快過期就先換。沒有身分時回空字串。 */
 export async function getFreshAccessToken(): Promise<string> {
+  if (externalAuth) {
+    externalTokenCache = (await externalAuth.getAccessToken()) || ''
+    return externalTokenCache
+  }
   const tokens = getTokens()
   if (!tokens) return ''
   if (tokens.expiresAt - Date.now() > REFRESH_SKEW_SECONDS * 1000) return tokens.accessToken
@@ -316,6 +344,10 @@ export async function getFreshAccessToken(): Promise<string> {
 
 /** 身分沒了就回登入頁，並記下原本要去哪裡。 */
 export function redirectToLogin(returnTo?: string): void {
+  if (externalAuth) {
+    externalAuth.onUnauthorized()
+    return
+  }
   const target = sanitizeReturnTo(returnTo || currentRoute())
   try {
     uni.reLaunch({ url: `${LOGIN_ROUTE}?returnTo=${encodeURIComponent(target)}` })

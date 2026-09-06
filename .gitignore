@@ -20,3 +20,6 @@ pnpm-debug.log*
 # 個人本機環境覆寫（含各人的 server 位址、埠號），不進版控。
 # .env.development / .env.staging / .env.production 是團隊共用的，要進版控。
 .env*.local
+
+# 舞台套件的 build 產物（npm run build:stage）
+dist-stage/
