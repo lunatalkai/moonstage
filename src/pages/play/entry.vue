@@ -317,11 +317,13 @@ async function startTrial(evict: boolean) {
 	trialProblem.value = null
 	slotsFull.value = null
 	try {
+		// 共用的回應攔截器把 402–5xx 當拒絕丟出來（帶著整個回應）；這裡要的是狀態碼與
+		// 伺服器的說明，所以接住當一般回應處理。真的傳輸層錯誤沒有狀態碼，往下再丟。
 		const res = await proxy.http.request({
 			url: `${proxy.requestUrl.trialCards}/${encodeURIComponent(draft.id)}`,
 			method: 'PUT',
 			data: payload,
-		})
+		}).catch((e: any) => (e && typeof e === 'object' && typeof e.statusCode === 'number' && e.statusCode > 0 ? e : Promise.reject(e)))
 		const data = res && res.data ? res.data : {}
 		if (res.statusCode === 200 && data.roleId) {
 			uni.navigateTo({ url: `/pages/canvas/canvas?roleId=${encodeURIComponent(data.roleId)}&trial=1` })

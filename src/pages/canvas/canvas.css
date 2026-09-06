@@ -160,6 +160,25 @@
   background: transparent;
 }
 
+/*
+  打字時看不到字（owner 2026-09-06 手機截圖：展開態只有游標在走，收起後才看得到）。
+
+  uni-app 內建 textarea 元件的樣式（入口頁的貼上框用了 <textarea>，那份 CSS 就跟著
+  進了同一個包）把 `.uni-textarea-textarea` 設成絕對定位、`.uni-textarea-wrapper`
+  設成 `height:100%; overflow:hidden`。我們的輸入框是靠內容自動長高的，外層沒有
+  固定高度，100% 算出來是 0，整個 textarea 就被裁在一個 0 高的框裡。
+  這份 CSS 也不在 layer 裡，一樣得在層外用更高的特異性蓋回去。
+*/
+.canvas-root .uni-textarea .uni-textarea-wrapper {
+  height: auto;
+  overflow: visible;
+}
+
+.canvas-root .uni-textarea textarea.uni-textarea-textarea {
+  position: static;
+  height: auto;
+}
+
 @layer lt-base {
   /* ── 頁面骨架 ────────────────────────────────────────────────── */
 

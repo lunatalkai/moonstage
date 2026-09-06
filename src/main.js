@@ -237,6 +237,7 @@ const silentErrorApis = [
 	'/conversation/operations',   // 背景恢復查詢；拿不到就靜默回退，不打擾使用者
 	'/conversation/rewrite-by-id', // 重寫的錯誤由聊天頁的系統訊息卡呈現，避免重複 toast
 	'/role/author-asset/serve',   // 玩家路徑：沒有資產就是「這張卡沒裝修」，不是使用者要處理的錯誤
+	'/trial-cards',               // 試玩卡：入口頁自己開視窗講清楚是哪一段、哪一條超限，不要再疊一個 toast
 ];
 
 const isSilentErrorRequest = (url) => {
