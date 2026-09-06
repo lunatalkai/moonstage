@@ -25,17 +25,27 @@ export function onReady(fn: () => void): void {
   onMounted(fn)
 }
 
-/** 進頁面＝掛載；被 keep-alive 收起再放回也算一次 show。 */
+/**
+ * 進頁面＝掛載；被 keep-alive 收起再放回也算一次 show；分頁從背景回到前景也是一次 show。
+ * 最後這條要跟 onHide 成對：hide 把作者容器（側邊欄、功能欄）收起來，回前景沒有 show 就
+ * 沒人把它放回來——社群站上切到背景再回來側邊欄消失，就是缺這一半（2026-09-07）。
+ * uni 在 H5 兩邊都有對應，這裡要一樣。
+ */
 export function onShow(fn: () => void): void {
   onMounted(fn)
   onActivated(fn)
+  listenVisibility('visible', fn)
 }
 
 /** 離開但沒銷毀（keep-alive）＝hide；分頁切到背景也當 hide，跟 uni 在 H5 的行為一致。 */
 export function onHide(fn: () => void): void {
   onDeactivated(fn)
+  listenVisibility('hidden', fn)
+}
+
+function listenVisibility(state: DocumentVisibilityState, fn: () => void): void {
   if (typeof document === 'undefined') return
-  const onVisibility = () => { if (document.visibilityState === 'hidden') fn() }
+  const onVisibility = () => { if (document.visibilityState === state) fn() }
   onMounted(() => document.addEventListener('visibilitychange', onVisibility))
   onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisibility))
 }
