@@ -8,7 +8,7 @@
     每個區塊的節點名是作者手上那張卡打得到的名字（見 canvas-dom-contract.ts）。
     我們自己的 class 不做承諾，data-lt 做。
   -->
-  <div class="canvas-root chat" :class="{ 'is-touch': isTouchDevice }">
+  <div class="canvas-root chat" :class="{ 'is-touch': isTouchDevice, 'lt-source-mmd': cardSource === 'mmd' }">
     <CanvasHeader
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
@@ -340,6 +340,7 @@ import {
 } from '@/utils/rich-text-renderer.js';
 import { applyDisplayRules, hasCrossLineRule } from '@/utils/display-rule-engine.js'
 import { createAuthorAssetRuntime } from '@/utils/author-asset-mount.js'
+import { needsKaiFallback, ensureKaiFallback } from './canvas-font-fallback'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common/author-draft'
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
@@ -2333,7 +2334,10 @@ function applyAuthorAsset(asset) {
         applyTavernRules(res.data.mountTrigger, activeAuthorAsset.value.rules, authorRuleOptions()).html,
         cardSource.value,
       );
-      authorAssetRuntime.mount({ mountLayer: res.data.mountLayer, html: mounted });
+      const mountEl = authorAssetRuntime.mount({ mountLayer: res.data.mountLayer, html: mounted });
+      // 來源寫在容器上：MMD 的卡以 content-box 排版（見 canvas.css 的說明），酒館的卡不是。
+      if (mountEl) mountEl.setAttribute('data-luna-author-source', cardSource.value);
+      if (needsKaiFallback(mounted)) ensureKaiFallback();
       measureAuthorColumn();
       observeAuthorColumn();
       observeComposerOverhang();
@@ -2876,7 +2880,13 @@ const highlightText = (content, type, cacheKey) => {
       return '';
     });
 
-    return `>${highlightedText}<`;
+    // MMD 的對白高亮：引號裡的話包成 <font color>。這是 MMD 平台自己做的事，不是卡片
+    // 的規則——作者的美化 CSS 直接對 `.content font[color*="#ff"]`／`font[color="#DC8333"]`
+    // 寫樣式（#DC8333 是 MMD 的預設對白色）。少了這層，作者做好的對白樣式在我們這
+    // 裡整個不見（owner 2026-09-06：「引號沒生效」）。只動文字節點，屬性裡的引號碰不到。
+    const dialogued = highlightedText.replace(/(["“][^"“”\n<>]{1,400}["”])/g, '<font color="#DC8333">$1</font>');
+
+    return `>${dialogued}<`;
   });
 
   // ── 顯示字形轉換：排在卡片正則與 markdown 之後、stash 還原之前 ──
@@ -3079,15 +3089,25 @@ function activateMessageScripts(item: any, html: string) {
         document.head.appendChild(newScript);
       });
     }
+    // <style> 連同屬性一起搬：作者的主題切換靠 `style[id^="…"]` 找到自己的樣式塊再
+    // 開關 disabled，id 掉了那顆開關就點不動。同 id 再來一次就是換掉，不疊第二份。
     const styleTags = messageEl.innerHTML.match(/<style[^>]*>[\s\S]*?<\/style>/gi);
     if (styleTags) {
       styleTags.forEach((styleTag) => {
+        const attrs = (styleTag.match(/^<style([^>]*)>/i) || ['', ''])[1];
         const styleContent = styleTag.replace(/<style[^>]*>|<\/style>/gi, '');
         const newStyle = document.createElement('style');
+        const idMatch = attrs.match(/\bid\s*=\s*["']([^"']+)["']/i);
+        if (idMatch) {
+          newStyle.id = idMatch[1];
+          const existing = document.head.querySelector(`style[id="${idMatch[1].replace(/"/g, '')}"]`);
+          if (existing) existing.remove();
+        }
         newStyle.textContent = styleContent;
         document.head.appendChild(newStyle);
       });
     }
+    if (needsKaiFallback(messageEl.innerHTML)) ensureKaiFallback();
   });
 }
 

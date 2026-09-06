@@ -7,7 +7,7 @@
   >
     <div
       id="scrollview"
-      class="scroll-view"
+      class="scroll-view uni-scroll-view"
       ref="scrollEl"
       @scroll="$emit('scroll', $event)"
     >

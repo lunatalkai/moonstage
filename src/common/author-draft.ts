@@ -184,9 +184,14 @@ function isMmdRegexItem(v: any): boolean {
   return !!v && typeof v === 'object' && typeof v.regex === 'string' && ('content' in v || 'name' in v)
 }
 
+/**
+ * MMD 的「功能欄」有一個勾選：「降低層級，勾選後層級位於輸入框下方」；不勾是頁面最高層。
+ * 匯出檔裡對應的是 pageDepth：勾了是 1，沒勾是 2（owner 2026-09-06 拿兩張卡對照確認：
+ * 作者勾了降低層級的那張是 1，HUD 蓋在最上面的那張是 2）。
+ */
 function layerFromPageDepth(v: any): DraftMountLayer {
   const s = String(v ?? '').toLowerCase()
-  if (s === 'under' || s === 'below' || s === '0') return 'under'
+  if (s === 'under' || s === 'below' || s === '0' || s === '1') return 'under'
   if (s === 'cover') return 'cover'
   return 'over'
 }

@@ -345,3 +345,12 @@ describe('併入的結果要能進 IndexedDB', () => {
     expect(merged.card!.book!.entries).toHaveLength(1)
   })
 })
+
+describe('MMD 功能欄層級', () => {
+  it('pageDepth 1＝勾了「降低層級」→ 掛在輸入框下方；2＝沒勾 → 在上層', () => {
+    const mk = (pageDepth: number) => importAuthorDraft(JSON.stringify({ pageDepth, statusbar: '<工具栏>', beginning: 'x', regex_scripts: [{ scriptName: 'a', findRegex: 'x', replaceString: 'y' }] }), 'c')
+    expect(mk(1).mountLayer).toBe('under')
+    expect(mk(2).mountLayer).toBe('over')
+    expect(mk(0).mountLayer).toBe('under')
+  })
+})
