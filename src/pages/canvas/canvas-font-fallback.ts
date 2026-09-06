@@ -78,3 +78,45 @@ export function ensureKaiFallback(fetchImpl: typeof fetch = fetch, doc: Document
 export function resetKaiFallbackForTests() {
   loading = null
 }
+
+/**
+ * 玩家選的字體要壓過卡片自己寫的 font-family——MMD 的 App 就是這樣（整頁換字型，
+ * 卡片 CSS 寫什麼都沒用）。卡片的規則多半帶 !important、又住在 body 裡的 <style>
+ * （在頁面樣式之後），純靠順序贏不了，所以這份規則帶 !important、並拉一個 id 把
+ * 特異性抬到 (1,x,x)。這是玩家的選擇壓過卡片，不是頁面壓過卡片，所以不放在
+ * canvas.css（那份的契約是「頁面樣式讓位」，不寫 !important）；「跟隨卡片」＝拿掉這段。
+ */
+const FONT_MODE_STYLE_ATTR = 'data-lt-font-mode'
+
+export type CanvasFontMode = 'card' | 'wenkai' | 'system'
+
+export function fontModeCss(mode: CanvasFontMode): string {
+  if (mode === 'wenkai') {
+    return [
+      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-luna-author-layer] *',
+      "{ font-family: 'LXGW WenKai Screen', 'LXGW WenKai', 'Kaiti', 'STKaiti', serif !important; }",
+    ].join(' ')
+  }
+  if (mode === 'system') {
+    return [
+      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-luna-author-layer] *',
+      "{ font-family: system-ui, -apple-system, 'PingFang TC', 'PingFang SC', 'Noto Sans CJK TC', 'Noto Sans CJK SC', 'Microsoft JhengHei', 'Microsoft YaHei', sans-serif !important; }",
+    ].join(' ')
+  }
+  return ''
+}
+
+/** 套用玩家選的字體；'card' 就是把覆蓋拿掉。 */
+export function applyFontMode(mode: CanvasFontMode, doc: Document = document) {
+  const existing = doc.querySelector(`style[${FONT_MODE_STYLE_ATTR}]`)
+  const css = fontModeCss(mode)
+  if (!css) {
+    if (existing) existing.remove()
+    return
+  }
+  const el = existing || doc.createElement('style')
+  el.setAttribute(FONT_MODE_STYLE_ATTR, mode)
+  el.textContent = css
+  if (!existing) (doc.head || doc.documentElement).appendChild(el)
+  if (mode === 'wenkai') ensureKaiFallback()
+}

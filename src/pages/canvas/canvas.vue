@@ -149,6 +149,15 @@
       />
     </CanvasPopup>
 
+    <CanvasPopup :open="panel.sheet === 'font'" :title="t('canvas.panel.font')"
+                 :close-label="t('main.cancel')" @close="closeCanvasSheet">
+      <CanvasModify
+        :title="t('canvas.panel.fontHint')"
+        :items="fontOptions"
+        @pick="onPickFont"
+      />
+    </CanvasPopup>
+
     <CanvasPopup :open="panel.sheet === 'persona'" :title="t('canvas.panel.persona')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasPersona
@@ -340,7 +349,7 @@ import {
 } from '@/utils/rich-text-renderer.js';
 import { applyDisplayRules, hasCrossLineRule } from '@/utils/display-rule-engine.js'
 import { createAuthorAssetRuntime } from '@/utils/author-asset-mount.js'
-import { needsKaiFallback, ensureKaiFallback } from './canvas-font-fallback'
+import { needsKaiFallback, ensureKaiFallback, applyFontMode } from './canvas-font-fallback'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common/author-draft'
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
@@ -7933,6 +7942,7 @@ const moreItems = computed(() => previewOnly.value ? [
   { key: 'new-chat', label: t('canvas.archive.saveAndNew'), disabled: archivesFull.value },
   { key: 'conversations', label: t('canvas.archive.load') },
   { key: 'background', label: t('canvas.panel.background') },
+  { key: 'font', label: t('canvas.panel.font') },
   { key: 'reset-chat', label: t('canvas.panel.reset') },
   { key: 'export', label: t('canvas.panel.export') },
   { key: 'bottom', label: t('canvas.shortcut.toBottom') },
@@ -7970,6 +7980,7 @@ function onShortcut(key: string) {
   if (key === 'notepad') { openNotepadSheet(); return }
   if (key === 'memory') { openMemorySheet(); return }
   if (key === 'background') { panel.value = openSheet(panel.value, 'background'); return }
+  if (key === 'font') { panel.value = openSheet(panel.value, 'font'); return }
   if (key === 'reset-chat') {
     askConfirm('reset-chat', t('canvas.panel.reset'), t('canvas.panel.resetConfirm'), t('canvas.panel.reset'))
     return
@@ -9241,6 +9252,30 @@ function onPickBackground(key: string) {
   const next = key === 'role' && roleBackground ? roleBackground : ''
   formData.backgroundUrl = next
   savePlayerPreference({ roleId: unref(roleId), prefs: { backgroundUrl: next } })
+  closeCanvasSheet()
+}
+
+// ── 字體 ───────────────────────────────────────────────────────────────
+// 預設跟隨卡片：作者沒指定字體就是黑體，電子閱讀黑體較好；作者要楷體自己在卡片
+// CSS 裡寫（寫了 Kaiti 就會拿到文楷備援）。玩家自己想換字體可在這裡選，
+// 偏好跟桌布一樣存在這張卡的玩家偏好裡（owner 2026-09-06 裁決）。
+type FontMode = 'card' | 'wenkai' | 'system'
+const fontMode = computed<FontMode>(() => {
+  const saved = String(formData.fontFamily || '')
+  if (saved === 'card' || saved === 'wenkai' || saved === 'system') return saved
+  return 'card'
+})
+watch(fontMode, (mode) => applyFontMode(mode), { immediate: true })
+
+const fontOptions = computed(() => ([
+  { key: 'card', label: t('canvas.panel.fontCard'), current: fontMode.value === 'card' },
+  { key: 'wenkai', label: t('canvas.panel.fontWenKai'), current: fontMode.value === 'wenkai' },
+  { key: 'system', label: t('canvas.panel.fontSystem'), current: fontMode.value === 'system' },
+]))
+
+function onPickFont(key: string) {
+  formData.fontFamily = key
+  if (!previewOnly.value) savePlayerPreference({ roleId: unref(roleId), prefs: { fontFamily: key } })
   closeCanvasSheet()
 }
 

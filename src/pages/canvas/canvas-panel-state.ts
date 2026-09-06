@@ -32,6 +32,8 @@ export type CanvasSheet =
   | 'memory'
   /** 更換背景 */
   | 'background'
+  /** 字體：跟隨卡片／文楷／系統 */
+  | 'font'
   /** 一次性確認（重置聊天、開新對話） */
   | 'confirm'
 

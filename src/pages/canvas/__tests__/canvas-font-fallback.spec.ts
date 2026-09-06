@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { needsKaiFallback, aliasFontCss, resolveImports, KAI_ALIASES } from '../canvas-font-fallback'
+import { needsKaiFallback, aliasFontCss, resolveImports, KAI_ALIASES, fontModeCss } from '../canvas-font-fallback'
 
 describe('楷體備援', () => {
   it('只在卡片提到楷體時才需要', () => {
@@ -29,5 +29,15 @@ describe('楷體備援', () => {
     expect(aliasFontCss('@font-face{font-family:"Other";src:url(a.woff2)}', 'https://cdn/', ['Kaiti'])).toBe('')
     expect(KAI_ALIASES).toContain('STKaiti')
     expect(KAI_ALIASES).toContain('楷体')
+  })
+})
+
+describe('玩家字體模式', () => {
+  it('文楷與系統各有一段帶 !important 的覆蓋，跟隨卡片是空的', () => {
+    expect(fontModeCss('wenkai')).toContain("'LXGW WenKai Screen'")
+    expect(fontModeCss('wenkai')).toContain('!important')
+    expect(fontModeCss('wenkai')).toContain('#app .canvas-root')
+    expect(fontModeCss('system')).toContain('system-ui')
+    expect(fontModeCss('card')).toBe('')
   })
 })

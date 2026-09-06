@@ -98,6 +98,7 @@ export const useUserDefine = () => {
 		limitLevel: "medium", //道德感
 		showAll: false,
 		backgroundUrl: '', //用户设定角色聊天背景
+		fontFamily: '', // 畫布字體偏好（card / wenkai / system；空＝依卡片來源）
 		context: 1,
 		systemPrompt:"",//系统预设
 		// 自动压缩相关（V2.0 服务端方案）
@@ -214,6 +215,8 @@ export const useUserDefine = () => {
 	const PLAY_PREFERENCE_DEFAULTS = {
 		showAll: false,
 		backgroundUrl: '',
+		// 畫布字體：'' 跟卡片來源的預設走（MMD 卡＝文楷，其餘跟隨卡片）、wenkai、system、card
+		fontFamily: '',
 	};
 
 	const getUserDefine = () => {
