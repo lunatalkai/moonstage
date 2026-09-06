@@ -151,7 +151,7 @@
 
 			<!-- 建試玩卡被伺服器退回：一個視窗說清楚哪一段、哪一條、多大、上限多大，作者改完檔重匯就好。 -->
 			<view v-if="trialProblem" class="ms-dialog-mask" @click.self="trialProblem = null">
-				<view class="ms-dialog" role="dialog" aria-modal="true">
+				<view class="ms-dialog" role="alertdialog" aria-modal="true">
 					<text class="ms-dialog-title">{{ $t(trialProblem.titleKey) }}</text>
 					<view class="ms-dialog-lines">
 						<text v-for="(line, i) in trialProblem.lines" :key="i" class="ms-dialog-line">{{ $t(line.key, line.params || {}) }}</text>
