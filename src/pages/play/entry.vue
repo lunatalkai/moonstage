@@ -327,9 +327,12 @@ async function startTrial(evict: boolean) {
 		if (res.statusCode === 413) {
 			// 伺服器會說是哪一個上限、哪一條：正則規則超大要指名，作者才知道去改哪條。
 			const detail = data.detail || {}
+			const FIELD_KEYS: Record<string, string> = { welcome: 'openChat.trial.fieldWelcome', roleDesc: 'openChat.trial.fieldIntro', roleDetailDesc: 'openChat.trial.fieldDefinition' }
 			if (detail.reason === 'ruleReplace') {
 				const rule = draft.rules[detail.index] || {}
 				trialError.value = t('openChat.trial.ruleTooLarge', { name: rule.name || `#${(detail.index || 0) + 1}`, max: Math.round((detail.max || 0) / 1024) })
+			} else if (FIELD_KEYS[detail.reason]) {
+				trialError.value = t('openChat.trial.fieldTooLong', { field: t(FIELD_KEYS[detail.reason]) })
 			} else {
 				trialError.value = t('openChat.trial.tooLarge')
 			}

@@ -254,13 +254,14 @@ Play it like any card: `roleId` goes to `/role/detail` and `/conversation/start`
 | time to live | 72 hours from the last import or the last message in any of its conversations |
 | worldbook entries | 1000 per trial, 3000 characters each |
 | display rules | 128 KB replacement text per rule, 1 MB for the whole rule set |
+| card text | the same per-language limits as authoring: opening 8000 characters (10000 for English cards), definition 10000 (50000), intro 500 (2500) |
 | request body | 4 MB |
 
 | Status | `error` | Meaning |
 |---|---|---|
 | 400 | `trial_invalid_key` · `trial_invalid_body` | key outside the allowed characters, or a body that is not the shape above |
 | 409 | `trial_slots_full` | all slots are taken and this key is new. The body carries `oldest: { clientKey, roleId, lastActiveAt }`; send the same PUT with `"evict": true` to replace it |
-| 413 | `trial_payload_too_large` | body, entry count, entry length or rule size over the limit; `detail: { reason, max, index }` says which (`reason` ∈ `body`, `entries`, `entryContent`, `ruleReplace`, `rulesTotal`, `name`) |
+| 413 | `trial_payload_too_large` | body, entry count, entry length or rule size over the limit; `detail: { reason, max, index }` says which (`reason` ∈ `body`, `entries`, `entryContent`, `ruleReplace`, `rulesTotal`, `name`, `welcome`, `roleDesc`, `roleDetailDesc`) |
 | 404 | `trial_not_found` | no trial with that key for this account — it never existed, was deleted, or expired |
 | 503 | `worldbook_unavailable` | the worldbook service is down; the card and rules were not written either |
 
