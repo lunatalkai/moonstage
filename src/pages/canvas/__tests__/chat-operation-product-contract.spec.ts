@@ -1094,7 +1094,8 @@ describe('desktop chat operation product contract', () => {
 
   it('opts capable turns into authoritative outcomes and reconciles by exact durable identity', () => {
     const chat = readChat()
-    const main = read('src/main.js')
+    // 端點表與請求攔截器從 main.js 搬到 src/config/request-url.js、src/api/http-setup.js（舞台套件共用），契約照舊
+    const main = read('src/config/request-url.js') + read('src/api/http-setup.js')
     const transport = read('src/pages/canvas/chat-transport-ownership.ts')
     const dispatch = read('src/pages/canvas/chat-sse-dispatch.ts')
     const send = sliceBetween(chat, 'function send()', '// 发送WebSocket消息')
