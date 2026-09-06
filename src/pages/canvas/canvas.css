@@ -205,6 +205,10 @@
     flex-direction: column;
     font-family: var(--lt-canvas-font);
     font-size: var(--lt-canvas-font-size);
+    /* 殼頁面基底（uni-page-body）是 500，畫布正文要跟 MMD／酒館一樣是 400：
+       作者的美化只對對白、標題等個別元素寫字重，正文靠這個預設。
+       （owner 2026-09-06：playground 敘事段落量到 500、原站 400。） */
+    font-weight: 400;
     line-height: var(--lt-canvas-line-height);
     color: var(--lt-canvas-fg);
     background: var(--lt-canvas-bg);
