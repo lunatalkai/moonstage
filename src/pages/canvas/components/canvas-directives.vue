@@ -3,10 +3,11 @@
   <!--
     長期指令。節點名照 MMD 實測：
       .custom-instruction-scope > .list-scope
-        > .header-scope(.close-btn, .title, .btn-scope > .add-btn)
+        > .header-scope(.close-btn, .title)
         + .sub-title            「(3/10)」
         + .empty-default-show    一條都沒有時的那句話
         + .content-scope > .item(.left, .right, .gap)
+      .edit-scope 底下多了 .btn-scope > .add-btn（MMD 把它放標題列；這裡跟輸入區同一區、在底部動作列）
 
     `.empty-default-show` 與 `.edit-scope` 常駐 DOM（用 hidden 收起來）：
     節點不存在的話作者寫的規則會命中零個，他只看得到「引擎壞了」。
@@ -18,17 +19,6 @@
              @click="$emit('close')"
              @keydown.enter.prevent="$emit('close')">×</div>
         <div class="title">{{ labels.title }}</div>
-        <div class="btn-scope">
-          <div
-            class="add-btn"
-            role="button"
-            tabindex="0"
-            :class="{ 'is-disabled': !canAdd }"
-            :aria-disabled="canAdd ? 'false' : 'true'"
-            @click="onAdd"
-            @keydown.enter.prevent="onAdd"
-          >{{ labels.add }}</div>
-        </div>
       </div>
 
       <div class="sub-title">{{ countText }}</div>
@@ -113,6 +103,18 @@
       </div>
       <!-- 面板蓋在系統提示之上，所以回饋必須留在面板裡。 -->
       <div class="ci-add-error" :hidden="!error">{{ error }}</div>
+      <!-- 「添加」跟它作用的輸入區放一起、在底部動作列——不在標題列。節點名（.btn-scope > .add-btn）照 MMD。 -->
+      <div class="btn-scope">
+        <div
+          class="add-btn"
+          role="button"
+          tabindex="0"
+          :class="{ 'is-disabled': !canAdd }"
+          :aria-disabled="canAdd ? 'false' : 'true'"
+          @click="onAdd"
+          @keydown.enter.prevent="onAdd"
+        >{{ labels.add }}</div>
+      </div>
     </div>
   </div>
 </template>
