@@ -135,7 +135,7 @@ path and the identity differ.
 | POST | `/player/agent-mode` | `{ roleId, multiPassEnabled }` |
 | POST | `/player/compact-preference` | how the story summary is written for this card — `{ roleId, sections, extraInstruction }` |
 | GET | `/worldbook/detail` | worldbook detail |
-| GET | `/worldbook/entry/list` | worldbook entries |
+| GET | `/worldbook/entry/list` | `?worldbookId=…&category?=…` → `{ worldbookId, entries: [{ entryId, name, content, keywords: ["…"], secondaryKeywords: ["…"], category, isEnabled, isConstant, priority, sortOrder, lastUpdateTime, activationCount }] }` — the same entry shape `/worldbook/:worldbookId/document` accepts; keyword fields are always arrays (empty, never null or a JSON string) |
 
 Player preference is **merge**, not replace: keys you do not send are left alone. That is
 what makes it safe for an older client to write next to a newer one.
