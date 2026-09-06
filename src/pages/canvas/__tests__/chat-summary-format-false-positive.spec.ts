@@ -118,6 +118,8 @@ function buildRenderMarkdown(chatVueSource: string) {
     renderSummary,
     isSummaryFormat: LEGACY_IS_SUMMARY_FORMAT,
     nextTick: (_fn?: () => void) => {}, // 測試不驗證 script/style 副作用注入
+    shouldHoistMessageAssets: () => false, // 抬升決策與執行各有自己的 spec（canvas-message-assets.spec.ts）
+    runMessageAssets: () => ({ scripts: 0, styles: 0 }),
     activeAuthorAsset: { value: { rules: [], version: 0, crossLine: false } },
     console,
   })

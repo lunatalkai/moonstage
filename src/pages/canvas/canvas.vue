@@ -357,6 +357,7 @@ import CanvasMessage from './components/canvas-message.vue'
 import CanvasComposer from './components/canvas-composer.vue'
 import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules } from './canvas-rule-engine'
+import { runMessageAssets, shouldHoistMessageAssets } from './canvas-message-assets'
 import { scopeCardHtml, normalizeCardSource, type CardSource } from './canvas-style-scope'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
@@ -3063,53 +3064,20 @@ const renderMarkdown = (item) => {
   let processedContent = item.content || '';
   processedContent = processedContent.replace(/\[AI_IMAGE:[^\]]+\]/g, '');
 
-  // 检测内容是否已经是HTML格式
-  const isHTML = /<[^>]*>/g.test(processedContent);
+  // 作者規則在 highlightText 裡套用：純文字原文（例如只有一個 【开局选项】 標記）出來也可能是整塊 HTML。
+  // 原本先看原文是不是 HTML 再決定要不要抬 script——這樣的開場白永遠走不到抬升那條路，
+  // onclick 裡的函式就沒定義，作者只看到「選項按了沒反應」（2026-09-06 真實卡）。
+  // 現在兩種原文走同一條路，抬不抬看渲染結果（canvas-message-assets.ts）。
+  const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
+  const cleanContent = highlightText(processedContent, item.type, cacheKey);
 
-  if (isHTML) {
-    // 如果已经是HTML，使用增强的highlightText处理，不进行markdown处理
-    const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
-    const cleanContent = highlightText(processedContent, item.type, cacheKey);
+  // 只在訊息**完成**之後抬一次（renderMessage 的記憶讓每個結果只算一次，所以這裡也只會排一次）。
+  // 串流中每個 chunk 都抬的話，跑的是寫到一半的腳本，而且同一段腳本會被塞進 head 幾十次。
+  if (shouldHoistMessageAssets(item, cleanContent)) nextTick(() => {
+    runMessageAssets(document.querySelector(`#msg-${item.id} .content`), document);
+  });
 
-                // 处理script和style标签
-                //
-                // 只在訊息**完成**之後執行一次（renderMessage 的記憶讓每個結果只算一次，
-                // 所以這裡也只會排一次）。串流中每個 chunk 都執行的話，跑的是寫到一半的
-                // 腳本，而且同一段腳本會被塞進 head 幾十次。
-                if (item.chatFinish) nextTick(() => {
-                    const messageEl = document.querySelector(`#msg-${item.id} .content`);
-                    if (messageEl) {
-                        // 提取并执行script标签
-                        const scriptTags = messageEl.innerHTML.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
-                        if (scriptTags) {
-                            scriptTags.forEach(scriptTag => {
-                                const scriptContent = scriptTag.replace(/<script[^>]*>|<\/script>/gi, '');
-                                const newScript = document.createElement('script');
-                                newScript.textContent = scriptContent;
-                                document.head.appendChild(newScript);
-                            });
-                        }
-
-                        // 提取并应用style标签
-                        const styleTags = messageEl.innerHTML.match(/<style[^>]*>[\s\S]*?<\/style>/gi);
-                        if (styleTags) {
-                            styleTags.forEach(styleTag => {
-                                const styleContent = styleTag.replace(/<style[^>]*>|<\/style>/gi, '');
-                                const newStyle = document.createElement('style');
-                                newStyle.textContent = styleContent;
-                                document.head.appendChild(newStyle);
-                            });
-                        }
-                    }
-                });
-
-    return cleanContent;
-  } else {
-    // 如果是纯文本，进行正常的highlight和markdown处理
-    const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
-    const cleanContent = highlightText(processedContent, item.type, cacheKey);
-    return cleanContent;
-  }
+  return cleanContent;
 };
 
 function onConfirmStartNewConversation() {
