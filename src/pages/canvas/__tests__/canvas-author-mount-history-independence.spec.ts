@@ -64,7 +64,7 @@ describe('作者資產：mountTrigger 常駐部署跟訊息歷史脫鉤', () => 
       data: {
         mountLayer: 'over' as const,
         mountTrigger: '<<PERSISTENT_BOOT>>',
-        source: 'mmd',
+        cardFormat: 'mmd',
         rules: [
           {
             id: 1,
@@ -91,7 +91,7 @@ describe('作者資產：mountTrigger 常駐部署跟訊息歷史脫鉤', () => 
       serveResponse.data.rules,
       {},
     ).html
-    const mounted = scopeCardHtml(expanded, serveResponse.data.source as 'mmd')
+    const mounted = scopeCardHtml(expanded, serveResponse.data.cardFormat as 'mmd')
     const container = runtime.mount({ mountLayer: serveResponse.data.mountLayer, html: mounted })
 
     // 歷史真的是空的——這是本測試要模擬的前提，不是巧合。

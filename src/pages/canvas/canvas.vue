@@ -8,7 +8,7 @@
     每個區塊的節點名是作者手上那張卡打得到的名字（見 canvas-dom-contract.ts）。
     我們自己的 class 不做承諾，data-lt 做。
   -->
-  <div class="canvas-root chat" :class="{ 'is-touch': isTouchDevice, 'lt-source-mmd': cardSource === 'mmd' }">
+  <div class="canvas-root chat" :class="{ 'is-touch': isTouchDevice, 'lt-format-mmd': cardFormat === 'mmd' }">
     <CanvasHeader
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
@@ -367,7 +367,7 @@ import CanvasMessage from './components/canvas-message.vue'
 import CanvasComposer from './components/canvas-composer.vue'
 import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules } from './canvas-rule-engine'
-import { scopeCardHtml, normalizeCardSource, type CardSource } from './canvas-style-scope'
+import { scopeCardHtml, normalizeCardFormat, type CardFormat } from './canvas-style-scope'
 import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
@@ -2320,7 +2320,7 @@ function applyAuthorAsset(asset) {
   try {
     const res = { data: asset };
     setActiveAuthorAsset(res.data);
-    cardSource.value = normalizeCardSource(res.data.source);
+    cardFormat.value = normalizeCardFormat(res.data.cardFormat);
     applyImmersiveMode(res.data.pageMode === 'immersive');
     if (!activeAuthorAsset.value.rules.length && !res.data.mountTrigger) return;
 
@@ -2342,11 +2342,11 @@ function applyAuthorAsset(asset) {
       // 掛載點的內容也走同一組規則：作者在資產裡寫一條規則把觸發串換成常駐內容。
       const mounted = scopeCardHtml(
         applyTavernRules(res.data.mountTrigger, activeAuthorAsset.value.rules, authorRuleOptions()).html,
-        cardSource.value,
+        cardFormat.value,
       );
       const mountEl = authorAssetRuntime.mount({ mountLayer: res.data.mountLayer, html: mounted });
       // 來源寫在容器上：MMD 的卡以 content-box 排版（見 canvas.css 的說明），酒館的卡不是。
-      if (mountEl) mountEl.setAttribute('data-luna-author-source', cardSource.value);
+      if (mountEl) mountEl.setAttribute('data-luna-author-format', cardFormat.value);
       if (needsKaiFallback(mounted)) ensureKaiFallback();
       measureAuthorColumn();
       observeAuthorColumn();
@@ -2641,7 +2641,7 @@ const highlightText = (content, type, cacheKey) => {
     // 所以它寫裸選擇器是安全的。這裡沒有沙盒，得替它補上那層前綴，
     // 否則同一張卡搬過來會把整頁弄壞。MMD 來源不加——那邊的作者就是靠
     // 無前綴的 <style> 換掉整個頁面的背景與輸入框。
-    processedContent = scopeCardHtml(processedContent, cardSource.value);
+    processedContent = scopeCardHtml(processedContent, cardFormat.value);
   }
 
   // 非標準名字的標籤（<思维链>、<status>…）拿掉標籤、留內文；思考類標籤已在渲染前
@@ -7453,7 +7453,7 @@ onBackPress(() => {
 const enterBodySnapshot = captureBodySnapshot(typeof document !== 'undefined' ? document : null)
 
 // 這張卡從哪個平台來。決定它的 <style> 要不要加訊息層前綴（見 canvas-style-scope）。
-const cardSource = ref<CardSource>('mmd')
+const cardFormat = ref<CardFormat>('mmd')
 
 // ── 開場白 ─────────────────────────────────────────────────────────────
 const greeting = reactive({ list: [] as string[], index: 0 })

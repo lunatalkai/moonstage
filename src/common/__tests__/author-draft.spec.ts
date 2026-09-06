@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { reactive } from 'vue'
-import { importAuthorDraft, draftToAuthorAsset, draftToTrialPayload, draftCanTrial, draftParts, mergeAuthorDraft, shouldMergeInto, extractTavernCardFromPng, isPngBytes, parseMesExample, DraftImportError, stripFileExtension } from '../author-draft'
+import { importAuthorDraft, draftToAuthorAsset, draftToTrialPayload, draftCanTrial, draftParts, mergeAuthorDraft, shouldMergeInto, extractTavernCardFromPng, isPngBytes, parseMesExample, DraftImportError, stripFileExtension, upgradeStoredDraft } from '../author-draft'
 
 describe('importAuthorDraft', () => {
   it('認得 MMD 的正則清單 API 回包（regex/content 欄位，/pattern/flags 字串原樣保留）', () => {
@@ -13,7 +13,7 @@ describe('importAuthorDraft', () => {
     })
     const d = importAuthorDraft(text, 'ba')
     expect(d.format).toBe('mmd-regex-list')
-    expect(d.source).toBe('mmd')
+    expect(d.cardFormat).toBe('mmd')
     expect(d.name).toBe('ba')
     expect(d.rules).toHaveLength(2)
     expect(d.rules[0]).toMatchObject({ id: 10, name: '狀態欄', find: '/<hud>([\\s\\S]*?)<\\/hud>/g', replace: '<div class="hud">$1</div>', enabled: true })
@@ -50,7 +50,7 @@ describe('importAuthorDraft', () => {
       ],
     }), '我的卡')
     expect(d.format).toBe('mmd-export')
-    expect(d.source).toBe('mmd')
+    expect(d.cardFormat).toBe('mmd')
     expect(d.name).toBe('我的卡')
     expect(d.mountTrigger).toBe('【網頁美化】【狀態欄點火】')
     expect(d.mountLayer).toBe('over')
@@ -67,7 +67,7 @@ describe('importAuthorDraft', () => {
       { scriptName: '沒寫位置', findRegex: 'e', replaceString: 'f' },
     ]))
     expect(d.format).toBe('st-regex')
-    expect(d.source).toBe('tavern')
+    expect(d.cardFormat).toBe('tavern')
     expect(d.rules.map((r) => r.name)).toEqual(['狀態', '關掉的', '沒寫位置'])
     expect(d.rules[0].trimStrings).toEqual(['x'])
     expect(d.rules[0].enabled).toBe(true)
@@ -89,7 +89,7 @@ describe('importAuthorDraft', () => {
     expect(d.format).toBe('st-card')
     expect(d.name).toBe('Alice')
     expect(d.opening).toBe('你好')
-    expect(d.source).toBe('tavern')
+    expect(d.cardFormat).toBe('tavern')
     expect(d.rules).toHaveLength(1)
   })
 
@@ -117,7 +117,7 @@ describe('draftToAuthorAsset', () => {
   it('產出跟 authorAssetServe 一樣的形狀，簡繁對照表為空', () => {
     const d = importAuthorDraft(JSON.stringify({ roleName: 'x', statusbar: '<s>', pageDepth: 'top', rules: [{ name: 'a', find: 'b', replace: 'c' }] }))
     const asset = draftToAuthorAsset(d)
-    expect(asset).toMatchObject({ mountTrigger: '<s>', mountLayer: 'over', pageMode: 'normal', source: 'mmd', variants: null })
+    expect(asset).toMatchObject({ mountTrigger: '<s>', mountLayer: 'over', pageMode: 'normal', cardFormat: 'mmd', variants: null })
     expect(asset.rules).toBe(d.rules)
   })
 })
@@ -366,5 +366,17 @@ describe('簡介不拿標籤行', () => {
   it('全是標籤時簡介留空，不硬湊', () => {
     const p = draftToTrialPayload(importAuthorDraft('<A>\n<B>', 'x'))!
     expect(p.card.roleDesc).toBe('')
+  })
+})
+
+describe('舊草稿的 source 欄位升級成 cardFormat', () => {
+  it('讀出來的舊列補上 cardFormat、拿掉 source；新列原樣', () => {
+    const old = { id: 'a', name: 'a', source: 'tavern', rules: [], format: 'st-regex' }
+    const up = upgradeStoredDraft(old) as any
+    expect(up.cardFormat).toBe('tavern')
+    expect('source' in up).toBe(false)
+    expect(upgradeStoredDraft({ id: 'b', source: 'whatever' } as any).cardFormat).toBe('mmd')
+    const fresh = { id: 'c', name: 'c', cardFormat: 'mmd', rules: [] }
+    expect(upgradeStoredDraft(fresh)).toBe(fresh)
   })
 })

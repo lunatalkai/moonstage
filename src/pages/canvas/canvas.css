@@ -190,8 +190,8 @@
   （owner 2026-09-06 截圖）。只還給 MMD 來源的作者內容（掛載容器與訊息氣泡），
   酒館的卡本來就是 border-box 世界。寫在層外才蓋得過 uni 的 `*`。
 */
-[data-luna-author-layer][data-luna-author-source="mmd"] *,
-.canvas-root.lt-source-mmd .lt-bubble-body * {
+[data-luna-author-layer][data-luna-author-format="mmd"] *,
+.canvas-root.lt-format-mmd .lt-bubble-body * {
   box-sizing: content-box;
 }
 

@@ -1,28 +1,24 @@
 /**
- * 卡片 <style> 的作用域，依卡片來源決定。
+ * 卡片 <style> 的作用域，依卡片格式決定。
  *
- * ── 為什麼要分來源 ──
+ * ── 為什麼要分格式 ──
  * 酒館會替訊息裡的 <style> 加上訊息層前綴，所以酒館作者寫 `p{}`、`.title{}`
  * 這種裸選擇器是安全且常見的。同一張卡搬到這裡（沒有沙盒）就會整頁生效——
  * 「零改動全相容」在這個方向上會壞成「卡片把頁面弄壞了」。
  *
  * MMD 沒有這層改寫，卡片的 <style> 原樣生效、而且作者就是靠它換掉整個頁面的
- * 背景與輸入框。對 MMD 來源加前綴等於把那張卡的美化整套關掉。
+ * 背景與輸入框。對 MMD 格式的卡加前綴等於把那張卡的美化整套關掉。
  *
- * 所以來源決定作用域，不是一個全域開關。來源不明時當 MMD——我們目前匯入的
+ * 所以格式決定作用域，不是一個全域開關。格式不明時當 MMD——我們目前匯入的
  * 都是那一邊來的，猜錯的代價也不對稱：猜成酒館會讓能用的卡變成不能用。
  */
 
-export type CardSource = 'mmd' | 'tavern'
+export type { CardFormat } from '@/common/card-format'
+export { normalizeCardFormat } from '@/common/card-format'
+import type { CardFormat } from '@/common/card-format'
 
 /** 訊息層前綴。酒館用 `.mes_text `，我們的氣泡同時掛著這個 class。 */
 export const MESSAGE_SCOPE = '.mes_text'
-
-export function normalizeCardSource(raw: any): CardSource {
-  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-  if (value === 'tavern' || value === 'sillytavern' || value === 'st') return 'tavern'
-  return 'mmd'
-}
 
 /**
  * 替一段 CSS 的每條規則加上作用域前綴。
@@ -178,8 +174,8 @@ const STYLE_TAG = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi
  * 把一段訊息 HTML 裡的 <style> 依來源決定要不要加作用域。
  * MMD 來源原樣回傳（連掃描都不做）。
  */
-export function scopeCardHtml(html: string, source: CardSource, scope: string = MESSAGE_SCOPE): string {
-  if (source !== 'tavern') return html
+export function scopeCardHtml(html: string, format: CardFormat, scope: string = MESSAGE_SCOPE): string {
+  if (format !== 'tavern') return html
   const text = String(html == null ? '' : html)
   if (text.indexOf('<style') < 0) return text
   return text.replace(STYLE_TAG, (whole, attrs, css) => `<style${attrs}>${scopeCss(css, scope)}</style>`)

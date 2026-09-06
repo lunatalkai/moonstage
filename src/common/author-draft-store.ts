@@ -6,6 +6,7 @@
  * 記憶體——草稿當次可用、重新整理就沒了，`persistent` 讓入口頁能把這件事說清楚。
  */
 import type { AuthorDraft } from './author-draft'
+import { upgradeStoredDraft } from './author-draft'
 
 const DB_NAME = 'moonstage-author-drafts'
 const STORE = 'drafts'
@@ -69,11 +70,11 @@ export function createIndexedDbDraftStore(db: IDBDatabase): AuthorDraftStore {
     persistent: true,
     async list() {
       const rows = await request(tx('readonly').getAll())
-      return (rows as AuthorDraft[]).sort(byUpdatedDesc)
+      return (rows as any[]).map(upgradeStoredDraft).sort(byUpdatedDesc)
     },
     async get(id) {
       const row = await request(tx('readonly').get(id))
-      return (row as AuthorDraft) || null
+      return row ? upgradeStoredDraft(row) : null
     },
     async put(draft) {
       await request(tx('readwrite').put(draft))

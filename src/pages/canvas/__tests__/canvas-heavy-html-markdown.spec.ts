@@ -49,7 +49,7 @@ function buildHighlightText(): (content: string, type?: number, cacheKey?: strin
     isHeavyHtml, sanitizeHtml, getMarkdownIt, renderTaskLists, dedentHtmlBlockLines,
     findStableBoundary, getStreamCacheEntry, setStreamCacheEntry, unwrapSingleHtmlFence,
     stripUnknownTags, wrapDialogue,
-    cardSource: { value: 'tavern' },
+    cardFormat: { value: 'tavern' },
     convertVisibleHtml: (html: string) => html,
     displayScript: (text: string) => text,
     applyDisplayRules: (text: string) => ({ html: text, rollbacks: [] }),

@@ -6,16 +6,15 @@
  * 這裡只定義形狀與匯入；儲存見 author-draft-store.ts。
  */
 import type { TavernRule } from '@/pages/canvas/canvas-rule-engine'
-
-export type DraftSource = 'mmd' | 'tavern'
+import type { CardFormat } from './card-format'
 export type DraftMountLayer = 'under' | 'over' | 'cover'
 
 export interface AuthorDraft {
   id: string
   /** 顯示在頂欄與清單裡的名字 */
   name: string
-  /** 從哪種格式來的；決定 CSS 要不要加作用域前綴（見 canvas-style-scope） */
-  source: DraftSource
+  /** 卡片格式（MMD 或酒館的寫法）；決定 CSS 要不要加作用域前綴（見 canvas-style-scope） */
+  cardFormat: CardFormat
   rules: TavernRule[]
   mountTrigger: string
   mountLayer: DraftMountLayer
@@ -209,7 +208,7 @@ function baseDraft() {
   const now = Date.now()
   return {
     id: newDraftId(),
-    source: 'mmd' as DraftSource,
+    cardFormat: 'mmd' as CardFormat,
     mountTrigger: '',
     mountLayer: 'over' as DraftMountLayer,
     immersive: false,
@@ -283,7 +282,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   const now = Date.now()
   const base = {
     id: newDraftId(),
-    source: 'mmd' as DraftSource,
+    cardFormat: 'mmd' as CardFormat,
     mountTrigger: '',
     mountLayer: 'over' as DraftMountLayer,
     immersive: false,
@@ -301,7 +300,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
     }
     if (list.every(isStRegexScript)) {
       const rules = compact(list.map(stRule))
-      return { ...base, name: fallbackName, source: 'tavern', format: 'st-regex', rules }
+      return { ...base, name: fallbackName, cardFormat: 'tavern', format: 'st-regex', rules }
     }
     throw new DraftImportError('unknown-format')
   }
@@ -312,12 +311,12 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   if (isStWorldbook(parsed)) {
     const book = stWorldbook(parsed, fallbackName)
     if (!book.entries.length) throw new DraftImportError('empty')
-    return { ...base, name: fallbackName, source: 'tavern', format: 'st-worldbook', rules: [], card: { ...emptyCard(), book } }
+    return { ...base, name: fallbackName, cardFormat: 'tavern', format: 'st-worldbook', rules: [], card: { ...emptyCard(), book } }
   }
 
   // 單一酒館規則
   if (isStRegexScript(parsed)) {
-    return { ...base, name: fallbackName || str(parsed.scriptName), source: 'tavern', format: 'st-regex', rules: compact([stRule(parsed, 0)]) }
+    return { ...base, name: fallbackName || str(parsed.scriptName), cardFormat: 'tavern', format: 'st-regex', rules: compact([stRule(parsed, 0)]) }
   }
 
   // 酒館 V2 卡：規則在 data.extensions.regex_scripts
@@ -327,7 +326,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
     return {
       ...base,
       name: fallbackName || str(data.name),
-      source: 'tavern',
+      cardFormat: 'tavern',
       format: 'st-card',
       rules: compact(scripts.map(stRule)),
       opening: str(data.first_mes),
@@ -353,7 +352,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   if (Array.isArray(parsed.regex_scripts) && !parsed.spec) {
     const rules = compact(parsed.regex_scripts.map(stRule))
     if (!rules.length) throw new DraftImportError('empty')
-    return { ...base, name: fallbackName, source: 'tavern', format: 'st-regex', rules }
+    return { ...base, name: fallbackName, cardFormat: 'tavern', format: 'st-regex', rules }
   }
 
   // MMD 匯入酬載：rules + statusbar + pageDepth + welcome
@@ -375,7 +374,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
     return {
       ...base,
       name: fallbackName || str(asset.name),
-      source: asset.source === 'tavern' ? 'tavern' : 'mmd',
+      cardFormat: (asset.cardFormat ?? asset.source) === 'tavern' ? 'tavern' : 'mmd',
       format: 'moonstage-asset',
       rules: compact(asset.rules.map((r: any, i: number) => mmdRule(r, i))),
       mountTrigger: str(asset.mountTrigger),
@@ -579,13 +578,23 @@ export function mergeAuthorDraft(base: AuthorDraft, incoming: AuthorDraft): Auth
     merged.mountTrigger = incoming.mountTrigger
     merged.mountLayer = incoming.mountLayer
     merged.immersive = incoming.immersive
-    merged.source = incoming.source
+    merged.cardFormat = incoming.cardFormat
     merged.format = incoming.format
     if (incoming.opening) merged.opening = incoming.opening
   }
   merged.card = card
   if (!merged.name) merged.name = incoming.name
   return merged
+}
+
+/** 瀏覽器裡存的舊草稿欄位叫 source；讀出來時補成 cardFormat，寫回去就是新欄位。 */
+export function upgradeStoredDraft(row: any): AuthorDraft {
+  if (!row || typeof row !== 'object') return row
+  if (row.cardFormat == null && row.source != null) {
+    const { source, ...rest } = row
+    return { ...rest, cardFormat: source === 'tavern' ? 'tavern' : 'mmd' }
+  }
+  return row
 }
 
 /** 給畫布用的資產形狀：跟 authorAssetServe 回的一樣，所以套用路徑不用分岔。 */
@@ -597,7 +606,7 @@ export function draftToAuthorAsset(draft: AuthorDraft) {
     mountTrigger: draft.mountTrigger,
     mountLayer: draft.mountLayer,
     pageMode: draft.immersive ? 'immersive' : 'normal',
-    source: draft.source,
+    cardFormat: draft.cardFormat,
   }
 }
 

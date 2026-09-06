@@ -6,19 +6,19 @@
  * 「卡片把頁面弄壞了」。MMD 卡剛好相反：它就是靠無前綴的 <style> 換掉整個頁面。
  */
 import { describe, it, expect } from 'vitest'
-import { scopeCss, scopeCardHtml, normalizeCardSource, MESSAGE_SCOPE } from '../canvas-style-scope'
+import { scopeCss, scopeCardHtml, normalizeCardFormat, MESSAGE_SCOPE } from '../canvas-style-scope'
 
-describe('來源判定', () => {
-  it('沒宣告來源時當 MMD——目前匯進來的都是那一邊的，猜錯的代價也不對稱', () => {
-    expect(normalizeCardSource(undefined)).toBe('mmd')
-    expect(normalizeCardSource('')).toBe('mmd')
-    expect(normalizeCardSource('mmd')).toBe('mmd')
+describe('格式判定', () => {
+  it('沒宣告格式時當 MMD——目前匯進來的都是那一邊的，猜錯的代價也不對稱', () => {
+    expect(normalizeCardFormat(undefined)).toBe('mmd')
+    expect(normalizeCardFormat('')).toBe('mmd')
+    expect(normalizeCardFormat('mmd')).toBe('mmd')
   })
 
   it('酒館的幾種寫法都認得', () => {
-    expect(normalizeCardSource('tavern')).toBe('tavern')
-    expect(normalizeCardSource('SillyTavern')).toBe('tavern')
-    expect(normalizeCardSource(' ST ')).toBe('tavern')
+    expect(normalizeCardFormat('tavern')).toBe('tavern')
+    expect(normalizeCardFormat('SillyTavern')).toBe('tavern')
+    expect(normalizeCardFormat(' ST ')).toBe('tavern')
   })
 })
 

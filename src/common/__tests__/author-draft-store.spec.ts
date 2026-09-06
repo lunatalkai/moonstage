@@ -3,7 +3,7 @@ import { createMemoryDraftStore, getAuthorDraftStore, resetAuthorDraftStoreForTe
 import type { AuthorDraft } from '../author-draft'
 
 function draft(id: string, updatedAt: number): AuthorDraft {
-  return { id, name: id, source: 'mmd', rules: [], mountTrigger: '', mountLayer: 'over', immersive: false, opening: '', format: 'mmd-regex-list', createdAt: updatedAt, updatedAt }
+  return { id, name: id, cardFormat: 'mmd', rules: [], mountTrigger: '', mountLayer: 'over', immersive: false, opening: '', format: 'mmd-regex-list', createdAt: updatedAt, updatedAt }
 }
 
 describe('記憶體草稿庫', () => {

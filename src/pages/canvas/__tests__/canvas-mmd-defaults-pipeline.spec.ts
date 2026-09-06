@@ -39,7 +39,7 @@ function extractBraced(source: string, anchor: string): string {
   return source.slice(startIdx, i)
 }
 
-function buildHighlightText(source: 'mmd' | 'tavern', rules: any[] = []) {
+function buildHighlightText(format: 'mmd' | 'tavern', rules: any[] = []) {
   const fnSource = extractBraced(fs.readFileSync(CANVAS_VUE, 'utf8'), 'const highlightText = (content, type, cacheKey) => {')
   const context = vm.createContext({
     isHeavyHtml, sanitizeHtml, getMarkdownIt, renderTaskLists, dedentHtmlBlockLines,
@@ -47,7 +47,7 @@ function buildHighlightText(source: 'mmd' | 'tavern', rules: any[] = []) {
     applyTavernRules, scopeCardHtml,
     stripUnknownTags, wrapDialogue,
     authorRuleOptions: () => ({}),
-    cardSource: { value: source },
+    cardFormat: { value: format },
     convertVisibleHtml: (html: string) => html,
     displayScript: (text: string) => text,
     activeAuthorAsset: { value: { rules, version: 0, crossLine: false } },
@@ -100,7 +100,7 @@ describe('MMD 來源的畫布：平台預設與對白上色', () => {
     expect(html).toContain('<div class="ac-ui">UI</div>')
   })
 
-  it('不看來源：酒館來源一樣剝非標準標籤、留內文，標準元素照舊', () => {
+  it('不看格式：酒館格式的卡一樣剝非標準標籤、留內文，標準元素照舊', () => {
     const html = buildHighlightText('tavern')('<u>底線</u>與<status>狀態</status>', 0, null)
     expect(html).toContain('<u>底線</u>')
     expect(html).toContain('狀態')

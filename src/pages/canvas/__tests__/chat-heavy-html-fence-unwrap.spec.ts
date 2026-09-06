@@ -69,7 +69,7 @@ function buildHighlightText(): (content: string, type?: number, cacheKey?: strin
     setStreamCacheEntry,
     unwrapSingleHtmlFence,
     stripUnknownTags, wrapDialogue,
-    cardSource: { value: 'tavern' },
+    cardFormat: { value: 'tavern' },
     // 顯示字形轉換在這些測試裡是恆等：它們驗的是管線結構，不是簡繁。
     convertVisibleHtml: (html: string) => html,
     displayScript: (text: string) => text,
