@@ -5,17 +5,20 @@
  * 鉤子對到 Vue 自己的生命週期，路由參數改由宿主 provide 進來。
  * 只在套件 build（vite.stage.config.ts）裡以 alias 取代真的 `@dcloudio/uni-app`；playground 不經過這裡。
  */
-import { inject, onActivated, onBeforeUnmount, onDeactivated, onMounted, type InjectionKey } from 'vue'
+import { inject, onActivated, onBeforeMount, onBeforeUnmount, onDeactivated, onMounted, type InjectionKey } from 'vue'
 
 export type StageRouteOptions = Record<string, string>
 
 /** 宿主在 <MoonStage> 裡 provide；canvas 的 onLoad(options) 拿到的就是它。 */
 export const STAGE_ROUTE_OPTIONS: InjectionKey<StageRouteOptions> = Symbol('moonstage-route-options')
 
-/** uni 的 onLoad 在 setup 期間同步呼叫（掛載之前），這裡照樣。 */
+/**
+ * uni 的 onLoad 在 setup **跑完之後**、掛載之前才呼叫。不能在登記當下就跑：canvas 的 onLoad
+ * 會碰到 setup 裡寫在它後面的 ref（TDZ，Cannot access before initialization）。
+ */
 export function onLoad(fn: (options: StageRouteOptions) => void): void {
   const options = inject(STAGE_ROUTE_OPTIONS, {} as StageRouteOptions)
-  fn({ ...options })
+  onBeforeMount(() => fn({ ...options }))
 }
 
 export function onReady(fn: () => void): void {
