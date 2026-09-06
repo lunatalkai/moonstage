@@ -148,6 +148,18 @@
   object-fit: cover;
 }
 
+/*
+  輸入框外框不能是白的。
+
+  相容基底樣式表（common/uni.css）給 `.uni-textarea` 寫死了 `background:#FFF`，那份不在
+  layer 裡，layer 內任何預設都輸給它——沒套美化的卡片，整片輸入區就是一塊白底
+  （owner 2026-09-06 手機截圖）。寫在 layer 外、多一層 class 的特異性把它蓋回透明，
+  底色交給 `.chat-input-scope` 的變數。作者的卡要漆這一層照樣漆得動（多半帶 !important）。
+*/
+.canvas-root .uni-textarea {
+  background: transparent;
+}
+
 @layer lt-base {
   /* ── 頁面骨架 ────────────────────────────────────────────────── */
 
