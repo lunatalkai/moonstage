@@ -324,11 +324,18 @@ async function startTrial(evict: boolean) {
 			goSignIn()
 			return
 		}
-		trialError.value = t(
-			res.statusCode === 413 ? 'openChat.trial.tooLarge'
-				: res.statusCode === 503 ? 'openChat.trial.unavailable'
-					: 'openChat.trial.failed',
-		)
+		if (res.statusCode === 413) {
+			// 伺服器會說是哪一個上限、哪一條：正則規則超大要指名，作者才知道去改哪條。
+			const detail = data.detail || {}
+			if (detail.reason === 'ruleReplace') {
+				const rule = draft.rules[detail.index] || {}
+				trialError.value = t('openChat.trial.ruleTooLarge', { name: rule.name || `#${(detail.index || 0) + 1}`, max: Math.round((detail.max || 0) / 1024) })
+			} else {
+				trialError.value = t('openChat.trial.tooLarge')
+			}
+			return
+		}
+		trialError.value = t(res.statusCode === 503 ? 'openChat.trial.unavailable' : 'openChat.trial.failed')
 	} catch (e) {
 		trialError.value = t('openChat.trial.failed')
 	} finally {
