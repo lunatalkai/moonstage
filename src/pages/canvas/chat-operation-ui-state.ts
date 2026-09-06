@@ -235,6 +235,24 @@ export function operationKindFromPayload(payload: any): ChatOperationKind {
   return 'send'
 }
 
+/**
+ * 開場白＝對話裡第一則、前面沒有任何真正訊息的 AI 訊息。它是卡片作者寫的，不是模型
+ * 生成的：重新生成、改寫、繼續、刪除都不該對它開放（owner 2026-09-07）。
+ * 摘要列與純系統列不算「前面的訊息」。分頁只載入後半段時第一則不一定是開場白，
+ * 但那時它也不會是最新一則 AI，少掉的只是一顆刪除鍵，等更早的頁載入就回來。
+ */
+export function isOpeningIndex(messages: any[], index: number): boolean {
+  if (!Array.isArray(messages)) return false
+  const item = messages[index]
+  if (!item || item.type !== 0 || item.isSummary === true || item.systemOnly === true) return false
+  for (let i = 0; i < index; i += 1) {
+    const prev = messages[i]
+    if (!prev || prev.isSummary === true || prev.systemOnly === true) continue
+    return false
+  }
+  return true
+}
+
 export function latestCanonicalAIIndex(messages: any[]): number {
   if (!Array.isArray(messages)) return -1
   for (let index = messages.length - 1; index >= 0; index -= 1) {

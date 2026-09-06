@@ -513,6 +513,7 @@ import {
   type ChatOperationKind,
   type ChatOperationUIAction,
   type RewriteSnapshot,
+  isOpeningIndex,
 } from './chat-operation-ui-state';
 import {
   createHistoryRequestKey,
@@ -7681,7 +7682,8 @@ function messageProps(item: any, index: number) {
     // 這跟 latest 不同：latest 是列表最後一則，可能是玩家自己說的。
     // 串流進行中一律關掉：重新生成時新氣泡要等跑完才換上去，這段時間舊的那則仍是
     // 「最新一則 AI」，鍵還亮著就會再送一次（owner 2026-09-05：跑到 182 個 token 時還能按）。
-    latestAI: !previewOnly.value && !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index),
+    // 開場白是作者寫的，不是模型生成的：沒有「重新生成」。
+    latestAI: !previewOnly.value && !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index) && !isOpeningIndex(talkList.value, index),
     contextUsage: (!isUser && !isSystemOnly) ? contextUsageForRow(item) : null,
     swipes: (index === 0 && showGreetingSwipes.value)
       ? { index: greeting.index, total: greeting.list.length }
@@ -7726,6 +7728,8 @@ const menuActions = computed(() => {
   if (!item) return []
   // 純預覽的訊息不在伺服器上：改寫、倒回、分叉、刪除都沒有對象，只留複製。
   if (previewOnly.value) return [{ key: 'copy', label: t('chat.copy') }]
+  // 開場白是作者寫的：不改寫、不繼續、不刪除；它前面沒有東西可倒回。只留複製。
+  if (isOpeningIndex(talkList.value, index)) return [{ key: 'copy', label: t('chat.copy') }]
   const isAI = item.type == 0
   const latestAI = isAI && isLatestCanonicalAIIndex(index)
   const actions: Array<{ key: string; label: string; disabled?: boolean }> = []
