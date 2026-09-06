@@ -1503,21 +1503,6 @@
      是同一個東西。寬到整個視窗的話，同一份內容在兩種寬度會長成兩種樣子，玩家要
      學兩次。手機的滿寬規則在下面的斷點裡。
   */
-  /*
-     裡面那一片自己帶了關閉鍵時，殼上這顆就收起來——同一個角落擺兩顆 ×，玩家不知道
-     該按哪一顆，而它們做的是同一件事。節點留著：作者的卡對這些名字寫了外觀。
-
-     逐個點名而不是用一個共同的鉤子：這些名字是各自那一片在原平台的名字
-     （`.mp-close` 模型設定、`.close-btn` 自訂指令、`.icon-back` 用戶人設），
-     作者認得的是它們。
-  */
-  .u-popup__content:has(.mp-close) .u-popup__content__close,
-  .u-popup__content:has(.np-close) .u-popup__content__close,
-  .u-popup__content:has(.close-btn) .u-popup__content__close,
-  .u-popup__content:has(.header-scope .icon-back) .u-popup__content__close {
-    display: none;
-  }
-
   /* 殼上那顆關閉鍵浮在內容之上：卡片常在右上角放自己的固定工具列，
      不抬高的話它會被蓋住，按下去沒有反應。 */
   .u-popup__content__close {
@@ -2522,37 +2507,6 @@
 
     .u-popup__content:has(.confirm-scope) {
       width: min(440px, calc(100vw - 48px));
-    }
-
-    .u-popup__content__close {
-      top: 16px;
-      right: 16px;
-      width: 32px;
-      height: 32px;
-      border-radius: 9999px;
-      background: var(--lt-canvas-sheet-item-bg);
-    }
-
-    /* 標題列：五個彈層同一個尺度。左標題、右動作，動作是藥丸鍵、不換行。 */
-    .mp-title,
-    .role-setting .page-title,
-    .custom-instruction-scope .header-scope .title,
-    .np-title,
-    .cl-title-text {
-      font-size: 17px;
-      letter-spacing: 0.01em;
-    }
-
-    .role-setting .icon-back,
-    .role-setting .complete-btn,
-    .custom-instruction-scope .add-btn {
-      display: inline-flex;
-      align-items: center;
-      flex: 0 0 auto;
-      min-height: 34px;
-      padding: 0 16px;
-      white-space: nowrap;
-      font-size: 14px;
     }
 
     .role-setting .card,
@@ -4598,4 +4552,240 @@
       padding-bottom: 8px;
     }
   }
+  /* ── 彈層的標準外框 ───────────────────────────────────────────── */
+  /*
+     這一頁十個彈層是同一套外框：左上標題（可帶一行說明）、右上一顆帶圓底的關閉鍵、
+     底部一列動作鍵（主鍵實心強調色、次鍵描邊）。在這之前每一片各畫各的——用戶人設的
+     取消／確定在標題列兩側、長期指令的「添加」在右上、記憶那一片跟殼各一顆 ×
+     （owner 2026-09-06 截圖）。
+
+     做法是收斂而不是重畫：每一片自己的標題節點（.mp-title、.np-title、.mem-title…）
+     還是那個節點、還是那個名字，這裡只把尺度對齊；各片自己的 × 收起來，殼上那一顆
+     是唯一的關閉鍵；動作鍵搬到底部但名字不變（.icon-back／.complete-btn／.add-btn）。
+     作者的卡對這些名字寫的外觀照舊蓋過這裡——整段仍在 layer 裡。
+
+     這一節放在 layer 的最後：它要蓋過前面每一片各自的標題、× 與按鍵規則，同特異度
+     靠順序贏。手機那一段不動這些節點，放在它後面也不會反過來蓋掉手機的規則。
+  */
+  .lt-dialog-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding-right: 44px;
+  }
+
+  .mp-top,
+  .np-top,
+  .mem-top,
+  .cb-top,
+  .cl-title,
+  .custom-instruction-scope .header-scope,
+  .role-setting .header-scope .header-box {
+    min-height: 32px;
+    padding-right: 44px;
+  }
+
+  .lt-dialog-title,
+  .mp-title,
+  .np-title,
+  .mem-title,
+  .cb-title,
+  .cl-title-text,
+  .modify-title,
+  .custom-instruction-scope .header-scope .title,
+  .role-setting .page-title {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+    text-align: left;
+  }
+
+  .role-setting .header-scope .header-box {
+    justify-content: flex-start;
+  }
+
+  /* 標題底下那一行說明：比正文小一階，但要讀得到（11px 在亮底上讀不到） */
+  .np-subtitle,
+  .mem-subtitle,
+  .cb-subtitle,
+  .custom-instruction-scope .sub-title {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  /* 各片自己的 × 收起：殼上那一顆是唯一的關閉鍵。節點留著給作者。 */
+  .mp-close,
+  .np-close,
+  .mem-close,
+  .cb-close,
+  .custom-instruction-scope .close-btn {
+    display: none;
+  }
+
+  .u-popup__content__close {
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    background: var(--lt-canvas-sheet-item-bg);
+    color: var(--lt-canvas-sheet-fg);
+    transition: background 150ms ease, transform 150ms ease;
+  }
+
+  .u-popup__content__close:hover {
+    background: var(--lt-canvas-sheet-item-bg-hover);
+  }
+
+  .u-popup__content__close:active {
+    transform: scale(0.94);
+  }
+
+  .u-popup__content__close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* 底部動作列：一列、12px 間距、跟內容隔 16px。手機上鍵等寬平分（拇指好按）。 */
+  .confirm-bottom,
+  .u-popup__content .bottom,
+  .np-actions,
+  .role-setting .bottom,
+  .custom-instruction-scope .btn-scope {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    padding-top: 16px;
+  }
+
+  .role-setting .bottom {
+    padding-top: 4px;
+  }
+
+  .confirm-bottom .btn-gap {
+    display: none;
+  }
+
+  .confirm-bottom .ok-btn,
+  .confirm-bottom .cancel-btn,
+  .u-popup__content .bottom .btn,
+  .role-setting .icon-back,
+  .role-setting .complete-btn,
+  .np-copy-btn,
+  .np-template-btn,
+  .np-save-template-btn,
+  .np-save-btn,
+  .custom-instruction-scope .add-btn {
+    flex: 1 1 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    border-radius: 9999px;
+    border: 1px solid var(--lt-canvas-sheet-line);
+    background: transparent;
+    color: var(--lt-canvas-sheet-fg);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 150ms ease, opacity 150ms ease, transform 150ms ease;
+  }
+
+  /* 主鍵：實心強調色。一個彈層只有一顆。 */
+  .confirm-bottom .ok-btn,
+  .u-popup__content .bottom .btn,
+  .role-setting .complete-btn,
+  .np-save-btn,
+  .custom-instruction-scope .add-btn {
+    border-color: transparent;
+    background: var(--lt-canvas-accent);
+    color: var(--lt-canvas-accent-fg, #0F1419);
+    font-weight: 600;
+  }
+
+  .confirm-bottom .ok-btn:hover,
+  .u-popup__content .bottom .btn:hover,
+  .role-setting .complete-btn:hover,
+  .np-save-btn:hover,
+  .custom-instruction-scope .add-btn:hover {
+    filter: brightness(1.06);
+  }
+
+  .confirm-bottom .cancel-btn:hover,
+  .role-setting .icon-back:hover,
+  .np-copy-btn:hover,
+  .np-template-btn:hover,
+  .np-save-template-btn:hover {
+    background: var(--lt-canvas-sheet-item-bg);
+  }
+
+  .confirm-bottom .ok-btn:active,
+  .confirm-bottom .cancel-btn:active,
+  .u-popup__content .bottom .btn:active,
+  .role-setting .icon-back:active,
+  .role-setting .complete-btn:active,
+  .np-save-btn:active,
+  .custom-instruction-scope .add-btn:active {
+    transform: scale(0.98);
+  }
+
+  .custom-instruction-scope .add-btn.is-disabled,
+  .np-save-btn.is-disabled,
+  .role-setting .complete-btn.is-busy {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: none;
+  }
+
+  /* 確認框：有了左上標題之後正文靠左讀，不再置中。 */
+  .confirm-scope .confirm-content {
+    text-align: left;
+  }
+
+  /*
+     桌機：關閉鍵離角落遠一點（對話框的內距是 24）；底部動作列靠右、鍵按內容寬，
+     不再平分整列。確認框的 DOM 是確定在前（作者的 :first-child 規則靠它），視覺上
+     確定要在最右，反向排。
+  */
+  @media (min-width: 769px) {
+    .u-popup__content__close {
+      top: 20px;
+      right: 20px;
+    }
+
+    .confirm-bottom,
+    .u-popup__content .bottom,
+    .np-actions,
+    .role-setting .bottom,
+    .custom-instruction-scope .btn-scope {
+      justify-content: flex-end;
+    }
+
+    .confirm-bottom {
+      flex-direction: row-reverse;
+    }
+
+    .confirm-bottom .ok-btn,
+    .confirm-bottom .cancel-btn,
+    .u-popup__content .bottom .btn,
+    .role-setting .icon-back,
+    .role-setting .complete-btn,
+    .np-copy-btn,
+    .np-template-btn,
+    .np-save-template-btn,
+    .np-save-btn,
+    .custom-instruction-scope .add-btn {
+      flex: 0 0 auto;
+      min-width: 112px;
+    }
+
+    /* 手帳：「從其他對話複製」是次要動作，靠左；模板與保存靠右 */
+    .np-copy-btn {
+      margin-right: auto;
+    }
+  }
+
 }

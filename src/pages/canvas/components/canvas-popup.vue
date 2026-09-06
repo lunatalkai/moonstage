@@ -22,7 +22,18 @@
         :aria-label="closeLabel"
         @click="$emit('close')"
         @keydown.enter.prevent="$emit('close')"
-      >×</div>
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M18 6L6 18" /><path d="M6 6l12 12" />
+        </svg>
+      </div>
+      <!--
+        殼自己的標題列，只給裡面那一片沒有標題的彈層（一次性確認）。其他彈層的標題是
+        它們在原平台的名字（.mp-title、.np-title…），作者的卡對著那些名字寫外觀，殼不重畫一份。
+      -->
+      <div v-if="heading && title" class="lt-dialog-head">
+        <div class="lt-dialog-title">{{ title }}</div>
+      </div>
       <slot></slot>
     </div>
   </div>
@@ -40,10 +51,13 @@ const props = withDefaults(defineProps<{
   open?: boolean
   title?: string
   closeLabel?: string
+  /** 殼自己畫標題列（裡面那一片沒有標題時才開）。 */
+  heading?: boolean
 }>(), {
   open: false,
   title: '',
   closeLabel: 'Close',
+  heading: false,
 })
 
 const emit = defineEmits<{ (e: 'close'): void }>()

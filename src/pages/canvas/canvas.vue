@@ -286,7 +286,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'confirm'" :title="confirmSpec.title"
+    <CanvasPopup :open="panel.sheet === 'confirm'" :title="confirmSpec.title" heading
                  :close-label="t('main.cancel')" @close="onConfirmCancel">
       <CanvasConfirm
         :content="confirmSpec.content"

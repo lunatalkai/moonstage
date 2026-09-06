@@ -276,7 +276,8 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   { selector: '.list-scope .header-scope', region: 'directives', origin: 'mmd', why: '標題列' },
   { selector: '.header-scope .close-btn', region: 'directives', origin: 'mmd', why: '關閉' },
   { selector: '.header-scope .title', region: 'directives', origin: 'mmd', why: '標題' },
-  { selector: '.header-scope .btn-scope', region: 'directives', origin: 'mmd', why: '標題列右側的鍵' },
+  // MMD 把「添加」放標題列右側；這裡跟其他彈層一樣放底部動作列（owner 2026-09-06），節點名不變、位置搬到輸入區底下
+  { selector: '.edit-scope .btn-scope', region: 'directives', origin: 'lt', why: '輸入區底下的動作列' },
   { selector: '.btn-scope .add-btn', region: 'directives', origin: 'mmd', why: '新增' },
   { selector: '.sub-title', region: 'directives', origin: 'mmd', why: '「(3/10)」' },
   { selector: '.empty-default-show', region: 'directives', origin: 'mmd', why: '一條都沒有時的那句話；作者常改它' },
