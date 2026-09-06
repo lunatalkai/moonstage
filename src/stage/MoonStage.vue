@@ -26,7 +26,8 @@ provide(STAGE_ROUTE_OPTIONS, {
   ...(props.trial ? { trial: props.trial } : {}),
 })
 
-const loadingState = useLoading()
+// 跟 App.vue 一樣拿 state 本體：useLoading() 的 visible／text 是取值函式，直接綁到模板會把函式印出來
+const { state: loadingState } = useLoading()
 const root = ref<HTMLElement | null>(null)
 let disposeRpx: (() => void) | null = null
 onMounted(() => { if (root.value) disposeRpx = installRpxVar(root.value) })
