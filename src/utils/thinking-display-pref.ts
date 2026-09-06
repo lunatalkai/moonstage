@@ -4,10 +4,7 @@
 // CHAT_PAYLOAD_KEYS），本地裝置持久化即可，不需要 server 欄位。對照
 // mobile/src/utils/thinking-display-pref.js 的同一份合約。預設 = 顯示（true）。
 
-declare const uni: {
-  getStorageSync: (key: string) => unknown
-  setStorageSync: (key: string, value: unknown) => void
-}
+import { useStageHost } from '@/host/stage-host'
 
 const STORAGE_KEY_PREFIX = 'lunatalkShowThinkingProcess_'
 
@@ -18,7 +15,7 @@ function storageKey(roleId: string): string {
 export function getShowThinkingProcess(roleId?: string | null): boolean {
   if (!roleId) return true
   try {
-    const raw = uni.getStorageSync(storageKey(roleId))
+    const raw = useStageHost().storage.get(storageKey(roleId))
     if (raw === '' || raw === undefined || raw === null) return true
     return raw !== false && raw !== 'false' && raw !== '0'
   } catch (e) {
@@ -29,7 +26,7 @@ export function getShowThinkingProcess(roleId?: string | null): boolean {
 export function setShowThinkingProcess(roleId: string | null | undefined, value: boolean): void {
   if (!roleId) return
   try {
-    uni.setStorageSync(storageKey(roleId), value !== false)
+    useStageHost().storage.set(storageKey(roleId), String(value !== false))
   } catch (e) {
     console.warn('[thinking-display-pref] setShowThinkingProcess failed', e)
   }

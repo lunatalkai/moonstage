@@ -1,8 +1,10 @@
 /**
  * 草稿数据管理工具 (uni-app 跨平台版本)
  * @module utils/draftManager
- * @description 基于 uni.storage API 实现的草稿管理工具
+ * @description 草稿存取走 StageHost.storage（uni-app 殼＝uni.storage，純瀏覽器宿主＝localStorage）。
+ * getAllDrafts 仍直接用 uni.getStorageInfoSync 列鍵：host 沒有列鍵能力，PR2 再處理。
  */
+import { useStageHost } from '@/host/stage-host';
 
 const DRAFT_VERSION = '1.0';
 // 保留默认 key 以兼容旧代码
@@ -48,11 +50,11 @@ export function saveDraft(key, data, options = {}) {
 
     // 序列化并保存
     const jsonStr = JSON.stringify(draftData);
-    uni.setStorageSync(key, jsonStr);
+    useStageHost().storage.set(key, jsonStr);
 
     // 兼容旧版时间戳存储
     if (key === DEFAULT_DRAFT_KEY) {
-      uni.setStorageSync(DRAFT_TIMESTAMP_KEY, draftData._draftMeta.savedAt);
+      useStageHost().storage.set(DRAFT_TIMESTAMP_KEY, String(draftData._draftMeta.savedAt));
     }
 
     console.log('[DraftManager] Draft saved:', {
@@ -89,7 +91,7 @@ export function loadDraft(key) {
       return null;
     }
 
-    const jsonStr = uni.getStorageSync(key);
+    const jsonStr = useStageHost().storage.get(key);
     if (!jsonStr) {
       console.log('[DraftManager] No draft found for key:', key);
       return null;
@@ -137,11 +139,11 @@ export function clearDraft(key) {
       return false;
     }
 
-    uni.removeStorageSync(key);
+    useStageHost().storage.remove(key);
 
     // 兼容旧版时间戳存储
     if (key === DEFAULT_DRAFT_KEY) {
-      uni.removeStorageSync(DRAFT_TIMESTAMP_KEY);
+      useStageHost().storage.remove(DRAFT_TIMESTAMP_KEY);
     }
 
     console.log('[DraftManager] Draft cleared for key:', key);
@@ -168,7 +170,7 @@ export function hasDraft(key) {
       return false;
     }
 
-    const jsonStr = uni.getStorageSync(key);
+    const jsonStr = useStageHost().storage.get(key);
     return !!jsonStr;
   } catch (error) {
     console.error('[DraftManager] Check draft failed:', error);
@@ -183,7 +185,7 @@ export function hasDraft(key) {
  */
 export function getDraftTimestamp() {
   try {
-    return uni.getStorageSync(DRAFT_TIMESTAMP_KEY) || null;
+    return useStageHost().storage.get(DRAFT_TIMESTAMP_KEY) || null;
   } catch (error) {
     console.error('[DraftManager] Get timestamp failed:', error);
     return null;
