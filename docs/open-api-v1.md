@@ -203,7 +203,7 @@ author edit a file and re-import it thirty times without leaving thirty cards be
 | PUT | `/trial-cards/:clientKey` | create or update a trial. Body below → trial summary |
 | GET | `/trial-cards` | the caller's trials — `{ list: [summary], slots: { used, max }, ttlHours }` |
 | GET | `/trial-cards/:clientKey` | one trial summary; `404 trial_not_found` after expiry |
-| DELETE | `/trial-cards/:clientKey` | remove now — card, conversations, worldbook, display rules |
+| DELETE | `/trial-cards/:clientKey` | remove now — card, conversations, worldbook, display rules → `{ deleted, released }` |
 
 `clientKey` is 1–64 characters from `A-Z a-z 0-9 _ -`.
 
@@ -264,8 +264,15 @@ Play it like any card: `roleId` goes to `/role/detail` and `/conversation/start`
 | 503 | `worldbook_unavailable` | the worldbook service is down; the card and rules were not written either |
 
 Expiry is a server-side sweep, so a trial may survive a few minutes past `expiresAt`;
-treat the timestamp as a floor. A client that wants to keep something longer than that
-is building a card, not trying one: use the authoring routes.
+treat the timestamp as a floor.
+
+**Keeping a trial.** A trial card is a real private card, so the authoring routes work
+on it. The moment it is submitted for review (`/role/:roleId/publish`) or its visibility
+changes, it stops being a trial: it is released from the registry, no longer counts
+against the slots, is never expired, and `DELETE` on its key only releases it
+(`{ deleted: false, released: true }`) rather than deleting the card. The same applies to
+the trial's worldbook: if it has been bound to any other card, expiry and `DELETE` leave
+the worldbook in place and only detach it from the trial card.
 
 ## Errors
 

@@ -259,17 +259,32 @@
     white-space: nowrap;
   }
 
+  /*
+     模型指示器跟著頂欄的字色走，不用自己的顏色。
+
+     作者把頂欄漆成淺色時，這顆藥丸原本讀的是我們的「暗底用淡字」變數，
+     結果淡字落在淺底上，整顆消失（owner 2026-09-06 截圖）。改成一切從
+     currentColor 派生：頂欄什麼字色，它就什麼字色，邊框與底色是同一個色的
+     淡版。作者仍可直接對 .model-chip 寫規則蓋掉。
+  */
   .model-chip {
     max-width: 40vw;
     padding: 4px 10px;
     border-radius: 9999px;
-    border: 1px solid var(--lt-canvas-line);
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    background: color-mix(in srgb, currentColor 7%, transparent);
     font-size: 12px;
-    color: var(--lt-canvas-muted);
+    color: inherit;
+    opacity: 0.82;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .model-chip:hover,
+  .model-chip:focus-visible {
+    opacity: 1;
   }
 
   /* ── 舞台 ─────────────────────────────────────────────────────── */
