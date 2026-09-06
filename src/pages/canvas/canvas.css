@@ -2479,6 +2479,228 @@
     text-align: center;
   }
 
+  /* ── 桌機彈層：置中的對話框 ───────────────────────────────────── */
+  /*
+     手機上每個彈層都是從底部升起的 sheet，那是對的。桌機上同一個 sheet 貼在
+     一千四百像素寬的視窗底邊、只有 560px 寬、內容一屏看不完，玩家要在一條窄縫裡
+     捲（owner 2026-09-06 截圖）。桌機改成置中的對話框：寬度按內容定（表單 640、
+     模型選單 1080、手帳 760、歷史 720、確認 440），高度上限 86vh，四角圓角，
+     進場輕微上浮。
+
+     節點、名字一個都沒動，也沒有 !important：整份仍在 layer 裡，作者對
+     `.u-popup__content` 寫的圓角、底色、內距照舊蓋過這裡。斷點跟手機那一段
+     互補（768 / 769），同一條規則不會在兩邊都成立。
+  */
+  @media (min-width: 769px) {
+    .u-popup {
+      align-items: center;
+      padding: 24px;
+    }
+
+    .u-popup__content {
+      width: min(640px, calc(100vw - 48px));
+      max-height: min(86vh, 920px);
+      padding: 20px 24px 24px;
+      border-radius: var(--lt-canvas-sheet-radius);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--lt-canvas-sheet-line);
+      animation: lt-canvas-dialog-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    /* 寬度按內容：清單型的要寬，確認型的要窄。用 :has 認裡面那一片，殼本身不加名字。 */
+    .u-popup__content:has(.model-setting-scope) {
+      width: min(1080px, calc(100vw - 48px));
+    }
+
+    .u-popup__content:has(.notepad-scope) {
+      width: min(760px, calc(100vw - 48px));
+    }
+
+    .u-popup__content:has(.conversation-list-scope),
+    .u-popup__content:has(.custom-instruction-scope) {
+      width: min(720px, calc(100vw - 48px));
+    }
+
+    .u-popup__content:has(.confirm-scope) {
+      width: min(440px, calc(100vw - 48px));
+    }
+
+    .u-popup__content__close {
+      top: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border-radius: 9999px;
+      background: var(--lt-canvas-sheet-item-bg);
+    }
+
+    /* 標題列：五個彈層同一個尺度。左標題、右動作，動作是藥丸鍵、不換行。 */
+    .mp-title,
+    .role-setting .page-title,
+    .custom-instruction-scope .header-scope .title,
+    .np-title,
+    .cl-title-text {
+      font-size: 17px;
+      letter-spacing: 0.01em;
+    }
+
+    .role-setting .icon-back,
+    .role-setting .complete-btn,
+    .custom-instruction-scope .add-btn {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 0 16px;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .role-setting .card,
+    .ms-card {
+      padding: 14px 16px;
+    }
+
+    .role-setting .label,
+    .ms-card-title {
+      font-size: 14px;
+    }
+
+    .np-subtitle,
+    .custom-instruction-scope .sub-title {
+      font-size: 12px;
+    }
+
+    .np-textarea {
+      min-height: 320px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .confirm-scope .confirm-content {
+      padding: 8px 0 12px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* 模型選單：一屏看得到更多、詳情讀得出重點。
+       這一段放在模型選單那一節之後：canvas-model-sheet.spec 從彈層版 ms-sheet 的第一條規則
+       切到 ms-cost-mask 檢查「沒有第二個捲動容器」，桌機規則不該被算進去。 */
+    .model-setting-scope .ms-sheet {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .ms-sheet > * {
+      grid-column: 1 / -1;
+    }
+
+    /* 搜尋與分類並排一列；設定卡三張一列。 */
+    .ms-sheet > .ms-search {
+      grid-column: span 3;
+      align-self: center;
+    }
+
+    .ms-sheet > .ms-search + .ms-rail {
+      grid-column: span 3;
+      align-self: center;
+    }
+
+    .ms-sheet > .ms-card {
+      grid-column: span 2;
+      align-self: stretch;
+    }
+
+    .ms-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    /* 展開的那一張跨兩欄：詳情要用整個寬度，而且不會把旁邊那一欄擠成一長條。 */
+    .ms-family.is-active {
+      grid-column: 1 / -1;
+    }
+
+    .ms-row {
+      gap: 12px;
+      min-height: 64px;
+      padding: 12px 14px;
+    }
+
+    .ms-tile {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    .ms-tile-img {
+      width: 26px;
+      height: 26px;
+    }
+
+    .ms-name {
+      font-size: 15px;
+    }
+
+    .ms-meta {
+      font-size: 12px;
+    }
+
+    .ms-price {
+      font-size: 14px;
+    }
+
+    /* 詳情：指標排成一列數字方塊，一眼掃過；線路、說明、來源仍佔整寬。 */
+    .ms-detail {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px 12px;
+      padding: 14px 16px 16px;
+    }
+
+    .ms-detail > * {
+      grid-column: 1 / -1;
+    }
+
+    .ms-detail > .ms-kv {
+      grid-column: span 1;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--lt-canvas-sheet-item-bg);
+    }
+
+    .ms-detail > .ms-kv .ms-kv-k {
+      font-size: 11px;
+    }
+
+    .ms-detail > .ms-kv .ms-kv-v {
+      font-size: 15px;
+      text-align: left;
+    }
+
+    .ms-detail-desc {
+      font-size: 13px;
+    }
+  }
+
+  @keyframes lt-canvas-dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   /* ── 彈層底部的收尾鍵（模型設定／歷史對話共用）───────────────── */
 
   /*
