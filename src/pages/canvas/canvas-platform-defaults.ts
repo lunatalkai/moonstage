@@ -1,67 +1,38 @@
 /**
- * MMD 平台自己對 AI 訊息做的兩件事，卡片規則之外的「預設」（owner 2026-09-06：
- * 「我懷疑這個是它有預設的注入」——對，在它 chat-sandbox 的 removeAiPrompt／removeSpan，
- * 用它頁面上的實例跑過樣本確認）。順序照原站：先清提示詞標籤 → 卡片正則 → 剝掉不認得的標籤。
+ * 訊息渲染的平台預設，卡片規則之外的兩件事。起點是 MMD 的 chat-sandbox 在做的事
+ * （owner 2026-09-06 懷疑「它有預設的注入」，在它頁面實例上跑樣本確認），但不照抄：
  *
- * 1. removePromptTags：整段連內容一起拿掉的標籤（thinking／think／Q／REALIEZ／WF／tucao／
- *    review／thought／mission_statement）、HTML 註解、[new-user-speak]、「<结束无效提示>」
- *    這種殘留；先把 &lt;thinking&gt; 這類被轉義的寫法還原再清。
- * 2. stripUnknownTags：只留白名單裡的標籤，其餘（含 <思维链>、<status> 這類中文或自訂
- *    標籤）拿掉標籤本身、內文照留。所以原站上「思維鏈」那段文字一樣看得到，只是沒有
- *    字面的 <思维链>。svg 整段保護（內部 <path>/<g> 不在白名單），style／script 本體也保護
- *    （原站沒保護，但腳本裡的 `a<b` 之類被咬掉只會壞不會好）。
+ * - 它把 thinking／thought／Q 這類標籤連內容刪掉；我們折進「思考過程」摺疊框，
+ *   在 utils/thinking-content.ts，不在這裡。
+ * - 它順手清自己逆向 API 漏出來的計費警告、「<结束无效提示>」這類殘渣；owner 裁決
+ *   開源前端不替逆向 API 收拾，不做。
+ * - 它白名單以外的標籤一律拿掉標籤、留內文。這件事本身是對的（瀏覽器把 <思维链>
+ *   這種非 ASCII 標籤名當文字印出來，酒館的 DOMPurify 也是丟標籤留內文），但它的
+ *   名單窄到沒有 hr／u／code／blockquote，那是沒維護的消毒清單不是設計。這裡改成
+ *   標準 HTML 元素全留，只剝非標準名字的標籤；不看卡片來源，對誰都安全。
  *
  * 另外 wrapDialogue：MMD 把引號裡的對白包成 <font color="#DC8333">，作者的美化靠這個
  * 上色。只能對純文字節點做——先前排在括號斜體之後，把 <span style="…"> 的屬性值當
  * 對白包了，畫面上就冒出 `"color: #C4B4A3;…">` 這種字（owner 2026-09-06 截圖）。
  */
 
-const PROMPT_TAG_NAMES = ['thinking', 'think', 'Q', 'REALIEZ', 'WF', 'tucao', 'review', 'thought', 'mission_statement']
+/** 標準 HTML 元素（含已棄用但瀏覽器仍渲染的 font／center 等）加上 svg／MathML 根、酒館的 custom-style。 */
+export const STANDARD_HTML_TAGS = new Set((
+  'a abbr address area article aside audio b base bdi bdo blockquote body br button canvas caption center cite code col colgroup ' +
+  'data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure font footer form h1 h2 h3 h4 h5 h6 head header ' +
+  'hgroup hr html i iframe img input ins kbd label legend li link main map mark marquee menu meta meter nav noscript object ol optgroup ' +
+  'option output p param picture pre progress q rp rt ruby s samp script search section select slot small source span strike strong ' +
+  'style sub summary sup table tbody td template textarea tfoot th thead time title tr track tt u ul var video wbr ' +
+  'svg math custom-style user'
+).split(' '))
 
-const ESCAPED_PROMPT_TAG_RE = new RegExp('&lt;(\\/?\\s*(?:' + PROMPT_TAG_NAMES.join('|') + ')[^<]*?)&gt;', 'gi')
+const PROTECTED_BLOCK_RE = /<svg[\s\S]*?<\/svg>|<math[\s\S]*?<\/math>|<style(?:\s[^>]*)?>[\s\S]*?<\/style>|<script(?:\s[^>]*)?>[\s\S]*?<\/script>/gi
 
-const PROMPT_BLOCK_RES: RegExp[] = [
-  /\[new-user-speak\][\s\S]*?\[\/new-user-speak\]/gi,
-  /<mission_statement>[\s\S]*?<\/mission_statement>/gi,
-  /<\s*thinking[\s\S]*?>[\s\S]*?<\s*\/\s*thinking\s*>/gi,
-  /<\s*think[\s\S]*?>[\s\S]*?<\s*\/\s*think\s*>/gi,
-  /<Q>[\s\S]*?<\/Q>/gi,
-  /<REALIEZ>[\s\S]*?<\/REALIEZ>/gi,
-  /<WF>[\s\S]*?<\/WF>/gi,
-  /<tucao>[\s\S]*?<\/tucao>/gi,
-  /<review>[\s\S]*?<\/review>/gi,
-  /<thought>[\s\S]*?<\/thought>/gi,
-]
-
-const PROMPT_LITERALS = [
-  '*Warning: Claude Opus is significantly more expensive than Claude Sonnet. We recommend using Sonnet for most tasks.*',
-  '<结束无效提示>',
-  '</结束无效提示>',
-  '<Format：|>',
-  '<Format: |>',
-  '<Format:|>',
-]
-
-export function removePromptTags(content: string): string {
-  if (!content) return content
-  let out = content
-  for (const lit of PROMPT_LITERALS) out = out.split(lit).join('')
-  out = out.replace(ESCAPED_PROMPT_TAG_RE, '<$1>')
-  out = out.replace(/<!--[\s\S]*?-->/g, '')
-  for (const re of PROMPT_BLOCK_RES) out = out.replace(re, '')
-  return out
-}
-
-/** 原站 removeSpan 的白名單，一字不差。 */
-export const MMD_ALLOWED_TAGS = new Set([
-  'p', 'b', 'a', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'li', 'ol', 'strong', 'em', 'br',
-  'img', 'pre', 'font', 'style', 'script', 'i', 'button', 'table', 'th', 'tr', 'td', 'input', 'textarea',
-  'label', 'select', 'option', 'video',
-  'user', 'summary', 'details',
-])
-
-const PROTECTED_BLOCK_RE = /<svg[\s\S]*?<\/svg>|<style(?:\s[^>]*)?>[\s\S]*?<\/style>|<script(?:\s[^>]*)?>[\s\S]*?<\/script>/gi
-
+/**
+ * 非標準名字的標籤（<思维链>、<status>、<AC_UI>…）拿掉標籤、留內文。
+ * 名字含連字號的自訂元素（<my-widget>）不碰。svg／math／style／script 整段保護。
+ * 要排在卡片規則之後：<AC_UI>、<功能按钮> 這些觸發標籤正是規則要吃的東西。
+ */
 export function stripUnknownTags(html: string): string {
   if (!html) return html
   const stash: string[] = []
@@ -69,8 +40,7 @@ export function stripUnknownTags(html: string): string {
     stash.push(m)
     return '\x07' + (stash.length - 1) + '\x08'
   })
-  out = out.replace(/<\/?([一-龥a-zA-Z0-9_]+)(\s+[^>]*)?>/g, (m, name) => (MMD_ALLOWED_TAGS.has(name) ? m : ''))
-  out = out.replace(/<\/?(html|head|body)(\s+[^>]*)?>/gi, '')
+  out = out.replace(/<\/?([一-龥a-zA-Z0-9_]+)(\s+[^>]*)?\/?>/g, (m, name) => (STANDARD_HTML_TAGS.has(String(name).toLowerCase()) ? m : ''))
   out = out.replace(/\x07(\d+)\x08/g, (_m, idx) => stash[Number(idx)])
   return out
 }

@@ -1,6 +1,18 @@
+/**
+ * 正文裡的思考區塊，折進「思考過程」摺疊框，不丟。
+ *
+ * think／thinking 之外，thought／review／tucao／mission_statement 與大寫的 Q／WF／REALIEZ
+ * 也是社群預設常見的思維鏈寫法（owner 2026-09-06：標準的思維鏈就由我們處理）。
+ * Q／WF／REALIEZ 只認大寫：小寫 <q> 是 HTML 的引用元素，是正文。MMD 的做法是不分
+ * 大小寫整段刪掉，連 <q> 一起吃，那是它的 bug，不照抄。
+ */
+const THINK_TAG_RE = /<(think(?:ing)?|thought|review|tucao|mission_statement|Q|WF|REALIEZ)(?:\s[^>]*)?>([\s\S]*?)<\/(?:\1|think(?:ing)?)\s*>/gi
+
 function splitInlineThinkTags(content: string): { visibleContent: string; thinkingContent: string } {
   let thinkingContent = ''
-  const visibleContent = content.replace(/<think(?:ing)?[^>]*>([\s\S]*?)<\/think(?:ing)?>/gi, (_, hidden) => {
+  const visibleContent = content.replace(THINK_TAG_RE, (match: string, name: string, hidden: string) => {
+    // Q／WF／REALIEZ 只認全大寫；<q> 是 HTML 引用元素，留在正文。
+    if (/^(q|wf|realiez)$/i.test(name) && name !== name.toUpperCase()) return match
     if (hidden) {
       thinkingContent += `${thinkingContent ? '\n' : ''}${String(hidden).trim()}`
     }

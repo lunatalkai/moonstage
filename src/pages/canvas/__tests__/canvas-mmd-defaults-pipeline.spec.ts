@@ -22,7 +22,7 @@ import {
 } from '../../../utils/rich-text-renderer.js'
 import { applyTavernRules } from '../canvas-rule-engine'
 import { scopeCardHtml } from '../canvas-style-scope'
-import { removePromptTags, stripUnknownTags, wrapDialogue } from '../canvas-platform-defaults'
+import { stripUnknownTags, wrapDialogue } from '../canvas-platform-defaults'
 
 const CANVAS_VUE = path.join(process.cwd(), 'src/pages/canvas/canvas.vue')
 
@@ -45,7 +45,7 @@ function buildHighlightText(source: 'mmd' | 'tavern', rules: any[] = []) {
     isHeavyHtml, sanitizeHtml, getMarkdownIt, renderTaskLists, dedentHtmlBlockLines,
     findStableBoundary, getStreamCacheEntry, setStreamCacheEntry, unwrapSingleHtmlFence,
     applyTavernRules, scopeCardHtml,
-    removePromptTags, stripUnknownTags, wrapDialogue,
+    stripUnknownTags, wrapDialogue,
     authorRuleOptions: () => ({}),
     cardSource: { value: source },
     convertVisibleHtml: (html: string) => html,
@@ -85,12 +85,13 @@ describe('MMD 來源的畫布：平台預設與對白上色', () => {
     expect(html).toContain('用戶選擇了【出言嘲諷】')
   })
 
-  it('thought／Q 這類原站預設清掉的標籤連內容消失，跨越空行也清', () => {
-    const html = buildHighlightText('mmd')('前面<thought>\n隱藏\n\n還是隱藏\n</thought>後面<Q>q</Q>', 0, null)
-    expect(html).not.toContain('隱藏')
-    expect(html).not.toContain('q</')
-    expect(html).toContain('前面')
-    expect(html).toContain('後面')
+  it('標準元素照留：hr／u／code 不受非標準標籤剝除影響', () => {
+    const html = buildHighlightText('mmd')('<u>底線</u>與<code>碼</code>\n\n<hr>\n\n<status>狀態</status>', 0, null)
+    expect(html).toContain('<u>底線</u>')
+    expect(html).toContain('<code>碼</code>')
+    expect(html).toContain('<hr>')
+    expect(html).toContain('狀態')
+    expect(html).not.toContain('<status>')
   })
 
   it('卡片規則先於剝標籤：<AC_UI> 這種觸發標籤先被規則換掉，不會先被剝光', () => {
@@ -99,9 +100,10 @@ describe('MMD 來源的畫布：平台預設與對白上色', () => {
     expect(html).toContain('<div class="ac-ui">UI</div>')
   })
 
-  it('酒館來源不套 MMD 的白名單：<u> 與自訂標籤內文都留，標籤照舊', () => {
+  it('不看來源：酒館來源一樣剝非標準標籤、留內文，標準元素照舊', () => {
     const html = buildHighlightText('tavern')('<u>底線</u>與<status>狀態</status>', 0, null)
     expect(html).toContain('<u>底線</u>')
     expect(html).toContain('狀態')
+    expect(html).not.toContain('<status>')
   })
 })

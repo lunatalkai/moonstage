@@ -368,7 +368,7 @@ import CanvasComposer from './components/canvas-composer.vue'
 import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules } from './canvas-rule-engine'
 import { scopeCardHtml, normalizeCardSource, type CardSource } from './canvas-style-scope'
-import { removePromptTags, stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
+import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
 import type { ArchiveRow } from './canvas-archives'
@@ -2595,11 +2595,6 @@ function disposeAuthorAsset() {
 const highlightText = (content, type, cacheKey) => {
   if (!content) return '';
 
-  // MMD 平台預設（不是卡片規則）：thinking／thought／Q 這類提示詞標籤連內容一起清。
-  // 放在整段內容上、快取切段之前——這些區塊會跨越空行，切段之後才清會漏。
-  // 順序跟原站一樣在卡片正則之前；原站的卡片也覆寫不了這組。
-  if (cardSource.value === 'mmd') content = removePromptTags(content);
-
   // streaming render cache 短路 (issue #5 · O(N²) 解法 · mirror mobile chat.vue)
   // 細節見 rich-text-renderer.js 的 stream cache 區塊註解
   if (cacheKey && !isHeavyHtml(content)) {
@@ -2649,9 +2644,10 @@ const highlightText = (content, type, cacheKey) => {
     processedContent = scopeCardHtml(processedContent, cardSource.value);
   }
 
-  // MMD 平台預設第二步：白名單以外的標籤（<思维链>、<status>…）拿掉標籤、留內文。
-  // 一定要排在卡片規則之後——<AC_UI>、<功能按钮> 這些觸發標籤就是規則要吃的東西。
-  if (cardSource.value === 'mmd') processedContent = stripUnknownTags(processedContent);
+  // 非標準名字的標籤（<思维链>、<status>…）拿掉標籤、留內文；思考類標籤已在渲染前
+  // 折進思考過程框（thinking-content.ts）。一定要排在卡片規則之後——<AC_UI>、
+  // <功能按钮> 這些觸發標籤就是規則要吃的東西。不看來源：對誰都安全。
+  processedContent = stripUnknownTags(processedContent);
 
   // 富文字渲染：重 HTML（角色卡類）維持舊路徑；其餘一律先跑 MD
   // → chat bubble 同時支援純文字 / Markdown / 輕量 HTML 混合
