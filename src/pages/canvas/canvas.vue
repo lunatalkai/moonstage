@@ -368,6 +368,7 @@ import CanvasComposer from './components/canvas-composer.vue'
 import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules } from './canvas-rule-engine'
 import { scopeCardHtml, normalizeCardSource, type CardSource } from './canvas-style-scope'
+import { removePromptTags, stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
 import type { ArchiveRow } from './canvas-archives'
@@ -2594,6 +2595,11 @@ function disposeAuthorAsset() {
 const highlightText = (content, type, cacheKey) => {
   if (!content) return '';
 
+  // MMD 平台預設（不是卡片規則）：thinking／thought／Q 這類提示詞標籤連內容一起清。
+  // 放在整段內容上、快取切段之前——這些區塊會跨越空行，切段之後才清會漏。
+  // 順序跟原站一樣在卡片正則之前；原站的卡片也覆寫不了這組。
+  if (cardSource.value === 'mmd') content = removePromptTags(content);
+
   // streaming render cache 短路 (issue #5 · O(N²) 解法 · mirror mobile chat.vue)
   // 細節見 rich-text-renderer.js 的 stream cache 區塊註解
   if (cacheKey && !isHeavyHtml(content)) {
@@ -2642,6 +2648,10 @@ const highlightText = (content, type, cacheKey) => {
     // 無前綴的 <style> 換掉整個頁面的背景與輸入框。
     processedContent = scopeCardHtml(processedContent, cardSource.value);
   }
+
+  // MMD 平台預設第二步：白名單以外的標籤（<思维链>、<status>…）拿掉標籤、留內文。
+  // 一定要排在卡片規則之後——<AC_UI>、<功能按钮> 這些觸發標籤就是規則要吃的東西。
+  if (cardSource.value === 'mmd') processedContent = stripUnknownTags(processedContent);
 
   // 富文字渲染：重 HTML（角色卡類）維持舊路徑；其餘一律先跑 MD
   // → chat bubble 同時支援純文字 / Markdown / 輕量 HTML 混合
@@ -2862,12 +2872,22 @@ const highlightText = (content, type, cacheKey) => {
       textContent = textContent.replace(/\n/g, '<br>');
     }
 
+    // MMD 的對白高亮：引號裡的話包成 <font color>。這是 MMD 平台自己做的事，不是卡片
+    // 的規則——作者的美化 CSS 直接對 `.content font[color*="#ff"]`／`font[color="#DC8333"]`
+    // 寫樣式（#DC8333 是 MMD 的預設對白色）。少了這層，作者做好的對白樣式在我們這
+    // 裡整個不見（owner 2026-09-06：「引號沒生效」）。
+    // 必須在括號斜體之前做：此刻 textContent 還是純文字節點；先做斜體再做對白，
+    // 斜體塞進來的 <span style="…"> 屬性值會被當成引號包掉，畫面上冒出
+    // `"color: #C4B4A3;…">` 這串字（owner 2026-09-06 截圖）。
+    const dialogued = wrapDialogue(textContent);
+
     // 「遊戲對白裝飾」：(text)/（text）/*text*/_text_ 轉全形括號斜體
     // 角色扮演心理活動描述的視覺強化 — heavy HTML 與 MD 路徑都要套。
     // attribute value 的 `<` `>` 已被 pre-pass 屏蔽成 \x01/\x02，
     // raw-text 元素內容已被 stash 成 \x05N\x06 佔位符 — 這個 regex
-    // 不會誤判到那些位置，所以這裡無需額外 skip。
-    const highlightedText = textContent.replace(/\$(.*?)\$|（(.*?)）|\((.*?)\)|\*(.*?)\*|_(.*?)_/g, (subMatch, p1, p2, p3, p4) => {
+    // 不會誤判到那些位置，所以這裡無需額外 skip。上一步包進來的 <font> 標籤裡
+    // 沒有這些分隔符，不會被打到。
+    const highlightedText = dialogued.replace(/\$(.*?)\$|（(.*?)）|\((.*?)\)|\*(.*?)\*|_(.*?)_/g, (subMatch, p1, p2, p3, p4) => {
       const replacementText = p1 || p2 || p3 || p4 || '';
       if (replacementText) {
         const hasBrackets =
@@ -2889,13 +2909,7 @@ const highlightText = (content, type, cacheKey) => {
       return '';
     });
 
-    // MMD 的對白高亮：引號裡的話包成 <font color>。這是 MMD 平台自己做的事，不是卡片
-    // 的規則——作者的美化 CSS 直接對 `.content font[color*="#ff"]`／`font[color="#DC8333"]`
-    // 寫樣式（#DC8333 是 MMD 的預設對白色）。少了這層，作者做好的對白樣式在我們這
-    // 裡整個不見（owner 2026-09-06：「引號沒生效」）。只動文字節點，屬性裡的引號碰不到。
-    const dialogued = highlightedText.replace(/(["“][^"“”\n<>]{1,400}["”])/g, '<font color="#DC8333">$1</font>');
-
-    return `>${dialogued}<`;
+    return `>${highlightedText}<`;
   });
 
   // ── 顯示字形轉換：排在卡片正則與 markdown 之後、stash 還原之前 ──

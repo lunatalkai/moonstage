@@ -13,6 +13,9 @@ import {
   setStreamCacheEntry,
   unwrapSingleHtmlFence,
 } from '../../../utils/rich-text-renderer.js'
+// highlightText 現在直接呼叫這三支（MMD 平台預設與對白上色）；這些測試驗的是別的管線行為，
+// 綁真實函式、來源給 tavern，等價於「沒有 MMD 預設」的路徑，跟改動前一樣。
+import { removePromptTags, stripUnknownTags, wrapDialogue } from '../canvas-platform-defaults'
 
 /*
   重 HTML（訊息以區塊 tag 開頭）也要過 Markdown。
@@ -45,6 +48,8 @@ function buildHighlightText(): (content: string, type?: number, cacheKey?: strin
   const context = vm.createContext({
     isHeavyHtml, sanitizeHtml, getMarkdownIt, renderTaskLists, dedentHtmlBlockLines,
     findStableBoundary, getStreamCacheEntry, setStreamCacheEntry, unwrapSingleHtmlFence,
+    removePromptTags, stripUnknownTags, wrapDialogue,
+    cardSource: { value: 'tavern' },
     convertVisibleHtml: (html: string) => html,
     displayScript: (text: string) => text,
     applyDisplayRules: (text: string) => ({ html: text, rollbacks: [] }),

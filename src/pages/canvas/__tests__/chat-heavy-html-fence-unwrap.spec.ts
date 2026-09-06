@@ -13,6 +13,9 @@ import {
   setStreamCacheEntry,
   unwrapSingleHtmlFence,
 } from '../../../utils/rich-text-renderer.js'
+// highlightText 現在直接呼叫這三支（MMD 平台預設與對白上色）；這些測試驗的是別的管線行為，
+// 綁真實函式、來源給 tavern，等價於「沒有 MMD 預設」的路徑，跟改動前一樣。
+import { removePromptTags, stripUnknownTags, wrapDialogue } from '../canvas-platform-defaults'
 
 // 工單 #65（回歸 #24）：#24 修復只改了
 // rich-text-renderer.js 的 renderRichText()（chat.vue 從未呼叫的死路徑），
@@ -65,6 +68,8 @@ function buildHighlightText(): (content: string, type?: number, cacheKey?: strin
     getStreamCacheEntry,
     setStreamCacheEntry,
     unwrapSingleHtmlFence,
+    removePromptTags, stripUnknownTags, wrapDialogue,
+    cardSource: { value: 'tavern' },
     // 顯示字形轉換在這些測試裡是恆等：它們驗的是管線結構，不是簡繁。
     convertVisibleHtml: (html: string) => html,
     displayScript: (text: string) => text,
