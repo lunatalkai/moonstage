@@ -3049,6 +3049,48 @@ function formatThinkingSize(value: string) {
   return `${length} chars`
 }
 
+/*
+  訊息裡的 <script>／<style> 要真的跑起來。
+
+  v-html 塞進去的 <script> 瀏覽器不執行，所以要把它們抄一份掛到 head。以前只在
+  「原文本身就是 HTML」的訊息上做這件事——可是作者的腳本多半是**正則套上去之後**
+  才出現的（開場白是一句話，規則把它換成一整塊帶 <script> 的面板），原文一看是純
+  文字就被跳過，面板畫出來了、按鈕卻找不到 handler（owner 2026-09-06：開局事件
+  點了沒反應，Console 是 handleHuChoice is not defined）。現在看的是套完規則的結果。
+
+  只在訊息完成後跑，而且同一則同一份結果只跑一次：規則版本一換（作者在預覽裡改檔）
+  結果就變，那時候該重跑；單純重畫不該重跑，否則同一段腳本會塞進 head 幾十次。
+*/
+const activatedMessageScripts = new WeakMap<object, string>();
+function activateMessageScripts(item: any, html: string) {
+  if (!item || !item.chatFinish) return;
+  if (!/<(script|style)[\s>]/i.test(html || '')) return;
+  if (activatedMessageScripts.get(item) === html) return;
+  activatedMessageScripts.set(item, html);
+  nextTick(() => {
+    const messageEl = document.querySelector(`#msg-${item.id} .content`);
+    if (!messageEl) return;
+    const scriptTags = messageEl.innerHTML.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
+    if (scriptTags) {
+      scriptTags.forEach((scriptTag) => {
+        const scriptContent = scriptTag.replace(/<script[^>]*>|<\/script>/gi, '');
+        const newScript = document.createElement('script');
+        newScript.textContent = scriptContent;
+        document.head.appendChild(newScript);
+      });
+    }
+    const styleTags = messageEl.innerHTML.match(/<style[^>]*>[\s\S]*?<\/style>/gi);
+    if (styleTags) {
+      styleTags.forEach((styleTag) => {
+        const styleContent = styleTag.replace(/<style[^>]*>|<\/style>/gi, '');
+        const newStyle = document.createElement('style');
+        newStyle.textContent = styleContent;
+        document.head.appendChild(newStyle);
+      });
+    }
+  });
+}
+
 // 渲染Markdown内容
 const renderMarkdown = (item) => {
   // V1.1: 只信呼叫端傳入的 isSummary 旗標；拿掉 isSummaryFormat(item.content) 內容嗅探
@@ -3066,50 +3108,13 @@ const renderMarkdown = (item) => {
   // 检测内容是否已经是HTML格式
   const isHTML = /<[^>]*>/g.test(processedContent);
 
-  if (isHTML) {
-    // 如果已经是HTML，使用增强的highlightText处理，不进行markdown处理
-    const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
-    const cleanContent = highlightText(processedContent, item.type, cacheKey);
+  // HTML 與純文字走同一條：規則套完才知道有沒有 <script>／<style>，所以腳本啟動
+  // 看的是套完規則的結果，不是原文（見 activateMessageScripts）。
+  const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
+  const cleanContent = highlightText(processedContent, item.type, cacheKey);
+  activateMessageScripts(item, cleanContent);
+  return cleanContent;
 
-                // 处理script和style标签
-                //
-                // 只在訊息**完成**之後執行一次（renderMessage 的記憶讓每個結果只算一次，
-                // 所以這裡也只會排一次）。串流中每個 chunk 都執行的話，跑的是寫到一半的
-                // 腳本，而且同一段腳本會被塞進 head 幾十次。
-                if (item.chatFinish) nextTick(() => {
-                    const messageEl = document.querySelector(`#msg-${item.id} .content`);
-                    if (messageEl) {
-                        // 提取并执行script标签
-                        const scriptTags = messageEl.innerHTML.match(/<script[^>]*>[\s\S]*?<\/script>/gi);
-                        if (scriptTags) {
-                            scriptTags.forEach(scriptTag => {
-                                const scriptContent = scriptTag.replace(/<script[^>]*>|<\/script>/gi, '');
-                                const newScript = document.createElement('script');
-                                newScript.textContent = scriptContent;
-                                document.head.appendChild(newScript);
-                            });
-                        }
-
-                        // 提取并应用style标签
-                        const styleTags = messageEl.innerHTML.match(/<style[^>]*>[\s\S]*?<\/style>/gi);
-                        if (styleTags) {
-                            styleTags.forEach(styleTag => {
-                                const styleContent = styleTag.replace(/<style[^>]*>|<\/style>/gi, '');
-                                const newStyle = document.createElement('style');
-                                newStyle.textContent = styleContent;
-                                document.head.appendChild(newStyle);
-                            });
-                        }
-                    }
-                });
-
-    return cleanContent;
-  } else {
-    // 如果是纯文本，进行正常的highlight和markdown处理
-    const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
-    const cleanContent = highlightText(processedContent, item.type, cacheKey);
-    return cleanContent;
-  }
 };
 
 function onConfirmStartNewConversation() {

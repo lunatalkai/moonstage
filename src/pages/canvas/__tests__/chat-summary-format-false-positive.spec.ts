@@ -118,6 +118,8 @@ function buildRenderMarkdown(chatVueSource: string) {
     renderSummary,
     isSummaryFormat: LEGACY_IS_SUMMARY_FORMAT,
     nextTick: (_fn?: () => void) => {}, // 測試不驗證 script/style 副作用注入
+    // 訊息腳本啟動（<script>／<style> 掛進 head）是 DOM 副作用，這裡不驗，給空殼。
+    activateMessageScripts: (_item?: unknown, _html?: string) => {},
     activeAuthorAsset: { value: { rules: [], version: 0, crossLine: false } },
     console,
   })
