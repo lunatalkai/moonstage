@@ -215,7 +215,7 @@ is absent is removed from the trial if it existed before:
   "name": "Display name for the trial card",
   "card":        { "roleDesc": "…", "roleDetailDesc": "…", "roleAvatar": "https://…", "talkExample": [] },
   "welcome":     { "roleWelcome": "…", "alternates": ["…"], "prologue": ["…"] },
-  "worldbook":   { "name": "…", "entries": [ { "name": "…", "content": "…", "keywords": ["…"], "isConstant": false, "isEnabled": true } ] },
+  "worldbook":   { "name": "…", "entries": [ { "name": "…", "content": "…", "keywords": ["…"], "secondaryKeywords": ["…"], "isConstant": false, "isEnabled": true } ] },
   "authorAsset": { "rules": [ { "id": "…", "name": "…", "find": "…", "replace": "…", "enabled": true } ], "mountTrigger": "…", "mountLayer": "under" },
   "evict": false
 }
@@ -225,7 +225,9 @@ is absent is removed from the trial if it existed before:
   ignored — openings live in `welcome`.
 - `worldbook.entries` are the entries in full. The server keys each entry by a hash of
   its content and only creates the new ones and deletes the missing ones; two identical
-  entries collapse into one. Disabled entries are not created.
+  entries collapse into one. Disabled entries are not created. `secondaryKeywords` is the
+  AND gate (SillyTavern's `selective` + `secondary_keys`): the entry fires only when a main
+  keyword and one of these both appear; omit it or send `[]` for no gate.
 - `authorAsset` is the display-rule set the canvas applies to AI output (tavern regex
   scripts already filtered to AI-output placement).
 

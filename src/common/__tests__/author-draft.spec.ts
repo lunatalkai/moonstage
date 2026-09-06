@@ -190,7 +190,7 @@ describe('酒館卡 → 試玩卡', () => {
     expect(p.welcome).toEqual({ roleWelcome: '雨還在下。', alternates: ['另一個開場'], prologue: [] })
     expect(p.worldbook.name).toBe('偵探事務所')
     expect(p.worldbook.entries).toHaveLength(3)
-    expect(p.worldbook.entries[1]).toEqual({ name: '帽子', content: '戴帽的男人', keywords: ['帽子'], isConstant: true, isEnabled: true })
+    expect(p.worldbook.entries[1]).toEqual({ name: '帽子', content: '戴帽的男人', keywords: ['帽子'], secondaryKeywords: [], isConstant: true, isEnabled: true })
     expect(p.authorAsset.rules[0]).toEqual({ id: '1', name: '狀態欄', find: '/<s>(.*)<\\/s>/g', replace: '$1', enabled: true })
     expect(p.authorAsset.mountLayer).toBe('over')
   })
@@ -378,5 +378,30 @@ describe('舊草稿的 source 欄位升級成 cardFormat', () => {
     expect(upgradeStoredDraft({ id: 'b', source: 'whatever' } as any).cardFormat).toBe('mmd')
     const fresh = { id: 'c', name: 'c', cardFormat: 'mmd', rules: [] }
     expect(upgradeStoredDraft(fresh)).toBe(fresh)
+  })
+})
+
+describe('世界書的次要關鍵詞（酒館 selective + secondary_keys，AND 門）', () => {
+  it('世界書檔：keysecondary 讀進 secondaryKeywords；MMD 的 JSON 字串寫法也認；selective 明確關掉就不帶', () => {
+    const wi = JSON.stringify({ entries: {
+      '0': { key: '["雨"]', keysecondary: '["夜"]', comment: '雨夜', content: '路滑', selective: true },
+      '1': { key: ['港'], keysecondary: ['晨'], comment: '港', content: '霧', selective: false },
+      '2': { key: '["城"]', keysecondary: '["節"]', comment: '城', content: '燈' },
+    } })
+    const d = importAuthorDraft(wi, 'wb')
+    const es = d.card!.book!.entries
+    expect(es[0]).toMatchObject({ keywords: ['雨'], secondaryKeywords: ['夜'] })
+    expect(es[1]).toMatchObject({ keywords: ['港'], secondaryKeywords: [] })
+    expect(es[2]).toMatchObject({ keywords: ['城'], secondaryKeywords: ['節'] })
+    const p = draftToTrialPayload(d)
+    expect(p.worldbook.entries[0]).toMatchObject({ keywords: ['雨'], secondaryKeywords: ['夜'] })
+  })
+
+  it('卡片內的 character_book：keys 也可能是 JSON 字串，secondary_keys 一樣進來', () => {
+    const card = JSON.stringify({ spec: 'chara_card_v2', spec_version: '2.0', data: { name: 'A', first_mes: 'hi', character_book: { entries: [
+      { keys: '["k1","k2"]', secondary_keys: ['s1'], content: 'x', comment: 'e1' },
+    ] } } })
+    const d = importAuthorDraft(card, 'c')
+    expect(d.card!.book!.entries[0]).toMatchObject({ keywords: ['k1', 'k2'], secondaryKeywords: ['s1'] })
   })
 })

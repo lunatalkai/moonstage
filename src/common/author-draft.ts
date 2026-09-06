@@ -51,6 +51,8 @@ export interface DraftBookEntry {
   name: string
   content: string
   keywords: string[]
+  /** AND 門（酒館 selective + secondary_keys）：主詞命中之外還要出現其中之一。 */
+  secondaryKeywords: string[]
   isConstant: boolean
   isEnabled: boolean
 }
@@ -245,6 +247,15 @@ function keyList(v: any): string[] {
   return []
 }
 
+/**
+ * 次要關鍵詞：世界書檔叫 keysecondary、卡裡的 book 叫 secondary_keys。酒館只在 selective 開著
+ * 時才用它；明確寫 false 就不帶，沒寫（MMD 匯出沒有這個欄位）就照有的算。
+ */
+function secondaryKeyList(e: any): string[] {
+  if (e.selective === false) return []
+  return keyList(e.keysecondary ?? e.secondary_keys)
+}
+
 function stWorldbook(v: any, fallbackName: string): DraftBook {
   const list: any[] = Array.isArray(v.entries) ? v.entries : Object.values(v.entries)
   const entries: DraftBookEntry[] = []
@@ -256,6 +267,7 @@ function stWorldbook(v: any, fallbackName: string): DraftBook {
       name: str(e.comment).trim() || str(e.name).trim() || keywords[0] || `#${i + 1}`,
       content,
       keywords,
+      secondaryKeywords: secondaryKeyList(e),
       isConstant: e.constant === true,
       isEnabled: e.disable !== true && e.enabled !== false,
     })
@@ -399,11 +411,13 @@ function stBook(book: any): DraftBook | null {
     if (!e || typeof e !== 'object') return
     const content = str(e.content)
     if (!content.trim()) return
-    const keywords = strList(e.keys)
+    // keys 照規格是陣列，但 MMD 匯出的東西會寫成 JSON 字串，一併認。
+    const keywords = keyList(e.keys)
     entries.push({
       name: str(e.comment).trim() || str(e.name).trim() || keywords[0] || `#${i + 1}`,
       content,
       keywords,
+      secondaryKeywords: secondaryKeyList(e),
       isConstant: e.constant === true,
       isEnabled: e.enabled !== false,
     })
@@ -509,6 +523,7 @@ export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | n
         name: e.name,
         content: e.content,
         keywords: e.keywords,
+        secondaryKeywords: e.secondaryKeywords,
         isConstant: e.isConstant,
         isEnabled: e.isEnabled,
       })),
