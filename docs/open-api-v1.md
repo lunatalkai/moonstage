@@ -135,7 +135,7 @@ path and the identity differ.
 | POST | `/player/agent-mode` | `{ roleId, multiPassEnabled }` |
 | POST | `/player/compact-preference` | how the story summary is written for this card — `{ roleId, sections, extraInstruction }` |
 | GET | `/worldbook/detail` | worldbook detail |
-| GET | `/worldbook/entry/list` | `?worldbookId=…&category?=…` → `{ worldbookId, entries: [{ entryId, name, content, keywords: ["…"], secondaryKeywords: ["…"], category, isEnabled, isConstant, priority, sortOrder, lastUpdateTime, activationCount }] }` — the same entry shape `/worldbook/:worldbookId/document` accepts; keyword fields are always arrays (empty, never null or a JSON string) |
+| GET | `/worldbook/entry/list` | `?worldbookId=…&category?=…` → `{ worldbookId, entries: [{ entryId, name, content, keywords: ["…"], secondaryKeywords: ["…"], matchOptions, category, isEnabled, isConstant, priority, sortOrder, lastUpdateTime, activationCount }] }` — the same entry shape `/worldbook/:worldbookId/document` accepts; keyword fields are always arrays (empty, never null or a JSON string); `matchOptions` is `null` for native entries and `{ caseSensitive, matchWholeWords, selectiveLogic }` for entries of a tavern-format worldbook |
 
 Player preference is **merge**, not replace: keys you do not send are left alone. That is
 what makes it safe for an older client to write next to a newer one.
@@ -178,8 +178,8 @@ rewritten on the way in.
 | POST | `/role/:roleId/publish` | submit for review — `{ userConfirmed: true, confirmationSummary }` → `{ roleId, reviewStatus }` |
 | POST | `/image/upload` | multipart `file` (+ optional `roleId`) for avatars and backgrounds; same size limit and quota as the site |
 | GET | `/worldbook/mine` | the author's worldbooks |
-| POST | `/worldbook` | `{ name, description?, iconUrl?, tags?, visibility?, language? }` → `{ worldbookId, name, visibility }` |
-| POST | `/worldbook/:worldbookId/document` | metadata, entries and binding as one document — `{ metadata?: { name, description, tags }, entries?: [{ op: "create" \| "update" \| "delete", entryId?, name, content, keywords, category?, isConstant?, isEnabled? }], binding?: { roleId } }` → `{ createdEntryIds, updatedCount, deletedCount, bound }` |
+| POST | `/worldbook` | `{ name, description?, iconUrl?, tags?, visibility?, language?, format? }` → `{ worldbookId, name, visibility }` — `format: "tavern"` marks a SillyTavern-style world info book (see below); omit for a native worldbook |
+| POST | `/worldbook/:worldbookId/document` | metadata, entries and binding as one document — `{ metadata?: { name, description, tags }, entries?: [{ op: "create" \| "update" \| "delete", entryId?, name, content, keywords, secondaryKeywords?, matchOptions?, category?, isConstant?, isEnabled? }], binding?: { roleId } }` → `{ createdEntryIds, updatedCount, deletedCount, bound }`; on `update`, omitted `matchOptions` keeps the entry's current options |
 | GET | `/worldbook/bindings` | `?roleId=` → worldbooks bound to a card |
 
 Authoring is for building a card the author intends to keep. For "play this file now"
@@ -215,7 +215,7 @@ is absent is removed from the trial if it existed before:
   "name": "Display name for the trial card",
   "card":        { "roleDesc": "…", "roleDetailDesc": "…", "roleAvatar": "https://…", "talkExample": [] },
   "welcome":     { "roleWelcome": "…", "alternates": ["…"], "prologue": ["…"] },
-  "worldbook":   { "name": "…", "entries": [ { "name": "…", "content": "…", "keywords": ["…"], "secondaryKeywords": ["…"], "isConstant": false, "isEnabled": true } ] },
+  "worldbook":   { "name": "…", "format": "tavern", "entries": [ { "name": "…", "content": "…", "keywords": ["…"], "secondaryKeywords": ["…"], "matchOptions": { "caseSensitive": false, "matchWholeWords": false, "selectiveLogic": 0 }, "isConstant": false, "isEnabled": true } ] },
   "authorAsset": { "rules": [ { "id": "…", "name": "…", "find": "…", "replace": "…", "enabled": true } ], "mountTrigger": "…", "mountLayer": "under" },
   "evict": false
 }
@@ -228,6 +228,14 @@ is absent is removed from the trial if it existed before:
   entries collapse into one. Disabled entries are not created. `secondaryKeywords` is the
   AND gate (SillyTavern's `selective` + `secondary_keys`): the entry fires only when a main
   keyword and one of these both appear; omit it or send `[]` for no gate.
+- `worldbook.format: "tavern"` is what a SillyTavern or MMD world info export should send.
+  Entries of a tavern-format worldbook take the tavern path: the server matches the author's
+  keys literally over the current user message plus the latest reply (single characters
+  allowed, `/pattern/flags` keys as regular expressions, `matchOptions.caseSensitive`,
+  `matchOptions.matchWholeWords`, and `matchOptions.selectiveLogic` 0–3 = any / not all /
+  none / all of `secondaryKeywords`); hits are inserted, and only the rest is filled by
+  semantic recall. Native worldbooks keep the platform's own matching. Positions, depth,
+  probability, sticky/cooldown, scan depth and group settings are not imported.
 - `authorAsset` is the display-rule set the canvas applies to AI output (tavern regex
   scripts already filtered to AI-output placement).
 

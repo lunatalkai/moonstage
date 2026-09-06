@@ -190,7 +190,8 @@ describe('酒館卡 → 試玩卡', () => {
     expect(p.welcome).toEqual({ roleWelcome: '雨還在下。', alternates: ['另一個開場'], prologue: [] })
     expect(p.worldbook.name).toBe('偵探事務所')
     expect(p.worldbook.entries).toHaveLength(3)
-    expect(p.worldbook.entries[1]).toEqual({ name: '帽子', content: '戴帽的男人', keywords: ['帽子'], secondaryKeywords: [], isConstant: true, isEnabled: true })
+    expect(p.worldbook.format).toBe('tavern')
+    expect(p.worldbook.entries[1]).toEqual({ name: '帽子', content: '戴帽的男人', keywords: ['帽子'], secondaryKeywords: [], isConstant: true, isEnabled: true, matchOptions: { caseSensitive: false, matchWholeWords: false, selectiveLogic: 0 } })
     expect(p.authorAsset.rules[0]).toEqual({ id: '1', name: '狀態欄', find: '/<s>(.*)<\\/s>/g', replace: '$1', enabled: true })
     expect(p.authorAsset.mountLayer).toBe('over')
   })
@@ -395,6 +396,28 @@ describe('世界書的次要關鍵詞（酒館 selective + secondary_keys，AND 
     expect(es[2]).toMatchObject({ keywords: ['城'], secondaryKeywords: ['節'] })
     const p = draftToTrialPayload(d)
     expect(p.worldbook.entries[0]).toMatchObject({ keywords: ['雨'], secondaryKeywords: ['夜'] })
+  })
+
+  it('酒館格式的書標 format=tavern，每條帶匹配選項；世界書檔與卡內 book 的欄位名都認', () => {
+    const wi = JSON.stringify({ entries: {
+      '0': { key: ['/血祭|災星/'], keysecondary: ['劇透'], comment: '真相', content: 'x', caseSensitive: true, matchWholeWords: true, selectiveLogic: 2 },
+      '1': { key: ['夜'], comment: '夜', content: 'y' },
+    } })
+    const d = importAuthorDraft(wi, 'wb')
+    expect(d.card!.book!.format).toBe('tavern')
+    const es = d.card!.book!.entries
+    expect(es[0]).toMatchObject({ keywords: ['/血祭|災星/'], matchOptions: { caseSensitive: true, matchWholeWords: true, selectiveLogic: 2 } })
+    expect(es[1].matchOptions).toEqual({ caseSensitive: false, matchWholeWords: false, selectiveLogic: 0 })
+    const p = draftToTrialPayload(d)
+    expect(p.worldbook.format).toBe('tavern')
+    expect(p.worldbook.entries[0].matchOptions).toEqual({ caseSensitive: true, matchWholeWords: true, selectiveLogic: 2 })
+
+    const card = JSON.stringify({ spec: 'chara_card_v2', data: { name: 'c', description: 'd', character_book: { entries: [
+      { keys: ['Ra'], secondary_keys: ['sun'], content: 'z', case_sensitive: true, extensions: { match_whole_words: true, selective_logic: 3 } },
+    ] } } })
+    const c = importAuthorDraft(card, 'c')
+    expect(c.card!.book!.format).toBe('tavern')
+    expect(c.card!.book!.entries[0].matchOptions).toEqual({ caseSensitive: true, matchWholeWords: true, selectiveLogic: 3 })
   })
 
   it('卡片內的 character_book：keys 也可能是 JSON 字串，secondary_keys 一樣進來', () => {

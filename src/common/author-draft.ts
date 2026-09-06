@@ -44,7 +44,20 @@ export interface DraftCard {
 
 export interface DraftBook {
   name: string
+  /**
+   * 世界書格式。酒館／MMD 匯出的世界書是 'tavern'：伺服器讓它先走酒館自己的關鍵字規則
+   * （單字鍵、正規表達式鍵、次要關鍵字的四種邏輯），規則之外再由語意召回補；省略＝原生。
+   */
+  format?: 'tavern'
   entries: DraftBookEntry[]
+}
+
+/** 酒館條目的匹配選項；伺服器照這些規則做字面命中。 */
+export interface DraftBookMatchOptions {
+  caseSensitive: boolean
+  matchWholeWords: boolean
+  /** 0 任一次要詞出現、1 不是全部出現、2 都不出現、3 全部出現。 */
+  selectiveLogic: number
 }
 
 export interface DraftBookEntry {
@@ -55,6 +68,8 @@ export interface DraftBookEntry {
   secondaryKeywords: string[]
   isConstant: boolean
   isEnabled: boolean
+  /** 酒館格式的書才有；原生書省略。 */
+  matchOptions?: DraftBookMatchOptions
 }
 
 export type DraftFormat =
@@ -248,6 +263,21 @@ function keyList(v: any): string[] {
 }
 
 /**
+ * 酒館的匹配選項。世界書檔直接放在條目上（caseSensitive／matchWholeWords／selectiveLogic），
+ * 卡裡的 book 放在 extensions 底下（case_sensitive 在外層）。缺省照酒館全域預設：不分大小寫、
+ * 不整詞、AND ANY。
+ */
+function stMatchOptions(e: any): DraftBookMatchOptions {
+  const ext = e.extensions && typeof e.extensions === 'object' ? e.extensions : {}
+  const logic = Number(e.selectiveLogic ?? ext.selectiveLogic ?? ext.selective_logic ?? 0)
+  return {
+    caseSensitive: e.caseSensitive === true || e.case_sensitive === true || ext.case_sensitive === true,
+    matchWholeWords: e.matchWholeWords === true || ext.match_whole_words === true,
+    selectiveLogic: Number.isInteger(logic) && logic >= 0 && logic <= 3 ? logic : 0,
+  }
+}
+
+/**
  * 次要關鍵詞：世界書檔叫 keysecondary、卡裡的 book 叫 secondary_keys。酒館只在 selective 開著
  * 時才用它；明確寫 false 就不帶，沒寫（MMD 匯出沒有這個欄位）就照有的算。
  */
@@ -270,9 +300,10 @@ function stWorldbook(v: any, fallbackName: string): DraftBook {
       secondaryKeywords: secondaryKeyList(e),
       isConstant: e.constant === true,
       isEnabled: e.disable !== true && e.enabled !== false,
+      matchOptions: stMatchOptions(e),
     })
   })
-  return { name: str(v.name) || fallbackName, entries }
+  return { name: str(v.name) || fallbackName, format: 'tavern', entries }
 }
 
 /**
@@ -420,9 +451,10 @@ function stBook(book: any): DraftBook | null {
       secondaryKeywords: secondaryKeyList(e),
       isConstant: e.constant === true,
       isEnabled: e.enabled !== false,
+      matchOptions: stMatchOptions(e),
     })
   })
-  return { name: str(book.name), entries }
+  return { name: str(book.name), format: 'tavern', entries }
 }
 
 function stCard(data: any): DraftCard {
@@ -519,6 +551,7 @@ export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | n
   if (card.book && card.book.entries.length) {
     payload.worldbook = {
       name: card.book.name || name,
+      ...(card.book.format ? { format: card.book.format } : {}),
       entries: card.book.entries.map((e) => ({
         name: e.name,
         content: e.content,
@@ -526,6 +559,7 @@ export function draftToTrialPayload(draft: AuthorDraft): Record<string, any> | n
         secondaryKeywords: e.secondaryKeywords,
         isConstant: e.isConstant,
         isEnabled: e.isEnabled,
+        ...(e.matchOptions ? { matchOptions: e.matchOptions } : {}),
       })),
     }
   }
