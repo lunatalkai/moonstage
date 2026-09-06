@@ -1840,7 +1840,7 @@ const truncationText = (completionRate: number) => {
 	// Model logo source: @lobehub/icons-static-svg (qwen, kimi, xiaomimimo).
 	//
 	// 圖示用 import 而不是寫死 `/static/...` 路徑：舞台當套件嵌進別的站台時沒有 playground 的
-	// /static/，路徑字串會變成破圖（Hearthroom 2026-09-06 截圖）；import 由 build 決定去處
+	// /static/，路徑字串會變成破圖（第三方宿主 2026-09-06 實測）；import 由 build 決定去處
 	// （playground 出檔案、套件 build 內嵌），兩邊都對。
 	const modelIconMap = {
 		'deepseek': icon_deepseek,

@@ -1,7 +1,7 @@
 /**
  * StageHost：舞台對宿主的唯一依賴。
  *
- * 舞台（canvas 與它的工具模組）要嵌進別的站台（社群站 Hearthroom）時，不能再直接碰
+ * 舞台（canvas 與它的工具模組）要嵌進別的站台時，不能再直接碰
  * `uni.*`、`window.location`、全域 http、vuex。宿主能力全部經這個介面注入：
  *   - playground（uni-app 殼）給 `uniHost()`，行為與原本逐一相同；
  *   - 純瀏覽器宿主給 `browserHost()`，或在它上面覆寫 toast／confirm／nav 成自家的。
