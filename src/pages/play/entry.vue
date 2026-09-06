@@ -135,7 +135,6 @@
 
 				<!-- 動作列：一句話說明接下來會發生什麼，一顆主按鈕。手機上固定在底部。 -->
 				<view class="ms-action">
-					<view v-if="trialError" class="ms-alert">{{ trialError }}</view>
 					<view v-if="slotsFull" class="ms-alert is-warn">
 						<text>{{ $t('openChat.trial.slotsFull', { max: slotsFull.max, name: slotsFull.name }) }}</text>
 						<view class="ms-alert-actions">
@@ -146,6 +145,21 @@
 					<text class="ms-summary">{{ summaryText }}</text>
 					<view class="ms-cta" :class="{ 'is-disabled': !canProceed || busy }" @click="proceed">
 						<text class="ms-cta-text">{{ ctaText }}</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 建試玩卡被伺服器退回：一個視窗說清楚哪一段、哪一條、多大、上限多大，作者改完檔重匯就好。 -->
+			<view v-if="trialProblem" class="ms-dialog-mask" @click.self="trialProblem = null">
+				<view class="ms-dialog" role="dialog" aria-modal="true">
+					<text class="ms-dialog-title">{{ $t(trialProblem.titleKey) }}</text>
+					<view class="ms-dialog-lines">
+						<text v-for="(line, i) in trialProblem.lines" :key="i" class="ms-dialog-line">{{ $t(line.key, line.params || {}) }}</text>
+					</view>
+					<text v-if="trialProblem.serverMessage" class="ms-dialog-raw">{{ $t('openChat.trial.serverSaid', { message: trialProblem.serverMessage }) }}</text>
+					<text v-if="trialProblem.fixable" class="ms-dialog-hint">{{ $t('openChat.trial.problemHint') }}</text>
+					<view class="ms-dialog-actions">
+						<view class="ms-btn is-small" @click="trialProblem = null"><text class="ms-btn-text">{{ $t('common.confirm') }}</text></view>
 					</view>
 				</view>
 			</view>
@@ -169,6 +183,8 @@ import { useStore } from 'vuex'
 import { clearTokens, isSignedIn, redirectToLogin } from '@/common/open-oauth'
 import { importAuthorDraft, draftToTrialPayload, draftCanTrial, draftParts, mergeAuthorDraft, shouldMergeInto, extractTavernCardFromPng, isPngBytes, DraftImportError, draftDisplayName, stripFileExtension } from '@/common/author-draft'
 import type { AuthorDraft, ImportKind } from '@/common/author-draft'
+import { describeTrialFailure } from '@/common/trial-errors'
+import type { TrialProblem } from '@/common/trial-errors'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 
 const SOURCE_URL = 'https://github.com/lunatalkai/moonstage'
@@ -225,10 +241,10 @@ const selectedDraft = computed(() => drafts.value.find((d) => d.id === selectedD
 const selectedParts = computed(() => (selectedDraft.value ? draftParts(selectedDraft.value) : { rules: false, book: false, definition: false }))
 
 // ── 試玩卡：整張酒館卡、沒有卡片編號時，建成一張會到期的私有卡上線玩 ──────
-const trialError = ref('')
+const trialProblem = ref<TrialProblem | null>(null)
 const slotsFull = ref<{ max: number; name: string } | null>(null)
 const isTrialDraft = computed(() => !!selectedDraft.value && draftCanTrial(selectedDraft.value) && !role.value && !cardId.value.trim())
-watch(selectedDraftId, () => { trialError.value = ''; slotsFull.value = null })
+watch(selectedDraftId, () => { trialProblem.value = null; slotsFull.value = null })
 
 // ── 接下來會發生什麼 ──────────────────────────────────────────────────
 const canProceed = computed(() => !!role.value || !!selectedDraft.value || !!cardId.value.trim())
@@ -298,7 +314,7 @@ async function startTrial(evict: boolean) {
 	if (!payload) return
 	if (evict) payload.evict = true
 	busy.value = true
-	trialError.value = ''
+	trialProblem.value = null
 	slotsFull.value = null
 	try {
 		const res = await proxy.http.request({
@@ -324,23 +340,9 @@ async function startTrial(evict: boolean) {
 			goSignIn()
 			return
 		}
-		if (res.statusCode === 413) {
-			// 伺服器會說是哪一個上限、哪一條：正則規則超大要指名，作者才知道去改哪條。
-			const detail = data.detail || {}
-			const FIELD_KEYS: Record<string, string> = { welcome: 'openChat.trial.fieldWelcome', roleDesc: 'openChat.trial.fieldIntro', roleDetailDesc: 'openChat.trial.fieldDefinition' }
-			if (detail.reason === 'ruleReplace') {
-				const rule = draft.rules[detail.index] || {}
-				trialError.value = t('openChat.trial.ruleTooLarge', { name: rule.name || `#${(detail.index || 0) + 1}`, max: Math.round((detail.max || 0) / 1024) })
-			} else if (FIELD_KEYS[detail.reason]) {
-				trialError.value = t('openChat.trial.fieldTooLong', { field: t(FIELD_KEYS[detail.reason]) })
-			} else {
-				trialError.value = t('openChat.trial.tooLarge')
-			}
-			return
-		}
-		trialError.value = t(res.statusCode === 503 ? 'openChat.trial.unavailable' : 'openChat.trial.failed')
+		trialProblem.value = describeTrialFailure(res.statusCode, data, draft)
 	} catch (e) {
-		trialError.value = t('openChat.trial.failed')
+		trialProblem.value = describeTrialFailure(0, { error: 'network', message: e instanceof Error ? e.message : String(e) }, draft)
 	} finally {
 		busy.value = false
 	}
@@ -581,6 +583,73 @@ onBeforeUnmount(() => {
 	width: 100%;
 	max-width: 1120px;
 	margin: 0 auto;
+}
+
+/* ── 錯誤視窗：深色玻璃卡，主鈕只有「確定」 ─────────────── */
+.ms-dialog-mask {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 48rpx;
+	background: rgba(4, 6, 8, 0.6);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+}
+
+.ms-dialog {
+	width: 100%;
+	max-width: 520px;
+	padding: 40rpx 40rpx 32rpx;
+	border-radius: 20px;
+	background: rgba(22, 27, 34, 0.96);
+	border: 1px solid rgba(255, 255, 255, 0.10);
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.ms-dialog-title {
+	display: block;
+	font-size: 17px;
+	font-weight: 700;
+	color: #F5F7FA;
+	margin-bottom: 20rpx;
+}
+
+.ms-dialog-lines {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.ms-dialog-line {
+	font-size: 14px;
+	line-height: 1.6;
+	color: #FFB4B4;
+}
+
+.ms-dialog-raw {
+	display: block;
+	margin-top: 20rpx;
+	font-size: 12px;
+	line-height: 1.5;
+	color: rgba(245, 247, 250, 0.45);
+	word-break: break-all;
+}
+
+.ms-dialog-hint {
+	display: block;
+	margin-top: 20rpx;
+	font-size: 13px;
+	line-height: 1.5;
+	color: rgba(245, 247, 250, 0.7);
+}
+
+.ms-dialog-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 32rpx;
 }
 
 .ms-alert-actions {

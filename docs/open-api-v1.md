@@ -259,11 +259,15 @@ Play it like any card: `roleId` goes to `/role/detail` and `/conversation/start`
 
 | Status | `error` | Meaning |
 |---|---|---|
-| 400 | `trial_invalid_key` · `trial_invalid_body` | key outside the allowed characters, or a body that is not the shape above |
+| 400 | `trial_invalid_key` · `trial_invalid_body` | key outside the allowed characters, or a body that is not the shape above; `message` says which |
 | 409 | `trial_slots_full` | all slots are taken and this key is new. The body carries `oldest: { clientKey, roleId, lastActiveAt }`; send the same PUT with `"evict": true` to replace it |
-| 413 | `trial_payload_too_large` | body, entry count, entry length or rule size over the limit; `detail: { reason, max, index }` says which (`reason` ∈ `body`, `entries`, `entryContent`, `ruleReplace`, `rulesTotal`, `name`, `welcome`, `roleDesc`, `roleDetailDesc`) |
+| 413 | `trial_payload_too_large` | something is over a limit. `detail: { reason, section, name, index, max, actual, unit }` says exactly what: `reason` ∈ `body`, `name`, `entries`, `entryContent`, `ruleReplace`, `rulesTotal`, `welcome`, `roleDesc`, `roleDetailDesc`; `section` ∈ `body`, `card`, `welcome`, `worldbook`, `authorAsset`; `name`/`index` identify the entry or rule; `unit` ∈ `chars`, `bytes`, `count` |
+| 400 | `trial_unsupported` | a value the server does not accept. `detail: { section, field, value, index, name, reason }` — for example `authorAsset.mountLayer` = `"sideways"`, or a rule with no find pattern |
 | 404 | `trial_not_found` | no trial with that key for this account — it never existed, was deleted, or expired |
 | 503 | `worldbook_unavailable` | the worldbook service is down; the card and rules were not written either |
+
+Every error carries a `message`: one English sentence naming the offending part and the
+limit, so a client can show it verbatim when it has no copy of its own.
 
 Expiry is a server-side sweep, so a trial may survive a few minutes past `expiresAt`;
 treat the timestamp as a floor.
