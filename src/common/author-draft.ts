@@ -458,11 +458,17 @@ export function parseMesExample(text: string): TrialTalkExample[] {
   return out.filter((e) => e.content.trim())
 }
 
-/** 短介紹：作者備註優先，沒有就取設定的第一段（最多 120 字）。 */
+/**
+ * 短介紹：作者備註優先，沒有就取設定裡第一行「像句子」的字（最多 120 字）。
+ * MMD 的設定檔開頭多半是 `<世界觀>`、`【設定】`、`ntr小故事设定文本` 這種標籤或檔名，
+ * 拿去當簡介會直接印在對話開頭的介紹卡上（owner 2026-09-06 截圖），所以跳過。
+ */
 function shortIntro(card: DraftCard): string {
   const notes = card.creatorNotes.trim()
   if (notes) return notes.length > 300 ? notes.slice(0, 300) : notes
-  const first = card.description.trim().split(/\n+/)[0] || ''
+  const lines = card.description.split(/\n+/).map((l) => l.trim()).filter(Boolean)
+  const isLabel = (l: string) => /^[<\[【《（(]/.test(l) || /[>\]】》）)]$/.test(l) || (l.length <= 12 && !/[。！？!?，,]/.test(l))
+  const first = lines.find((l) => !isLabel(l)) || ''
   return first.length > 120 ? first.slice(0, 120) + '…' : first
 }
 

@@ -354,3 +354,17 @@ describe('MMD 功能欄層級', () => {
     expect(mk(0).mountLayer).toBe('under')
   })
 })
+
+describe('簡介不拿標籤行', () => {
+  it('MMD 設定檔開頭的標籤與檔名跳過，取第一句正文', () => {
+    const text = 'ntr小故事设定文本\n<世界观>\n现代中国都市世界观\n<故事舞台>\n江城：架空城市，江南地区省会城市。'
+    const d = importAuthorDraft(text, 'def')
+    const p = draftToTrialPayload(d)!
+    expect(p.card.roleDesc).toBe('江城：架空城市，江南地区省会城市。')
+    expect(p.card.roleDetailDesc).toContain('<世界观>')
+  })
+  it('全是標籤時簡介留空，不硬湊', () => {
+    const p = draftToTrialPayload(importAuthorDraft('<A>\n<B>', 'x'))!
+    expect(p.card.roleDesc).toBe('')
+  })
+})
