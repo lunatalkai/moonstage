@@ -32,6 +32,8 @@ export interface StageAuth {
   getAccessToken(): Promise<string | null>
   /** 伺服器回 401 且換不到 token：宿主決定要送去登入還是提示。 */
   onUnauthorized(): void
+  /** 目前登入的人（給畫布顯示用）。給了就視為已登入；沒給就當訪客——訪客送訊息會被畫布擋下並丟 notLogin。 */
+  user?: { id: string; nickName?: string; avatar?: string }
 }
 
 export interface StageApi {
@@ -68,6 +70,13 @@ export async function installMoonStage(app: App, options: InstallMoonStageOption
   // vuex 狀態的持久化在建立時就讀 uni 儲存，所以要等 uni 替身裝好才 import。
   const store = (await import('@/store')).default
   app.use(store)
+  // 畫布送訊息前看的是 store 的 hasLogin（沒登入就丟 notLogin 回頭），playground 是登入流程寫進去的；
+  // 嵌入時登入態在宿主手上，這裡照宿主給的填。
+  if (auth.user) {
+    store.commit('setSignedIn', true)
+    store.commit('setUserInfo', { ...store.state.userInfo, id: String(auth.user.id), nickName: auth.user.nickName || '', avatar: auth.user.avatar || '' })
+  }
+  host.events.on('notLogin', () => auth.onUnauthorized())
 
   const toast = hostToast(host)
   setupHttp(http, {
