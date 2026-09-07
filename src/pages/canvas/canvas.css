@@ -460,6 +460,17 @@
     display: none;
   }
 
+  /*
+     角色那列兩格都空了，但 grid-template-rows 是顯式的兩軌——空軌會收成 0，
+     兩軌之間那 4px 的 row-gap 卻還留著，於是每一則 AI 訊息上面多一條死空間，
+     跟玩家那列不對稱。收成單排，空軌與它的 gap 一起消失。
+     （瀏覽器實測：block 的 top offset 從 4px 變 0，列高正好等於氣泡高。）
+  */
+  .mes.Ai {
+    grid-template-rows: auto;
+    grid-template-areas: "block block";
+  }
+
   .ch_name {
     grid-area: name;
     align-self: center;
