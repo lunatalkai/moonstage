@@ -410,7 +410,7 @@
      左邊卻空一大塊）。改成兩排之後，氣泡的容器（.mes_block）左右邊界永遠
      跟 .mes 本身對齊，不管頭像欄寬多少，兩側內距天然對稱。
 
-     User 訊息沒有頭像／名字（見下面兩條 display:none），"avatar" 欄在該列
+     頭像兩列都不顯示、名字只留玩家那列（見下面幾條 display:none）；"avatar" 欄
      沒有任何可見內容時，auto 欄寬會收成 0——不用另外覆寫 grid-template-columns。 */
   .mes {
     position: relative;
@@ -437,7 +437,26 @@
     background: var(--lt-canvas-line);
   }
 
-  .mes.User .mesAvatarWrapper {
+  /*
+     角色那一列不顯示頭像與名字（owner 2026-09-07）。
+
+     一則 AI 訊息前面掛著頭像與角色卡名，在卡片自己畫的版面裡幾乎永遠是多餘的一行：
+     整頁只有一個角色在說話，名字每則重複一次；而頭像跟卡片自己的立繪、頭圖打架。
+
+     節點留著、只用 CSS 藏起來，不是刪掉：.avatar／.ch_name／.name_text 都登記在
+     canvas-dom-contract.ts 裡，是酒館主題找得到的鉤子（.name_text 更是「酒館卡唯一
+     碰得到的角色名節點」）。刪掉節點會讓引用它們的卡靜默失效；藏起來的話，想要的卡
+     自己一條 display 就能拿回去。
+
+     玩家那一列的名字不動：2026-09-04 加回來是因為卡片常把兩種氣泡漆成同一個樣子，
+     沒有名字就分不出哪句是自己說的。角色那列不顯示名字之後，「沒有名字的就是角色說的」
+     仍然分得開。
+  */
+  .mes .mesAvatarWrapper {
+    display: none;
+  }
+
+  .mes.Ai .ch_name {
     display: none;
   }
 
