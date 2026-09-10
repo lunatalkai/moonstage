@@ -93,13 +93,13 @@ export type CanvasFontMode = 'card' | 'wenkai' | 'system'
 export function fontModeCss(mode: CanvasFontMode): string {
   if (mode === 'wenkai') {
     return [
-      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-luna-author-layer] *',
+      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-stage-author-layer] *',
       "{ font-family: 'LXGW WenKai Screen', 'LXGW WenKai', 'Kaiti', 'STKaiti', serif !important; }",
     ].join(' ')
   }
   if (mode === 'system') {
     return [
-      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-luna-author-layer] *',
+      'html body #app .canvas-root, html body #app .canvas-root *, html body div[data-stage-author-layer] *',
       "{ font-family: system-ui, -apple-system, 'PingFang TC', 'PingFang SC', 'Noto Sans CJK TC', 'Noto Sans CJK SC', 'Microsoft JhengHei', 'Microsoft YaHei', sans-serif !important; }",
     ].join(' ')
   }

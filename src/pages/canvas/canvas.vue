@@ -365,7 +365,7 @@ import { getAuthorDraftStore } from '@/common/author-draft-store'
 import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common/author-draft'
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
 import { composerOverhang } from './canvas-composer-overhang'
-import { createLunaIntentApi } from '@/utils/luna-intent-api.js'
+import { createStageIntentApi } from '@/utils/stage-intent-api.js'
 
 // ── Open Canvas ─────────────────────────────────────────────────
 import '@/common/canvas-theme-vars.css'
@@ -2268,7 +2268,7 @@ let authorColumnObserver = null;
 let authorFixedNodeObserver = null;
 let authorFixedNodeHoistLayer = null;
 let authorFixedNodeHoistScheduled = false;
-let lunaIntent = null;
+let stageIntent = null;
 
 // 宿主轉接：意圖 API 本身不碰 DOM，兩端各自把「作者想做什麼」接到自己的實作。
 // 這一次的送出是不是來自 luna.send()。意圖 API 在呼叫 submit 之前已經改寫過，
@@ -2391,16 +2391,16 @@ function applyAuthorAsset(asset) {
       runAuthorCode: scope ? (fn) => scope.run(fn) : undefined,
       // 作者容器內的真實點擊登記為一次使用者手勢，讓作者按鈕呼叫的 send() 過得了關。
       // 只是放寬手勢來源，不會自己送出任何東西——作者沒呼叫 send() 就什麼都不會發生。
-      // lunaIntent 這時還沒建好，所以晚綁：點擊發生時才取。
-      onUserGesture: () => { if (lunaIntent) lunaIntent.noteUserGesture(); },
+      // stageIntent 這時還沒建好，所以晚綁：點擊發生時才取。
+      onUserGesture: () => { if (stageIntent) stageIntent.noteUserGesture(); },
     });
-    lunaIntent = createLunaIntentApi({
+    stageIntent = createStageIntentApi({
       // 宿主替作者做的事（送出、改背景、捲動……）退出作者範圍跑：那些是宿主的副作用，
       // 離場時不能跟著作者的東西一起被清掉。
       host: hostOutsideAuthorScope(buildAuthorAssetHost(), scope),
       runtime: authorAssetRuntime,
     });
-    window.luna = lunaIntent.api;
+    window.stage = stageIntent.api;
 
     if (res.data.mountTrigger) {
       // 掛載點的內容也走同一組規則：作者在資產裡寫一條規則把觸發串換成常駐內容。
@@ -2412,7 +2412,7 @@ function applyAuthorAsset(asset) {
       authorOwnedRegions.value = detectAuthorOwnedRegions(mounted).join(' ');
       const mountEl = authorAssetRuntime.mount({ mountLayer: res.data.mountLayer, html: mounted });
       // 來源寫在容器上：MMD 的卡以 content-box 排版（見 canvas.css 的說明），酒館的卡不是。
-      if (mountEl) mountEl.setAttribute('data-luna-author-format', cardFormat.value);
+      if (mountEl) mountEl.setAttribute('data-stage-author-format', cardFormat.value);
       if (needsKaiFallback(mounted)) ensureKaiFallback();
       measureAuthorColumn();
       observeAuthorColumn();
@@ -2442,9 +2442,9 @@ function applyAuthorAsset(asset) {
 // 送出入口，Shift+Enter 與 confirm-type="send" 都直接呼叫 send()，改寫掛在這裡的話
 // 鍵盤送出會靜默略過作者的改寫（而 desktop 上鍵盤才是主要送出方式）。
 function noteAuthorGestureAndRewrite(state) {
-  if (!lunaIntent) return;
+  if (!stageIntent) return;
   // 標記「現在是使用者手勢」：非手勢路徑一律拒絕，避免定時器自動送變成自問自答。
-  lunaIntent.noteUserGesture();
+  stageIntent.noteUserGesture();
   if (state !== 'send') return;
 }
 
@@ -2655,8 +2655,8 @@ function disposeAuthorAsset() {
   authorFixedNodeHoistScheduled = false;
   try { if (authorAssetRuntime) authorAssetRuntime.dispose(); } catch (e) { /* 收尾不得拋錯 */ }
   authorAssetRuntime = null;
-  lunaIntent = null;
-  if (typeof window !== 'undefined' && window.luna) { try { delete window.luna; } catch (e) { window.luna = undefined; } }
+  stageIntent = null;
+  if (typeof window !== 'undefined' && window.stage) { try { delete window.stage; } catch (e) { window.stage = undefined; } }
   // 範圍最後收：執行期 dispose 時作者的 dispose 回呼還可能開計時器、動節點，要一起算進去
   authorScopeClosed = true;
   if (authorScope) {
@@ -6875,8 +6875,8 @@ function send() {
   // 作者的 beforeSend 改寫：所有送出入口都會流經這裡，所以改寫只在這裡做一次。
   // 「繼續」不帶輸入框的字，改寫它等於動到使用者沒有要送的草稿；
   // 來自 luna.send() 的送出則已經在意圖 API 內改寫過，再做一次會把結果接兩遍。
-  if (lunaIntent && !authorSubmitInFlight && !unref(contine) && unref(content)) {
-    const authorRewritten = lunaIntent.applyBeforeSend(unref(content));
+  if (stageIntent && !authorSubmitInFlight && !unref(contine) && unref(content)) {
+    const authorRewritten = stageIntent.applyBeforeSend(unref(content));
     if (authorRewritten !== unref(content)) content.value = authorRewritten;
   }
   // 「繼續」刻意不帶輸入框的字——它是「把這一輪跑完」,不是送新訊息。

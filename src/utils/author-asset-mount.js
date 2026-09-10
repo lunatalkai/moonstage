@@ -35,8 +35,8 @@ const AUTHOR_EVENTS = [
   'dispose',
 ]
 
-const CONTAINER_ATTR = 'data-luna-author-layer'
-const MOUNT_STYLE_ATTR = 'data-luna-author-mount-style'
+const CONTAINER_ATTR = 'data-stage-author-layer'
+const MOUNT_STYLE_ATTR = 'data-stage-author-mount-style'
 
 // 容器不吃事件（沒畫東西的地方要點得到底下的 App），但 pointer-events **會繼承**：
 // 不做任何事的話，作者掛進來的每一個元素都不可點。

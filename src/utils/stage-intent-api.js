@@ -1,5 +1,5 @@
 /**
- * 作者可用的意圖 API（掛在 window.luna）。
+ * 作者可用的意圖 API（掛在 window.stage）。
  *
  * 零 import 的純模組，兩端共用同一份，由 check-author-runtime-parity.mjs 擋著
  * 逐位元組一致。兩端的 DOM 接法不同，所以宿主動作由呼叫端以 host 轉接注入，
@@ -55,7 +55,7 @@ function makeRateLimiter(limit, windowMs, now) {
  * @param {Object} [options.runtime] 作者資產執行期，供 on() 訂閱事件
  * @param {Function} [options.now]  時間來源，測試可注入
  */
-function createLunaIntentApi(options) {
+function createStageIntentApi(options) {
   const config = options || {}
   const host = config.host || {}
   const runtime = config.runtime || null
@@ -181,7 +181,7 @@ function createLunaIntentApi(options) {
 }
 
 export {
-  createLunaIntentApi,
+  createStageIntentApi,
   GESTURE_WINDOW_MS,
   RATE_WINDOW_MS,
   SEND_LIMIT_PER_WINDOW,

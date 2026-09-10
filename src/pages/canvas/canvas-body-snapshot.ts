@@ -92,7 +92,7 @@ export function sweepForeignNodes(doc: Document | null | undefined, snapshot: Bo
     sweep(doc.head, snapshot.headChildren, (n) => {
       if (n.nodeType !== 1) return false
       const el = n as Element
-      if (el.hasAttribute('data-vite-dev-id') || el.hasAttribute('data-luna-keep')) return false
+      if (el.hasAttribute('data-vite-dev-id') || el.hasAttribute('data-stage-keep')) return false
       return el.tagName === 'STYLE' || (el.tagName === 'LINK' && (el.getAttribute('rel') || '').toLowerCase() === 'stylesheet')
     })
   }
