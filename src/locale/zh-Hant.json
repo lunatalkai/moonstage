@@ -4065,5 +4065,12 @@
 	"canvas.panel.personaModeGlobalHint": "所有卡片共用同一份人設，改一次到處生效。",
 	"canvas.panel.personaModeCustomHint": "只在這張卡用，不影響其他卡片。",
 	"canvas.panel.personaNickNameHint": "沒填就用你的暱稱：{name}",
-	"canvas.panel.personaAdvanced": "進階"
+	"canvas.panel.personaAdvanced": "進階",
+	"canvas.hud.notSupported": "這個平台沒有這項功能",
+	"canvas.hud.generating": "AI 正在回覆",
+	"canvas.hud.previewOnly": "本機預覽沒有伺服器連線",
+	"canvas.hud.notOpen": "面板尚未開啟",
+	"canvas.hud.noTarget": "找不到目標",
+	"canvas.hud.stale": "目標已變動，請重新讀取",
+	"canvas.hud.confirmRequired": "需要再次確認"
 }

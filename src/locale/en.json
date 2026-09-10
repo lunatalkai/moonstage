@@ -4065,5 +4065,12 @@
 	"canvas.panel.personaModeGlobalHint": "One persona shared by every card. Edit once, applies everywhere.",
 	"canvas.panel.personaModeCustomHint": "Used on this card only. Other cards are unaffected.",
 	"canvas.panel.personaNickNameHint": "Leave blank to use your nickname: {name}",
-	"canvas.panel.personaAdvanced": "Advanced"
+	"canvas.panel.personaAdvanced": "Advanced",
+	"canvas.hud.notSupported": "This platform doesn't have this feature",
+	"canvas.hud.generating": "The AI is replying",
+	"canvas.hud.previewOnly": "Local preview has no server connection",
+	"canvas.hud.notOpen": "The panel isn't open",
+	"canvas.hud.noTarget": "Target not found",
+	"canvas.hud.stale": "The target changed, reload and try again",
+	"canvas.hud.confirmRequired": "Confirmation required"
 }

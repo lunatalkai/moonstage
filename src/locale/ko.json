@@ -4065,5 +4065,12 @@
 	"canvas.panel.personaModeGlobalHint": "모든 카드가 같은 페르소나를 공유합니다. 한 번 고치면 어디서나 반영됩니다.",
 	"canvas.panel.personaModeCustomHint": "이 카드에서만 쓰고 다른 카드에는 영향이 없습니다.",
 	"canvas.panel.personaNickNameHint": "비워 두면 닉네임을 사용합니다: {name}",
-	"canvas.panel.personaAdvanced": "고급"
+	"canvas.panel.personaAdvanced": "고급",
+	"canvas.hud.notSupported": "이 플랫폼에는 이 기능이 없습니다",
+	"canvas.hud.generating": "AI가 답변 중입니다",
+	"canvas.hud.previewOnly": "로컬 미리보기는 서버에 연결되지 않습니다",
+	"canvas.hud.notOpen": "패널이 열려 있지 않습니다",
+	"canvas.hud.noTarget": "대상을 찾을 수 없습니다",
+	"canvas.hud.stale": "대상이 변경되었습니다. 다시 불러오세요",
+	"canvas.hud.confirmRequired": "확인이 필요합니다"
 }
