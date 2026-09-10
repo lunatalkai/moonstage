@@ -142,6 +142,7 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   // （底色、::before 毛玻璃、::after 噪點）一條都不命中，畫面上只有 AI 那側被
   // 美化，玩家那側留在宿主預設，左右看起來像兩張不同的卡。
   { selector: '.mes.User', region: 'message-user', origin: 'mmd', why: '玩家訊息列' },
+  { selector: '.item.self', region: 'message-user', origin: 'mmd', why: 'MMD 的玩家訊息列原名；卡片腳本與外掛（HUD）用它認玩家回合，.User 是我們早期取的名，兩者並存' },
   { selector: '.touch-scope.touch-scope-right', region: 'message-user', origin: 'mmd', why: 'MMD 玩家側訊息主體；卡片用它區分左右' },
   { selector: '.touch-scope.touch-scope-right .content.right', region: 'message-user', origin: 'mmd', why: '玩家氣泡；卡片直接改它的底色與邊框' },
   { selector: '.mes[is_user="true"]', region: 'message-user', origin: 'st', why: '酒館用屬性分辨誰說的' },

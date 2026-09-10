@@ -188,8 +188,15 @@ function expandReplacement(replace, args, pickRandom) {
     )
   }
 
+  // replace 回呼的參數是 (match, g1..gn, offset, string[, groups])：$k 只在 k ≤ n 時才是捕獲組，
+  // 否則會把偏移量／整段原文塞進去（原生 String.replace 對沒有的組保留字面 $k）。
+  const last = args[args.length - 1]
+  const stringIndex = last !== null && typeof last === 'object' ? args.length - 2 : args.length - 1
+  const groupCount = Math.max(0, stringIndex - 2)
   out = out.replace(/\$([1-9])/g, (whole, index) => {
-    const value = args[Number(index)]
+    const n = Number(index)
+    if (n > groupCount) return whole
+    const value = args[n]
     return value === undefined ? whole : value
   })
 

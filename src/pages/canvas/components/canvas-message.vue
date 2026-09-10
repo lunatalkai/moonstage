@@ -253,7 +253,8 @@ const emit = defineEmits<{
   (e: 'swipe', delta: number): void
 }>()
 
-const roleClass = computed(() => (props.message.role === 'user' ? 'User' : 'Ai'))
+// 玩家列同時掛 User（我們早期的名字）與 self（MMD 原名）：卡片腳本與外掛用 self 認玩家回合。
+const roleClass = computed(() => (props.message.role === 'user' ? 'User self' : 'Ai'))
 const bubbleClass = computed(() => (props.message.role === 'user' ? 'right' : 'left'))
 const blockClass = computed(() => (props.message.role === 'user' ? 'touch-scope-right' : ''))
 
