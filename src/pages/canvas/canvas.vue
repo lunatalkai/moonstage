@@ -309,7 +309,7 @@
 <script lang="ts" setup>
 import { cfImageDesktop } from "@/utils/image-transform.js"
 
-import {computed, h, onMounted, onUnmounted, reactive, ref, unref, getCurrentInstance, nextTick, watch} from 'vue';
+import {computed, h, onMounted, onUnmounted, reactive, ref, shallowRef, unref, getCurrentInstance, nextTick, watch, watchEffect} from 'vue';
 import {
   onLoad,
   onShow,
@@ -366,6 +366,7 @@ import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
 import { composerOverhang } from './canvas-composer-overhang'
 import { createStageIntentApi } from '@/utils/stage-intent-api.js'
+import { createHudBridge, type HudBridge, type HudHost, type HudMoreKind } from './canvas-hud-bridge'
 
 // ── Open Canvas ─────────────────────────────────────────────────
 import '@/common/canvas-theme-vars.css'
@@ -2333,6 +2334,167 @@ function hostOutsideAuthorScope(host, scope) {
   return wrapped;
 }
 
+// ── HUD 外掛的原生橋（宿主端） ────────────────────────────────────────
+//
+// bridge 本體在 canvas-hud-bridge.ts，不碰 Vue；這裡只負責兩件事：把反應式狀態讀成純資料、
+// 把外掛的動作接到既有函式。read() 在 watchEffect 裡跑，所以它碰到的每個 ref 都會被追蹤，
+// 狀態一變就叫 bridge.refresh()（bridge 自己比對內容，沒變不發事件）。
+const hudBridgeRef = shallowRef<HudBridge | null>(null);
+// 每則訊息的 HTML 只在內容變了才重算：串流時每個 token 都會觸發 read()，不能每次重畫整串。
+const hudHtmlCache = new Map<string, { content: string; html: string }>();
+
+function hudMessageHtml(item: any): string {
+  const key = String(item.id);
+  const content = String(item.content || '');
+  const hit = hudHtmlCache.get(key);
+  if (hit && hit.content === content) return hit.html;
+  let html = '';
+  try { html = String(renderMessage(item) || ''); } catch (e) { html = ''; }
+  hudHtmlCache.set(key, { content, html });
+  return html;
+}
+
+const HUD_MORE_KINDS: Record<string, HudMoreKind> = {
+  'new-chat': 'newChat',
+  'reset-chat': 'resetChat',
+  'export': 'exportChat',
+  'background': 'background',
+  'directives': 'customInstructions',
+  'persona': 'persona',
+};
+// 這幾個會先彈確認再動資料：HUD 不能替玩家按確認，所以標成破壞性、不給啟用。
+const HUD_DESTRUCTIVE_MORE = new Set(['new-chat', 'reset-chat', 'fork-archive']);
+
+function buildHudHost(): HudHost {
+  const indexOf = (messageId: string) => talkList.value.findIndex((it: any) => String(it.id) === messageId);
+  const itemOf = (messageId: string) => { const i = indexOf(messageId); return i >= 0 ? { item: talkList.value[i] as any, index: i } : null; };
+  return {
+    labels: {
+      notSupported: t('canvas.hud.notSupported'),
+      generating: t('canvas.hud.generating'),
+      previewOnly: t('canvas.hud.previewOnly'),
+      notOpen: t('canvas.hud.notOpen'),
+      noTarget: t('canvas.hud.noTarget'),
+      stale: t('canvas.hud.stale'),
+      confirmRequired: t('canvas.hud.confirmRequired'),
+    },
+    read: () => {
+      const list = talkList.value as any[];
+      const btn = unref(actionBtnState);
+      const lastAI = [...list].reverse().find((it) => it.type == 0 && !it.systemOnly) || null;
+      const generating = btn === 'stop' || btn === 'compacting';
+      const streamingId = generating && lastAI && !lastAI.chatLoading && String(lastAI.content || '') ? String(lastAI.id) : null;
+      const editingItem = menuEditing.value ? list[menuIndex.value] : null;
+      const view: any = roleView.value || {};
+      const groups = (modelGroups.value || []) as any[];
+      return {
+        character: {
+          id: String(unref(roleId) || '') || null,
+          name: convertPlainText(view.roleName || '', displayScript),
+          avatar: view.roleAvatar ? String(cfImage(view.roleAvatar, 'avatarMedium') || '') || null : null,
+        },
+        messages: list.map((item, index) => {
+          const isUser = item.type == 1;
+          const opening = isOpeningIndex(list, index);
+          const isAI = !isUser && !item.systemOnly;
+          return {
+            id: String(item.id),
+            role: item.systemOnly ? 'system' as const : (isUser ? 'user' as const : 'assistant' as const),
+            text: String(item.content || ''),
+            html: item.chatLoading ? '' : hudMessageHtml(item),
+            opening,
+            finished: !!item.chatFinish,
+            canonicalLatestAI: isAI && !opening && !!item.chatFinish && isLatestCanonicalAIIndex(index),
+            canContinue: isAI && canContinueFromIndex(index),
+          };
+        }),
+        generation: generating ? (streamingId ? 'streaming' as const : 'starting' as const) : 'idle' as const,
+        streamingMessageId: streamingId,
+        inputText: String(unref(content) || ''),
+        previewOnly: previewOnly.value === true,
+        editing: {
+          open: menuEditing.value === true && !!editingItem,
+          messageId: editingItem ? String(editingItem.id) : null,
+          text: menuEditing.value ? String(menuDraft.value || '') : '',
+        },
+        model: {
+          selectedId: String(selectedVariantValue.value || ''),
+          groups: groups.map((g, gi) => ({
+            id: String(g.group || gi),
+            label: String(g.group || ''),
+            models: ((g.families || []) as any[]).flatMap((f) => ((f.variants || []) as any[]).map((v) => ({
+              id: String(v.value),
+              name: String(v.name || v.value || ''),
+              description: String(v.description || f.description || ''),
+              score: v.costScore != null ? String(v.costScore) : '',
+            }))),
+          })),
+        },
+        conversations: {
+          currentId: String(unref(conversationId) || ''),
+          rows: archiveRows.value.map((r) => ({ id: r.key, title: r.name, preview: r.summary, current: r.current })),
+          full: archivesFull.value === true,
+        },
+        persona: {
+          mode: asPersonaMode(formData.personaMode),
+          modes: [
+            { id: 'name_only', label: personaLabels.value.modeNameOnly },
+            { id: 'global', label: personaLabels.value.modeGlobal },
+            { id: 'custom', label: personaLabels.value.modeCustom },
+          ],
+          name: String(formData.userName || ''),
+          genders: personaSexOptions.value.map((o: any) => ({ id: String(o.value), label: String(o.label) })),
+          gender: String(formData.userSex || ''),
+          identity: String(formData.userDefine || ''),
+        },
+        moreItems: moreItems.value.map((it: any) => ({
+          id: String(it.key),
+          label: String(it.label),
+          kind: HUD_MORE_KINDS[it.key] || 'unknown',
+          destructive: HUD_DESTRUCTIVE_MORE.has(it.key) || it.disabled === true,
+        })),
+      };
+    },
+    sendMessage: (text) => { content.value = text; onCanvasSend(); return true; },
+    setInputText: (text) => { content.value = text; return true; },
+    exit: () => { goBackToEntry(); return true; },
+    copyMessage: (id) => { const found = itemOf(id); if (!found) return false; copyText(null, found.item.content, t('canvas.copied')); return true; },
+    stopGeneration: () => { onCanvasStop(); return true; },
+    continueGeneration: (id) => {
+      if (unref(actionBtnState) === 'continue') { onCanvasSend(); return true; }
+      const found = itemOf(id); if (!found) return false;
+      doContinue(found.item, found.index); return true;
+    },
+    regenerateMessage: (id) => { const found = itemOf(id); if (!found) return false; doReiteration(found.index); return true; },
+    rollbackMessage: (id) => { const found = itemOf(id); if (!found) return false; loadConversation(found.item.id); return true; },
+    deleteMessage: (id) => { const found = itemOf(id); if (!found) return false; chatDelete(found.item.id); return true; },
+    // 編輯走訊息選單既有的草稿狀態，但不開選單本身（HUD 蓋著，開了也看不到）。
+    openEdit: (id) => { const found = itemOf(id); if (!found) return false; menuIndex.value = found.index; menuDraft.value = String(found.item.content || ''); menuEditing.value = true; return true; },
+    setEditText: (text) => { menuDraft.value = text; return true; },
+    submitEdit: (_id, text) => { menuDraft.value = text; onMenuConfirmEdit(); return true; },
+    cancelEdit: () => { closeMessageMenu(); return true; },
+    selectModel: (modelId) => { onApplyModelSettings({ selectModel: modelId }); return true; },
+    loadConversations: () => loadArchives().then(() => true),
+    selectConversation: (key) => onPickArchive(key).then(() => true),
+    renameConversation: (key, title) => onRenameArchive(key, title).then(() => true),
+    deleteConversation: (key) => deleteArchive(key).then(() => true),
+    createConversation: () => { if (archivesFull.value) return false; onConfirmStartNewConversation(); return true; },
+    submitPersona: (fields) => onSavePersona({
+      personaMode: fields.mode, userName: fields.name, userSex: fields.gender, userDefine: fields.identity,
+      sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak,
+    }).then(() => true),
+    activateMoreItem: (key) => { onPanelPick(key); return true; },
+    forkFromMessage: (id) => { const found = itemOf(id); if (!found || archivesFull.value) return false; pendingForkChatId.value = String(found.item.id || ''); return forkArchive().then(() => true); },
+  };
+}
+
+// 狀態一變就讓 bridge 重讀；read() 裡碰到的 ref 都在這個 effect 的追蹤範圍內。
+watchEffect(() => {
+  const bridge = hudBridgeRef.value;
+  if (!bridge) return;
+  bridge.refresh();
+}, { flush: 'post' });
+
 function savePlayerPreference(payload) {
   try {
     _this.http.post(_this.requestUrl.playerPreferenceSave, { data: payload, showLoading: false });
@@ -2401,6 +2563,11 @@ function applyAuthorAsset(asset) {
       runtime: authorAssetRuntime,
     });
     window.stage = stageIntent.api;
+    // HUD 外掛的原生橋：資料從真實狀態來，動作直接呼叫既有函式（見 canvas-hud-bridge.ts）。
+    // 掛在外掛約定的全域名下，它的 Host 啟動時先找這個，找不到才退回抓 DOM。
+    // 要在掛載作者資產之前放好：CDN 模式的載入腳本就是從掛載內容裡跑起來的。
+    hudBridgeRef.value = createHudBridge(hostOutsideAuthorScope(buildHudHost(), scope));
+    (window as any).__MMD_HUD_NATIVE_BRIDGE__ = hudBridgeRef.value;
 
     if (res.data.mountTrigger) {
       // 掛載點的內容也走同一組規則：作者在資產裡寫一條規則把觸發串換成常駐內容。
@@ -2657,6 +2824,18 @@ function disposeAuthorAsset() {
   authorAssetRuntime = null;
   stageIntent = null;
   if (typeof window !== 'undefined' && window.stage) { try { delete window.stage; } catch (e) { window.stage = undefined; } }
+  if (hudBridgeRef.value) {
+    try { hudBridgeRef.value.destroy(); } catch (e) { /* 收尾不得拋錯 */ }
+    hudBridgeRef.value = null;
+  }
+  hudHtmlCache.clear();
+  if (typeof window !== 'undefined') {
+    try { delete (window as any).__MMD_HUD_NATIVE_BRIDGE__; } catch (e) { (window as any).__MMD_HUD_NATIVE_BRIDGE__ = undefined; }
+    // 外掛新版會在自己的節點被拆掉時自毀；舊版沒有，這裡替它收——不然它的 observer 與
+    // 全域單例會活到下一頁，再進卡片時 HUD 不會再出現。
+    const hud = (window as any).__MMD_HUD_IFRAME__;
+    if (hud && typeof hud.destroy === 'function') { try { hud.destroy(); } catch (e) { /* 收尾不得拋錯 */ } }
+  }
   // 範圍最後收：執行期 dispose 時作者的 dispose 回呼還可能開計時器、動節點，要一起算進去
   authorScopeClosed = true;
   if (authorScope) {

@@ -4065,5 +4065,12 @@
 	"canvas.panel.personaModeGlobalHint": "すべてのカードで同じ人物設定を共有します。一度直せばどこでも反映されます。",
 	"canvas.panel.personaModeCustomHint": "このカードだけで使い、他のカードには影響しません。",
 	"canvas.panel.personaNickNameHint": "未入力ならニックネームを使います：{name}",
-	"canvas.panel.personaAdvanced": "詳細設定"
+	"canvas.panel.personaAdvanced": "詳細設定",
+	"canvas.hud.notSupported": "このプラットフォームにはこの機能がありません",
+	"canvas.hud.generating": "AIが返信中です",
+	"canvas.hud.previewOnly": "ローカルプレビューはサーバーに接続していません",
+	"canvas.hud.notOpen": "パネルが開いていません",
+	"canvas.hud.noTarget": "対象が見つかりません",
+	"canvas.hud.stale": "対象が変わりました。再読み込みしてください",
+	"canvas.hud.confirmRequired": "確認が必要です"
 }
