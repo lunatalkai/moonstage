@@ -466,6 +466,33 @@ describe('作者掛進來的東西預設可點', () => {
   })
 })
 
+describe('掛載內容最外層的裸文字不畫', () => {
+  // 容器貼滿視窗、作者的東西靠 position: fixed 自己定位；沒有包在元素裡的文字
+  // 只會落在視窗左上角壓住頁首。全站 42 份資產跑過一遍：會出現的裸文字全是
+  // 沒被任何規則吃掉的觸發詞（《播1》、[圖片集02]、<全局美化>）或作者複製貼上
+  // 留下的殘渣（="let m=…">），沒有一份是要給玩家看的。
+  it('去掉最外層的文字節點，元素與元素裡的文字原樣保留', () => {
+    const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
+    const el = rt.mount({
+      mountLayer: 'over',
+      html: '[UIcss] <style>.a{}</style><p id="x" data-s="1"></p>="let m=1;"><div class="bar">狀態 <b>好感</b></div> 尾巴',
+    })
+    const bare = [...el.childNodes].filter((n) => n.nodeType === 3)
+    expect(bare.length).toBe(0)
+    expect(el.querySelector('#x').getAttribute('data-s')).toBe('1')
+    expect(el.querySelector('.bar').textContent).toBe('狀態 好感')
+    expect(el.querySelectorAll('style').length).toBe(1)
+    expect(el.textContent).not.toContain('UIcss')
+    expect(el.textContent).not.toContain('let m=')
+  })
+
+  it('整份都是沒被規則吃掉的觸發詞時，容器留空', () => {
+    const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
+    const el = rt.mount({ mountLayer: 'under', html: '<全局美化>' })
+    expect(el.childNodes.length).toBe(0)
+  })
+})
+
 function collectAuthorMountStyleRules(doc) {
   return [...doc.querySelectorAll('style[data-luna-author-mount-style]')]
     .map(function (s) { return s.textContent || '' })

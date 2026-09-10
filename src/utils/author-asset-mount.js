@@ -175,6 +175,23 @@ function createAuthorAssetRuntime(options) {
   }
 
   /**
+   * 掛載內容最外層的裸文字不畫。
+   *
+   * 容器貼滿視窗、作者的東西靠 position: fixed 自己定位（見 applyContainerBox 的說明），
+   * 沒有包在任何元素裡的文字只會落在視窗左上角、壓在頁首上。實際會出現在那裡的
+   * 只有兩種東西：沒被任何規則吃掉的觸發詞（《播1》、[圖片集02]、<全局美化>），
+   * 以及作者複製貼上留下的殘渣（例如一段掉出標籤外的 ="let m=…">）——2026-09-11
+   * 全站 42 份資產跑過一遍，沒有一份的裸文字是要給玩家看的。只動最外層：元素裡
+   * 的文字是作者版面的一部分，原樣保留。
+   */
+  function dropBareText(el) {
+    const nodes = el.childNodes
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      if (nodes[i].nodeType === 3) el.removeChild(nodes[i])
+    }
+  }
+
+  /**
    * 掛上一份資產。冪等：同一個執行期重複呼叫不會產生第二份容器或第二次腳本執行。
    *
    * @param {Object} asset { mountLayer, html }
@@ -187,6 +204,7 @@ function createAuthorAssetRuntime(options) {
     if (!el) return null
     if (!mounted) {
       el.innerHTML = String(spec.html == null ? '' : spec.html)
+      dropBareText(el)
       // 哨兵先立起來再跑腳本：作者腳本若在執行期間又觸發 mount，不得重跑第二次。
       mounted = true
       runScripts(el)
