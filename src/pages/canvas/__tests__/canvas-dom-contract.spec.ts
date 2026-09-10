@@ -237,12 +237,12 @@ describe('畫布契約：訊息兩層結構（列／氣泡）', () => {
     expect(bubble === row).toBe(false)
   })
 
-  it('使用者訊息是 .item.User + .content.right + is_user="true"', () => {
+  it('使用者訊息是 .item.User.self + .content.right + is_user="true"（self 是 MMD 的原名，卡片與外掛靠它認玩家回合）', () => {
     const wrapper = mount(CanvasMessage, {
       props: { message: { ...AI_MESSAGE, role: 'user', mesid: 1, swipes: null, reasoning: '' } },
     })
     const row = wrapper.element as HTMLElement
-    expect(row.matches('.mes.item.User')).toBe(true)
+    expect(row.matches('.mes.item.User.self')).toBe(true)
     expect(row.getAttribute('is_user')).toBe('true')
     expect(row.querySelector('.mes_text.content.right')).toBeTruthy()
   })

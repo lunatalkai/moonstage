@@ -142,3 +142,28 @@ describe('簡繁變體：匹配式展開', () => {
     expect(out.html).toBe('前<開局面板>後')
   })
 })
+
+describe('替換內容裡的 $n：只有真的捕獲組才展開', () => {
+  // 原生 String.replace 對不存在的組保留字面 $n；引擎之前把 replace 回呼的
+  // offset／整段原文當成 $1／$2 塞進去，含 JS 原始碼的 MMD 規則整條被改壞。
+  it('沒有捕獲組時 $1、$2 原樣保留', () => {
+    const out = applyDisplayRules('【X】', [
+      { id: 'r', find: '【X】', replace: 'a$1b|$2|c', enabled: true },
+    ])
+    expect(out.html).toBe('a$1b|$2|c')
+  })
+
+  it('一個捕獲組時 $1 展開、$2 保留', () => {
+    const out = applyDisplayRules('【X】', [
+      { id: 'r', find: '/【(X)】/', replace: 'a$1b|$2|c', enabled: true },
+    ])
+    expect(out.html).toBe('aXb|$2|c')
+  })
+
+  it('具名捕獲組（回呼多一個 groups 參數）一樣只展開真的組', () => {
+    const out = applyDisplayRules('【X】', [
+      { id: 'r', find: '/【(?<n>X)】/', replace: 'a$1b|$2|c', enabled: true },
+    ])
+    expect(out.html).toBe('aXb|$2|c')
+  })
+})
