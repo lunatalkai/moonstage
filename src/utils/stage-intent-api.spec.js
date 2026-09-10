@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 
 import {
-  createLunaIntentApi,
+  createStageIntentApi,
   SEND_LIMIT_PER_WINDOW,
   INPUT_LIMIT_PER_WINDOW,
   ERR_RATE_LIMITED,
   ERR_NOT_GESTURE,
   ERR_UNSUPPORTED,
-} from './luna-intent-api.js'
+} from './stage-intent-api.js'
 
 function makeHost(over) {
   const calls = []
@@ -34,7 +34,7 @@ function makeHost(over) {
 function makeApi(over) {
   const h = makeHost(over && over.host)
   let clock = 1000
-  const built = createLunaIntentApi({
+  const built = createStageIntentApi({
     host: h.host,
     runtime: (over && over.runtime) || null,
     now: () => clock,
@@ -216,7 +216,7 @@ describe('luna intent api', () => {
     })
 
     it('所有同步方法都不拋錯，即使宿主什麼都沒實作', () => {
-      const a = createLunaIntentApi({ host: {} })
+      const a = createStageIntentApi({ host: {} })
       expect(() => {
         a.api.input.get()
         a.api.input.set('x')

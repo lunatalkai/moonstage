@@ -446,7 +446,7 @@ describe('作者掛進來的東西預設可點', () => {
     expect(el.style.pointerEvents).toBe('none')
 
     const rules = collectAuthorMountStyleRules(document)
-    expect(rules).toContain('[data-luna-author-layer]>*')
+    expect(rules).toContain('[data-stage-author-layer]>*')
     expect(rules).toContain('pointer-events:auto')
   })
 
@@ -455,14 +455,14 @@ describe('作者掛進來的東西預設可點', () => {
     rt.mount({ mountLayer: 'over', html: '<div>a</div>' })
     rt.mount({ mountLayer: 'under', html: '<div>b</div>' })
     rt.mount({ mountLayer: 'cover', html: '<div>c</div>' })
-    expect(document.querySelectorAll('style[data-luna-author-mount-style]').length).toBe(1)
+    expect(document.querySelectorAll('style[data-stage-author-mount-style]').length).toBe(1)
   })
 
   it('dispose 之後樣式留著：它不描述任何一張卡，重掛時還要用', () => {
     const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
     rt.mount({ mountLayer: 'over', html: '<div>a</div>' })
     rt.dispose()
-    expect(document.querySelectorAll('style[data-luna-author-mount-style]').length).toBe(1)
+    expect(document.querySelectorAll('style[data-stage-author-mount-style]').length).toBe(1)
   })
 })
 
@@ -494,7 +494,7 @@ describe('掛載內容最外層的裸文字不畫', () => {
 })
 
 function collectAuthorMountStyleRules(doc) {
-  return [...doc.querySelectorAll('style[data-luna-author-mount-style]')]
+  return [...doc.querySelectorAll('style[data-stage-author-mount-style]')]
     .map(function (s) { return s.textContent || '' })
     .join('')
     .replace(/\s+/g, '')
