@@ -233,6 +233,26 @@
   height: auto;
 }
 
+/*
+  氣泡裡的段落間距。
+
+  \n\n 是段落、\n 只換行——MMD 這樣畫，作者也照這個節奏寫：對白一組用單換行黏在一起，
+  段與段之間空一行。舞台從沒替氣泡的 <p> 定過間距，靠瀏覽器預設的 1em；宿主一條
+  `h1, h2, h3, p, dl, dd { margin: 0 }` 的重置就把整則訊息黏成一塊（2026-09-11 社群站
+  用戶對比截圖）。跟上面圖片那條同一個道理：訊息裡的排版由舞台負責，寫在層外、
+  特異性壓過宿主的元素選擇器。作者自己對 p 寫的規則（.mes_text p{…}）特異性一樣或
+  更高、又在後面，照常蓋得過。
+*/
+.canvas-root .mes_text p {
+  margin: 1em 0;
+}
+.canvas-root .mes_text p:first-child {
+  margin-top: 0;
+}
+.canvas-root .mes_text p:last-child {
+  margin-bottom: 0;
+}
+
 @layer lt-base {
   /* ── 頁面骨架 ────────────────────────────────────────────────── */
 
