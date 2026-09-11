@@ -2554,6 +2554,13 @@ function applyAuthorAsset(asset) {
     const scope = ensureAuthorScope();
     authorAssetRuntime = createAuthorAssetRuntime({
       doc: document,
+      // 容器掛進畫布根節點，不掛 body。畫布根是 position: fixed，自己就是一個 stacking
+      // context：頂欄 z30、輸入區 z20 都只在它裡面算數。容器若掛在 body 上，under 層的
+      // z12 是拿去跟整個畫布（z auto＝0）比，結果是 under 蓋在輸入框之上——作者勾了
+      // 「降低層級」，側邊欄照樣擋住輸入框、吃掉點擊（2026-09-11 社群站用戶回報，
+      // 手機開工具抽屜後輸入區上移就撞到）。掛進來之後 under(12) < 輸入區(20) < over(30)
+      // 這組數字才是同一把尺。找不到根節點時退回 body，行為跟以前一樣。
+      root: (document.querySelector('.canvas-root') as HTMLElement | null) || document.body,
       layerZIndex: AUTHOR_LAYER_Z_INDEX,
       runAuthorCode: scope ? (fn) => scope.run(fn) : undefined,
       // 作者容器內的真實點擊登記為一次使用者手勢，讓作者按鈕呼叫的 send() 過得了關。
