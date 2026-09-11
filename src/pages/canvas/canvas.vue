@@ -2507,13 +2507,17 @@ function savePlayerPreference(payload) {
 //
 // 走 serve 不走 mine：mine 是作者編輯態端點（登入 + ownership），玩家打它只會拿到
 // 403，結果是這張卡只有作者本人看得到裝修。serve 是玩家路徑，公開卡連遊客都拿得到。
+//
+// 逾時 60 秒：規則總量上限 2026-09-11 從 1 MB 放寬到 32 MB，一份幾 MB 的規則在手機網路上
+// 8 秒抓不完；抓不完就靜靜地不套版面，作者以為卡壞了。60 秒是「慢也讓它到」，
+// 卡本身不等這一步，對話照常開始。
 async function loadAuthorAsset(targetRoleId) {
   if (!targetRoleId) return;
   try {
     const res = await _this.http.get(_this.requestUrl.authorAssetServe, {
       data: { roleId: targetRoleId },
       showLoading: false,
-      timeout: 8000,
+      timeout: 60000,
     });
     if (res.statusCode !== 200 || !res.data) return;
     applyAuthorAsset(res.data);
