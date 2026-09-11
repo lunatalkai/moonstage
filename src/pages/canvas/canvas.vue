@@ -2567,6 +2567,8 @@ function applyAuthorAsset(asset) {
     // HUD 外掛的原生橋：資料從真實狀態來，動作直接呼叫既有函式（見 canvas-hud-bridge.ts）。
     // 掛在外掛約定的全域名下，它的 Host 啟動時先找這個，找不到才退回抓 DOM。
     // 要在掛載作者資產之前放好：CDN 模式的載入腳本就是從掛載內容裡跑起來的。
+    // 同一頁再套一次資產（換卡、重載）時先收掉舊橋，別讓外掛握著已經沒人餵的舊物件。
+    if (hudBridgeRef.value) { try { hudBridgeRef.value.destroy(); } catch (e) { /* 收尾不得拋錯 */ } }
     hudBridgeRef.value = createHudBridge(hostOutsideAuthorScope(buildHudHost(), scope));
     (window as any).__MMD_HUD_NATIVE_BRIDGE__ = hudBridgeRef.value;
 
