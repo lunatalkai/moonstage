@@ -205,6 +205,11 @@ function createAuthorAssetRuntime(options) {
     if (!mounted) {
       el.innerHTML = String(spec.html == null ? '' : spec.html)
       dropBareText(el)
+      // 作者寫 `<style disabled>` 是「預設關、之後由他的腳本開」；瀏覽器不認這個屬性、
+      // 只認 .disabled，這裡翻譯一次（見 utils/author-style-disabled.js 的說明；本檔零 import，
+      // 所以內聯）。要放在 runScripts 之前：作者腳本讀到的就是他預期的初始狀態。
+      const disabledStyles = el.querySelectorAll('style[disabled]')
+      for (let d = 0; d < disabledStyles.length; d++) disabledStyles[d].disabled = true
       // 哨兵先立起來再跑腳本：作者腳本若在執行期間又觸發 mount，不得重跑第二次。
       mounted = true
       runScripts(el)

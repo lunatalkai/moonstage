@@ -359,6 +359,7 @@ import {
 } from '@/utils/rich-text-renderer.js';
 import { applyDisplayRules, hasCrossLineRule } from '@/utils/display-rule-engine.js'
 import { createAuthorAssetRuntime, CONTAINER_ATTR as AUTHOR_CONTAINER_ATTR } from '@/utils/author-asset-mount.js'
+import { applyDisabledStyleAttr } from '@/utils/author-style-disabled.js'
 import { createAuthorScope } from '@/utils/author-asset-scope.js'
 import { needsKaiFallback, ensureKaiFallback, applyFontMode } from './canvas-font-fallback'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
@@ -3409,9 +3410,13 @@ function activateMessageScripts(item: any, html: string) {
           if (existing) existing.remove();
         }
         newStyle.textContent = styleContent;
+        // 作者寫 `<style disabled>`（預設關、由他的腳本開）：瀏覽器不認屬性，翻成 .disabled。
+        if (/\bdisabled\b/i.test(attrs)) { newStyle.setAttribute('disabled', ''); newStyle.disabled = true; }
         scope.adopt(newStyle);
         document.head.appendChild(newStyle);
       });
+      // 留在氣泡裡的原顆也要關，不然同一塊樣式還是生效。
+      applyDisabledStyleAttr(messageEl);
     }
     if (needsKaiFallback(messageEl.innerHTML)) ensureKaiFallback();
   });
