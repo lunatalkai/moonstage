@@ -2958,6 +2958,26 @@ const highlightText = (content, type, cacheKey) => {
       if (!openM || openM[0].endsWith('/>')) { out += html.charAt(i); i++; continue; }
       const tagName = openM[1];
       const attrs = openM[2];
+      // <style>／<script> 整個元素也在這裡 stash，markdown 之前就藏起來。
+      //
+      // 下面那段「HTML pre-pass」雖然也 stash 這兩種 raw-text 元素，但它排在 markdown 之後：
+      // 規則展開出來的狀態欄常是 `<div class="jh"><style>…`，`<div` 起頭的那一行是 CommonMark
+      // 第 6 型 HTML 區塊、遇到空行就結束，CSS 裡分段用的空行之後全被當成段落——插 <p>、<br>、
+      // 雙引號變 &quot;。瀏覽器解析到 `<p>.jh .stage{…}` 這種選擇器就整條丟掉：作者的
+      // `.stage{position:relative}` 沒了，裡面 absolute 的 `.ring` 撐到整個狀態欄大、蓋住底下的
+      // 選項（2026-09-11 社群站用戶回報「狀態欄渲染錯誤、選項點不出來」）。線上 30 份帶
+      // <style> 規則的資產裡 14 份的 CSS 有空行。找不到結束標籤（串流截斷）就不動，照舊逐字掃。
+      if (/^(style|script)$/i.test(tagName)) {
+        const closeRe = new RegExp('</\\s*' + tagName + '\\s*>', 'ig');
+        closeRe.lastIndex = tagStart + openM[0].length;
+        const cm = closeRe.exec(html);
+        if (!cm) { out += html.charAt(i); i++; continue; }
+        const endPos = cm.index + cm[0].length;
+        __rawStash.push(html.substring(tagStart, endPos));
+        out += '\x05' + (__rawStash.length - 1) + '\x06';
+        i = endPos;
+        continue;
+      }
       if (!/display\s*:\s*none/i.test(attrs)) { out += html.charAt(i); i++; continue; }
       // void element（img/br/hr/...）永遠沒有配對的結束標籤。之前在這裡沒有排除
       // 它們，導致觸發用的裸 <img src="x" style="display:none">（沒包在 span 裡的
@@ -3004,8 +3024,8 @@ const highlightText = (content, type, cacheKey) => {
      「正則→整段進 Vditor（CommonMark）→淨化」：HTML 區塊之間空一行之後 Markdown 照常
      解析，區塊裡面不解析（tavern-mmd 平台契約 §8／§13，2026-08-28 實機）。markdown-it
      開 html:true 走的是同一套 CommonMark HTML block 規則，所以重 HTML 過它之後得到的
-     就是 MMD 那個結果；隱藏資料 span、<style>／<script>／<code>／<pre> 在上面已經 stash
-     成佔位符，markdown-it 看不到它們。owner 2026-09-04：「它實際上是能渲染 Markdown 的，
+     就是 MMD 那個結果；隱藏資料 span 與 <style>／<script> 整個元素在上面已經 stash
+     成佔位符，markdown-it 看不到它們（<code>／<pre> 由 markdown-it 自己當 HTML 區塊處理）。owner 2026-09-04：「它實際上是能渲染 Markdown 的，
      我們現在還不行」。
   */
   try {
