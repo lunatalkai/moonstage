@@ -535,11 +535,12 @@ describe('畫布契約：PC 欄寬與置中規則', () => {
   /*
     欄寬先前是照 MMD 在 1440 下量到的氣泡寬度反推的固定值（860px）。那個數字在
     16:9 的螢幕上兩側各留下一大片空地，而卡片的美化往往鋪滿整個視窗——欄位縮在
-    中間一條，看起來像沒對齊；手機橫著拿時更明顯。改成「有多少用多少，但別寬到
-    一行讀不完」：兩側各留 24px，上限 1200px。
+    中間一條，看起來像沒對齊；手機橫著拿時更明顯。改成「有多少用多少」：兩側各留
+    24px。曾經封頂 1200px 怕一行讀不完，但 MMD 的氣泡在桌機上就是滿版、作者的面板
+    照滿版設計，封頂會把面板壓窄、字截斷（2026-09-11，owner：照 MMD 的版面）。
   */
-  it('--lt-canvas-column-width 跟著視窗走，兩側留白固定，並有一個讀得完的上限', () => {
-    expect(themeVars).toMatch(/--lt-canvas-column-width:\s*min\(1200px,\s*calc\(100vw - 48px\)\)/)
+  it('--lt-canvas-column-width 跟著視窗走，兩側留白固定，桌機不封頂', () => {
+    expect(themeVars).toMatch(/--lt-canvas-column-width:\s*calc\(100vw - 48px\)/)
   })
 
   // 置中不能用留在 @layer 裡的 margin:0 auto——uni-app H5 base.css 有一條不分層、
