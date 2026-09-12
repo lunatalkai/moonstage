@@ -527,6 +527,7 @@ import {
   type ChatOperationUIAction,
   type RewriteSnapshot,
   isOpeningIndex,
+  canEditResendPlayerIndex,
 } from './chat-operation-ui-state';
 import {
   createHistoryRequestKey,
@@ -8041,6 +8042,10 @@ const menuActions = computed(() => {
       actions.push({ key: 'continue', label: t('multiPass.continueAction') })
     }
   }
+  // 玩家自己最新的那一句：改字、重跑這一輪（舊聊天框架有、新殼搬的時候漏了；用戶 2026-09-12）
+  if (canEditResendPlayerIndex(talkList.value, index)) {
+    actions.push({ key: 'edit', label: t('canvas.menu.editResend') })
+  }
   // 倒回是回到歷史裡的某一則；最新那一則本來就在這裡，倒回它沒有意義（owner 2026-09-05）。
   const isLatestRow = index === talkList.value.length - 1
   if (item.id !== 0 && !isLatestRow) {
@@ -8212,12 +8217,52 @@ function scheduleContextUsageRefresh() {
 }
 
 function onMenuConfirmEdit() {
-  const item = talkList.value[menuIndex.value]
+  const index = menuIndex.value
+  const item = talkList.value[index]
   if (!item) return
+  if (item.type === 1) {
+    const draft = String(menuDraft.value || '')
+    closeMessageMenu()
+    doEditResendPlayer(index, draft)
+    return
+  }
   reWriteContent.value = menuDraft.value
   const chatId = item.id
   closeMessageMenu()
   sureRewrite(chatId)
+}
+
+/**
+ * 編輯並重送：改玩家自己最新那句，然後重跑這一輪。
+ * 走的是「重新生成」同一條路（以這則玩家訊息為目標、換掉後面的 AI 回覆），只差內容換成
+ * 改好的字；伺服器在進提示詞前把那一列換成新內容。畫面先把句子換掉，這一輪沒成就由
+ * restoreRewriteCandidate 從快照換回去。
+ */
+function doEditResendPlayer(index: number, draft: string) {
+  if (isTimelineMutationBlocked()) {
+    notifyTimelineMutationBlocked();
+    return;
+  }
+  const text = draft.trim()
+  if (!text) return
+  const userBubble = talkList.value[index]
+  if (!userBubble || !canEditResendPlayerIndex(talkList.value, index)) return
+  const snapshot = createRewriteSnapshotForTarget(talkList.value, userBubble.chatId || userBubble.id)
+  if (!snapshot) return
+  if (text === String(userBubble.content || '').trim()) {
+    doReiteration(snapshot.aiIndex)
+    return
+  }
+  if (actionBtnState.value === 'stop') {
+    sendStop();
+  }
+  talkList.value[index] = { ...userBubble, content: text }
+  content.value = text
+  rewrite.value = true
+  contine.value = false
+  pendingRewriteSnapshot = snapshot
+  rewriteTargetChatId.value = String(userBubble.chatId || userBubble.id || '')
+  send()
 }
 
 // ── 輸入區 ─────────────────────────────────────────────────────────────

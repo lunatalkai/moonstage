@@ -298,6 +298,29 @@ export function isLatestCanonicalAIIndex(messages: any[], index: number): boolea
   return latestCanonicalAIIndex(messages) === index
 }
 
+/**
+ * 玩家能不能「編輯並重送」這一則：它得是最後一則玩家訊息、已經存檔（id 不是 0）、
+ * 而且後面有一則 AI 回覆可以被換掉。沒有回覆（那一輪失敗了）走的是重試，不是編輯；
+ * 中間的句子改了等於分叉歷史，那是「倒回」的事。
+ *
+ * 由來（2026-09-12）：玩家發一句、AI 回了不滿意，想改自己那句再來一次；之前只能倒回
+ * 上一則、複製貼上、重發（用戶回報「大世界模擬器卡刷開局」特別煩）。
+ */
+export function canEditResendPlayerIndex(messages: any[], index: number): boolean {
+  if (!Array.isArray(messages) || index < 0 || index >= messages.length) return false
+  const item = messages[index]
+  if (!item || item.type !== 1 || item.isSummary === true) return false
+  if (item.id === 0 || item.id == null || String(item.id) === '') return false
+  let sawAI = false
+  for (let i = index + 1; i < messages.length; i += 1) {
+    const next = messages[i]
+    if (!next || next.isSummary === true) continue
+    if (next.type === 1) return false
+    if (next.type === 0 && !next.chatLoading && (next.id !== 0 && next.id != null)) sawAI = true
+  }
+  return sawAI
+}
+
 export function isLatestCanonicalAIId(messages: any[], id: unknown): boolean {
   const index = latestCanonicalAIIndex(messages)
   return index >= 0 && matchesBubbleId(messages[index], id)
@@ -732,6 +755,9 @@ export function restoreRewriteCandidate(
   if (userIndex < 0) {
     userIndex = Math.min(Math.max(snapshot.userIndex, 0), next.length)
     next.splice(userIndex, 0, { ...snapshot.userBubble })
+  } else if (String(next[userIndex]?.content ?? '') !== String(snapshot.userBubble.content ?? '')) {
+    // 「編輯並重送」先把畫面上的玩家句子換成新字；這一輪沒成，字也要換回去。
+    next[userIndex] = { ...next[userIndex], content: snapshot.userBubble.content }
   }
 
   const sourceAIExists = next.some(item =>

@@ -58,6 +58,13 @@
         <div class="mes_reasoning">{{ message.reasoning }}</div>
       </details>
 
+      <!--
+        氣泡與它的動作列包成一組（.mes_turn）：動作列的左緣＝氣泡的左緣。
+        玩家那列氣泡靠右，動作列（⋯）之前貼在整列的最左邊，桌機上離氣泡半個畫面遠，
+        玩家找不到（用戶 2026-09-12 回報：「三個點離玩家的消息太遠了」）。
+        寬度上限（玩家 92%）搬到這一層，氣泡在裡面撐滿。
+      -->
+      <div class="mes_turn" data-lt="turn">
       <div
         class="mes_text content"
         :class="bubbleClass"
@@ -161,6 +168,7 @@
             <span>{{ labels.edit }}</span>
           </div>
         </div>
+      </div>
       </div>
 
       <!-- 開場白的左右切換。酒館的玩家習慣：第一則訊息可以換一條開場白再開始。

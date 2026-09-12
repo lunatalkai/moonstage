@@ -4072,5 +4072,6 @@
 	"canvas.hud.notOpen": "面板尚未打开",
 	"canvas.hud.noTarget": "找不到目标",
 	"canvas.hud.stale": "目标已变动，请重新读取",
-	"canvas.hud.confirmRequired": "需要再次确认"
+	"canvas.hud.confirmRequired": "需要再次确认",
+	"canvas.menu.editResend": "编辑并重发"
 }

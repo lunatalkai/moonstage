@@ -131,7 +131,7 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   { selector: '.select-box', region: 'message', origin: 'mmd', why: 'MMD 每則訊息的動作區，常駐 DOM' },
   { selector: '.mes_buttons', region: 'message', origin: 'st', why: '酒館常駐動作列（opacity .3 → hover 1）' },
   // 動作列住在 .mes_block 的文流裡、氣泡之後（owner 2026-09-04：右上角會被作者的面板蓋住）。
-  { selector: '.mes_block > .select-box.mes_buttons', region: 'message', origin: 'lt', why: '動作列在訊息主體的文流裡，不再絕對定位在角落' },
+  { selector: '.mes_block .mes_turn > .select-box.mes_buttons', region: 'message', origin: 'lt', why: '動作列在訊息主體的文流裡、跟氣泡同一組（.mes_turn），貼著氣泡左緣，不再絕對定位在角落' },
   { selector: '[data-lt="message-actions"]', region: 'message', origin: 'lt', why: '我方穩定鉤子' },
 
   // ── 玩家自己那一則 ──────────────────────────────────────────────────

@@ -4072,5 +4072,6 @@
 	"canvas.hud.notOpen": "パネルが開いていません",
 	"canvas.hud.noTarget": "対象が見つかりません",
 	"canvas.hud.stale": "対象が変わりました。再読み込みしてください",
-	"canvas.hud.confirmRequired": "確認が必要です"
+	"canvas.hud.confirmRequired": "確認が必要です",
+	"canvas.menu.editResend": "編集して送り直す"
 }
