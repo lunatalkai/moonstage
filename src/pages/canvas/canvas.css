@@ -556,8 +556,27 @@
     text-align: right;
   }
 
-  .mes.User .mes_text {
+  /*
+     氣泡＋動作列一組（.mes_turn）。AI 那列靠左、玩家那列靠右；組內動作列永遠貼氣泡左緣。
+     玩家的寬度上限放在這一層（氣泡在裡面 100%），不然「百分比上限對著一個縮到內容寬的
+     父層」會互相參照，氣泡被多縮一次。
+  */
+  .mes_turn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mes.User .mes_turn {
+    align-self: flex-end;
     max-width: 92%;
+  }
+
+  .mes.User .mes_text {
+    max-width: 100%;
   }
 
   .mes_text {
@@ -751,7 +770,7 @@
      靠右會頂到畫面右緣，而作者的卡常把固定面板（狀態／索引那一排）貼在右緣——
      實測 BA 卡在手機上 ⋯ 被它蓋住。 */
   .mes.User .select-box {
-    /* .mes_block 對玩家那列是 align-items:flex-end，動作列自己得說「我靠左」 */
+    /* 在 .mes_turn 裡：靠組的左緣，也就是氣泡的左緣（貼氣泡左下方，用戶 2026-09-12） */
     align-self: flex-start;
     justify-content: flex-start;
   }

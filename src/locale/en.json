@@ -4072,5 +4072,6 @@
 	"canvas.hud.notOpen": "The panel isn't open",
 	"canvas.hud.noTarget": "Target not found",
 	"canvas.hud.stale": "The target changed, reload and try again",
-	"canvas.hud.confirmRequired": "Confirmation required"
+	"canvas.hud.confirmRequired": "Confirmation required",
+	"canvas.menu.editResend": "Edit and resend"
 }

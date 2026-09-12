@@ -4072,5 +4072,6 @@
 	"canvas.hud.notOpen": "面板尚未開啟",
 	"canvas.hud.noTarget": "找不到目標",
 	"canvas.hud.stale": "目標已變動，請重新讀取",
-	"canvas.hud.confirmRequired": "需要再次確認"
+	"canvas.hud.confirmRequired": "需要再次確認",
+	"canvas.menu.editResend": "編輯並重送"
 }
