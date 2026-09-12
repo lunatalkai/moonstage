@@ -558,21 +558,26 @@
 
   /*
      氣泡＋動作列一組（.mes_turn）。AI 那列靠左、玩家那列靠右；組內動作列永遠貼氣泡左緣。
-     玩家的寬度上限放在這一層（氣泡在裡面 100%），不然「百分比上限對著一個縮到內容寬的
-     父層」會互相參照，氣泡被多縮一次。
+
+     氣泡的寬度規則照 MMD：**縮到內容寬，上限是那一列的 94%**（MMD 的 .touch-scope
+     是 max-width:94% 的收縮盒，作者寫的 .content{width:100%} 也只能撐到它）。之前 AI 那列
+     的氣泡永遠撐滿整列，手機上看不出來（文字本來就會換行到滿），桌機上短短一句也拉成
+     一整條，跟作者在 MMD 上調的樣子對不上（用戶 2026-09-12 回報「氣泡大小邏輯不一樣」）。
+     寬度上限放在這一層、氣泡在裡面 100%——不然「百分比上限對著一個縮到內容寬的父層」
+     會互相參照，氣泡被多縮一次。
   */
   .mes_turn {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    align-self: flex-start;
     gap: 4px;
     min-width: 0;
-    max-width: 100%;
+    max-width: 94%;
   }
 
   .mes.User .mes_turn {
     align-self: flex-end;
-    max-width: 92%;
   }
 
   .mes.User .mes_text {
