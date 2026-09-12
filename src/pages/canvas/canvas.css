@@ -1419,7 +1419,7 @@
     cursor: pointer;
   }
 
-  .lt-send > svg {
+  .lt-send svg {
     width: 16px;
     height: 16px;
   }
@@ -1459,9 +1459,18 @@
     cursor: pointer;
   }
 
-  .more-options-scope .btn-icon > svg {
+  .more-options-scope .btn-icon svg {
     width: 16px;
     height: 16px;
+  }
+
+  /* 圖示外面那層 div（MMD 的 uni-image > div）：只是個盒子，尺寸跟著鍵走 */
+  .btn-icon .btn-icon-img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
   }
 
   /* ── 訊息選單 ─────────────────────────────────────────────────── */
@@ -1531,7 +1540,8 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   }
 
-  .option-item {
+  /* 只給選單本體：編輯框的確認鍵也掛 .option-item（MMD 的名字），樣式各走各的 */
+  .msg-options-box .option-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1539,7 +1549,7 @@
     cursor: pointer;
   }
 
-  .option-item.is-disabled {
+  .msg-options-box .option-item.is-disabled {
     opacity: 0.4;
     cursor: default;
   }

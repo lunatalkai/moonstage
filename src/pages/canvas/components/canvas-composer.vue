@@ -207,7 +207,7 @@
                     @keydown.enter.prevent="onPrimary"
                     @keydown.space.prevent="onPrimary"
                   >
-                    <CanvasSendIcon :state="sendState" />
+                    <div class="btn-icon-img"><CanvasSendIcon :state="sendState" /></div>
                   </div>
                 </div>
               </div>
@@ -240,7 +240,7 @@
                     @keydown.enter.prevent="onPrimary"
                     @keydown.space.prevent="onPrimary"
                   >
-                    <CanvasSendIcon :state="sendState" />
+                    <div class="btn-icon-img"><CanvasSendIcon :state="sendState" /></div>
                   </div>
                 </div>
               </div>
@@ -258,10 +258,13 @@
               @click="$emit('more')"
               @keydown.enter.prevent="$emit('more')"
             >
+              <!-- 圖示包一層 div：MMD 的 .btn-icon 是 uni-image > div，作者的 filter 寫在那一層 -->
+              <div class="btn-icon-img">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                    stroke-linecap="round" aria-hidden="true" focusable="false">
                 <path d="M12 5v14M5 12h14" />
               </svg>
+              </div>
             </div>
           </div>
         </div>

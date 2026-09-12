@@ -208,6 +208,8 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   { selector: '.icon-battery', region: 'composer', origin: 'mmd', why: '點數旁的電量圖示，卡片常換掉它' },
   { selector: '.more-options-scope', region: 'composer', origin: 'mmd', why: '更多選項入口' },
   { selector: '.more-options-scope .btn-icon', region: 'composer', origin: 'mmd', why: '卡片改它的 hover 旋轉' },
+  { selector: '.more-options-scope .btn-icon div', region: 'composer', origin: 'mmd', why: 'MMD 的 .btn-icon 是 uni-image > div；卡片對 .btn-icon div 寫 filter（日夜反色），要落在同一層才跟 MMD 一樣' },
+  { selector: '.chat-input-scope .btn-icon div', region: 'composer', origin: 'mmd', why: '送出鍵的圖示盒，同上' },
   { selector: '#options_button', region: 'composer', origin: 'st', why: '酒館更多選項鍵' },
 
   // ── 訊息選單／編輯 ──────────────────────────────────────────────────
@@ -221,6 +223,7 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   { selector: '.option-item uni-image', region: 'menu', origin: 'mmd', why: '卡片改動作圖示尺寸' },
   { selector: '.option-separator', region: 'menu', origin: 'mmd', why: '分隔線' },
   { selector: '.msg-modify-scope', region: 'menu', origin: 'mmd', why: '訊息編輯覆蓋層' },
+  { selector: '.msg-modify-scope .option-box .option-item', region: 'menu', origin: 'mmd', why: '編輯框底下的取消／確定：MMD 的節點鏈，卡片對它寫底色與圓角' },
   { selector: '.modify-input-box', region: 'menu', origin: 'mmd', why: '編輯輸入框' },
   { selector: '.confirm-edit-scope', region: 'menu', origin: 'mmd', why: '編輯確認列' },
   { selector: '.confirm-edit-scope .cancel-btn', region: 'menu', origin: 'mmd', why: '取消' },
