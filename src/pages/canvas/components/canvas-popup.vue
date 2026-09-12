@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { leaveTopLayer, raiseStopAboveDialogs, raiseToTopLayer } from '../canvas-top-layer'
+import { syncChromeTone } from '../canvas-chrome-tone'
 
 /*
   ESC 掛在 document 上，不是掛在殼自己身上。掛在自己身上要焦點落在裡面才收得到，
@@ -88,6 +89,8 @@ watch(() => props.open, (open) => {
   // 等 hidden 拿掉、節點真的顯示了再進 top layer；display:none 的元素 showPopover 會丟錯
   nextTick(() => {
     if (open) { raiseToTopLayer(root.value); raiseStopAboveDialogs() } else leaveTopLayer(root.value)
+    // 彈層是開的時候才在畫面上：底色被作者漆成亮色的話，字要在這一刻就變深
+    if (open) syncChromeTone(root.value?.ownerDocument || document)
   })
 }, { immediate: true })
 

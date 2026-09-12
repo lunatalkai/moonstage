@@ -79,6 +79,27 @@
   這一條刻意寫在 layer 外面。作者只換了彈層的文字顏色、沒有動我們的變數時，
   layer 裡的規則會輸給他的 color 卻贏不了自己的預設值——那正是要避免的情況。
 */
+/*
+  底色是亮是暗，字就跟著換（canvas-chrome-tone.ts 量出來寫在 data-lt-tone 上）。
+
+  上面那套「從 currentColor 調出來」只在作者也換了 color 時成立。這張卡的日間主題
+  把頂欄與彈層漆成米白（background-color var(--lb) !important），字卻沒動——作者只對
+  MMD 的節點名寫過字色，我們的欄位標題、返回鍵、模型 chip 都不在他的清單裡——結果
+  站台在深色主題時是白字白底，返回鍵與模型選擇整個看不見（owner 2026-09-12 截圖）。
+  MMD 的頂欄 icon 日夜都看得見，我們也得。
+
+  寫在 layer 外、:where() 歸零特異性：贏過我們自己 layer 裡的預設，輸給作者任何一條
+  指名 color 的規則（作者明說要什麼顏色就照他的）。
+*/
+.topTabbar:where([data-lt-tone="light"]),
+.u-popup__content:where([data-lt-tone="light"]) {
+  color: #17171c;
+}
+.topTabbar:where([data-lt-tone="dark"]),
+.u-popup__content:where([data-lt-tone="dark"]) {
+  color: #f2f2f5;
+}
+
 .u-popup__content {
   /* 「一般的字」就是這一片現在的文字顏色。彈層裡的每一處都走這個名字，
      所以作者換掉彈層的 color，整片的字就跟著換。 */

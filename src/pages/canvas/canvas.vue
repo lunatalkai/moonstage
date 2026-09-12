@@ -398,6 +398,7 @@ import { captureBodySnapshot, restoreBodySnapshot, sweepForeignNodes } from './c
 import CanvasPopup from './components/canvas-popup.vue'
 import CanvasModelPanel from './components/canvas-model-panel.vue'
 import { computeCardThemeVars, CARD_THEME_VAR_NAMES } from './canvas-card-theme'
+import { syncChromeTone } from './canvas-chrome-tone'
 import CanvasConfirm from './components/canvas-confirm.vue'
 import CanvasModify from './components/canvas-modify.vue'
 import CanvasConversationList from './components/canvas-conversation-list.vue'
@@ -2723,6 +2724,8 @@ function syncCardTheme() {
     if (value) root.style.setProperty(name, value)
     else root.style.removeProperty(name)
   }
+  // 頂欄與彈層的底色被作者漆成亮色時，字要跟著變深（canvas-chrome-tone.ts）
+  syncChromeTone(document)
 }
 
 function scheduleCardThemeSync() {
