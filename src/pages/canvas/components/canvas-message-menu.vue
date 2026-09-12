@@ -46,10 +46,11 @@
           @input="$emit('update:draft', ($event.target as HTMLTextAreaElement).value)"
         />
       </div>
-      <div class="confirm-edit-scope">
-        <div class="cancel-btn" role="button" tabindex="0" @click="$emit('cancel-edit')">{{ labels.cancel }}</div>
+      <!-- 確認列同時掛 MMD 的 .option-box / .option-item：作者對編輯框那兩顆鍵寫的是這一組名字 -->
+      <div class="confirm-edit-scope option-box">
+        <div class="cancel-btn option-item" role="button" tabindex="0" @click="$emit('cancel-edit')">{{ labels.cancel }}</div>
         <div class="btn-gap"></div>
-        <div class="ok-btn" role="button" tabindex="0" @click="$emit('confirm-edit')">{{ labels.confirm }}</div>
+        <div class="ok-btn option-item" role="button" tabindex="0" @click="$emit('confirm-edit')">{{ labels.confirm }}</div>
       </div>
     </div>
   </div>
