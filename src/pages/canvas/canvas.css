@@ -2170,6 +2170,8 @@
       scrollbar-width: thin;
       scrollbar-color: color-mix(in srgb, currentColor 32%, transparent) transparent;
       padding-bottom: 4px;
+      /* 委派掛法不再逐個 rail 寫 cursor，抓手游標改在這裡給 */
+      cursor: grab;
     }
 
     .ms-rail::-webkit-scrollbar {
