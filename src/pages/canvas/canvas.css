@@ -2163,6 +2163,30 @@
     display: none;
   }
 
+  /* 有滑鼠的裝置給一條細捲軸：看得出這排還有東西、也能用游標拖它（Windows 用戶 2026-09-13）。
+     觸控裝置維持隱藏，手指本來就滑得動。 */
+  @media (hover: hover) and (pointer: fine) {
+    .ms-rail {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in srgb, currentColor 32%, transparent) transparent;
+      padding-bottom: 4px;
+    }
+
+    .ms-rail::-webkit-scrollbar {
+      display: block;
+      height: 6px;
+    }
+
+    .ms-rail::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .ms-rail::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, currentColor 32%, transparent);
+      border-radius: 3px;
+    }
+  }
+
   .ms-rail-inner {
     display: inline-flex;
     gap: 8px;
