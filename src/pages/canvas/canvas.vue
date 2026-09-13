@@ -8379,6 +8379,12 @@ function onConfirmCancel() {
     panel.value = openSheet(panel.value, 'memory')
     return
   }
+  // 從對話存檔來的確認（開新的、切換）：取消回到清單，不能把玩家丟回畫布
+  if (confirmSpec.value.kind === 'switch-archive' || confirmSpec.value.kind === 'new-from-archives') {
+    pendingSwitchArchive.value = ''
+    openConversationList()
+    return
+  }
   closeCanvasSheet()
 }
 
@@ -8389,6 +8395,13 @@ function onConfirmOk() {
   // 帶回呼的一次性確認（重新生成、倒回、刪除、上下文提示）：做完就把回呼丟掉。
   if (kind === 'modal') { confirmSpec.value = { ...confirmSpec.value, onOk: undefined }; if (onOk) onOk(); return }
   if (kind === 'new-chat') { onConfirmStartNewConversation(); return }
+  if (kind === 'new-from-archives') { onConfirmStartNewConversation(); return }
+  if (kind === 'switch-archive') {
+    const target = pendingSwitchArchive.value
+    pendingSwitchArchive.value = ''
+    switchArchive(target)
+    return
+  }
   if (kind === 'reset-chat') { resetConversation(); return }
   if (kind === 'fork-archive') { forkArchive(); return }
   if (kind === 'delete-archive') {
@@ -9492,6 +9505,7 @@ const archiveCount = ref(0)
 const archiveLimit = ref(20)
 const archiveBusy = ref(false)
 const pendingDeleteArchive = ref('')
+const pendingSwitchArchive = ref('')
 const archivesFull = computed(() => isArchiveFull(archiveCount.value, archiveLimit.value))
 const archiveCountText = computed(() => archiveCount.value + '/' + archiveLimit.value)
 const archiveFullText = computed(() => t('canvas.archive.full', { count: archiveCount.value, limit: archiveLimit.value }))
@@ -9511,11 +9525,13 @@ function openConversationList() {
   loadArchives()
 }
 
-/** 清單頂上的「開新對話」：舊的那段留在清單裡，不用問；滿了那顆本來就按不了。 */
+/**
+ * 清單頂上的「開新對話」。owner 2026-09-13：怕誤觸，先問一聲，提示裡講清楚
+ * 現在這段會留在清單裡；取消回到清單。滿了那顆本來就按不了，這裡再擋一次。
+ */
 function onNewFromArchives() {
   if (archivesFull.value) { askArchivesFull(); return }
-  closeCanvasSheet()
-  onConfirmStartNewConversation()
+  askConfirm('new-from-archives', t('canvas.archive.newChat'), t('canvas.archive.newChatHint'), t('canvas.archive.newChat'))
 }
 
 async function loadArchives() {
@@ -9573,7 +9589,17 @@ function askArchivesFull() {
   askConfirm('archives-full', t('canvas.panel.history'), archiveFullText.value, t('canvas.archive.view'))
 }
 
-async function onPickArchive(key: string) {
+/** 點清單裡別的一段：先問一聲（誤觸），提示裡說現在這段會留著；確定才切。 */
+function onPickArchive(key: string) {
+  if (!key || key === String(unref(conversationId) || '')) return
+  if (isTimelineMutationBlocked()) { notifyTimelineMutationBlocked(); return }
+  if (archiveBusy.value) return
+  const row = archiveRows.value.find((r: any) => String(r.key) === key)
+  pendingSwitchArchive.value = key
+  askConfirm('switch-archive', t('canvas.archive.switchTitle'), t('canvas.archive.switchHint', { name: row ? row.name : '' }), t('canvas.archive.switch'))
+}
+
+async function switchArchive(key: string) {
   if (!key || key === String(unref(conversationId) || '')) return
   if (isTimelineMutationBlocked()) { notifyTimelineMutationBlocked(); return }
   if (archiveBusy.value) return

@@ -328,3 +328,27 @@ describe('歷史對話', () => {
     expect(el.querySelector('.cl-empty')!.textContent).toBe('還沒有聊過的紀錄')
   })
 })
+
+/*
+  對話存檔裡兩個「會離開現在這段」的動作——開新對話、切到別段——都先問一聲
+  （owner 2026-09-13：怕誤觸；提示要講清楚現在這段會留著）。取消要回到清單，
+  不能把玩家丟回空畫布。
+*/
+describe('對話存檔：開新對話與切換都先確認', () => {
+  const source = readFileSync(resolve(__dirname, '../canvas.vue'), 'utf8')
+
+  it('兩個動作都走 askConfirm，各有自己的 kind', () => {
+    expect(source).toMatch(/askConfirm\('new-from-archives'/)
+    expect(source).toMatch(/askConfirm\('switch-archive'/)
+  })
+
+  it('按確定才真的開／切；取消回到清單', () => {
+    const cancel = source.slice(source.indexOf('function onConfirmCancel('), source.indexOf('function onConfirmOk('))
+    const ok = source.slice(source.indexOf('function onConfirmOk('), source.indexOf('function onConfirmOk(') + 2000)
+    expect(ok).toContain("kind === 'new-from-archives'")
+    expect(ok).toContain("kind === 'switch-archive'")
+    expect(cancel).toContain("'switch-archive'")
+    expect(cancel).toContain("'new-from-archives'")
+    expect(cancel).toContain('openConversationList()')
+  })
+})
