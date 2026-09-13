@@ -3983,6 +3983,8 @@
 	"canvas.archive.saveAndNew": "Save & start new",
 	"canvas.archive.saveAndNewHint": "Saves this conversation as an archive and starts a fresh one. You can load it again later.",
 	"canvas.archive.load": "Load",
+	"canvas.archive.entry": "Conversations",
+	"canvas.archive.newChat": "New conversation",
 	"canvas.archive.forkHere": "Fork from here",
 	"canvas.archive.forkFromHint": "Saves this conversation and starts a new branch from this message. Messages after it are left behind.",
 	"canvas.panel.background": "Background",

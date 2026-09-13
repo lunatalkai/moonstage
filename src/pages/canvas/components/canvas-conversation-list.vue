@@ -4,6 +4,8 @@
     存檔：這張卡的對話清單（owner 2026-09-04：歷史對話＝這張卡的存檔）。
     整列點是切換到那一段；鉛筆是就地改名；刪除交給頁面二次確認；滿了在清單頂端
     說一句「刪掉一段再開」。
+    開新對話也住在這裡（owner 2026-09-13）：開新的不會動到舊的那段，所以不需要確認框；
+    滿了這顆就變灰，旁邊那句提示已經講了為什麼。
 
     節點名：`.conversation-list-scope`／`.cl-item`／`.bottom .btn` 是作者的卡已經對著
     寫外觀的名字，保留；新加的節點都住在同一個 scope 底下。
@@ -13,6 +15,12 @@
       <span v-if="countText" class="cl-title-count">{{ countText }}</span>
     </div>
     <div v-if="full && fullText" class="cl-full" role="status">{{ fullText }}</div>
+    <button v-if="newText" type="button" class="cl-new" :disabled="full" @click="onNew">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M12 5v14" /><path d="M5 12h14" />
+      </svg>
+      <span>{{ newText }}</span>
+    </button>
     <div class="cl-list">
       <div v-if="!items.length" class="cl-empty">{{ emptyText }}</div>
       <div
@@ -101,9 +109,11 @@ const props = withDefaults(defineProps<{
   emptyText?: string
   currentLabel?: string
   closeText?: string
-  /** 存檔滿了：清單頂端畫 fullText */
+  /** 存檔滿了：清單頂端畫 fullText，開新對話那顆變灰 */
   full?: boolean
   fullText?: string
+  /** 「開新對話」的字；空字串就不畫這顆（純看清單的場合） */
+  newText?: string
   labels?: { rename: string; delete: string; done: string; cancel: string }
 }>(), {
   title: '',
@@ -114,6 +124,7 @@ const props = withDefaults(defineProps<{
   closeText: 'Close',
   full: false,
   fullText: '',
+  newText: '',
   labels: () => ({ rename: 'Rename', delete: 'Delete', done: 'Done', cancel: 'Cancel' }),
 })
 
@@ -121,8 +132,14 @@ const emit = defineEmits<{
   (e: 'pick', key: string): void
   (e: 'rename', key: string, title: string): void
   (e: 'delete', key: string): void
+  (e: 'new'): void
   (e: 'close'): void
 }>()
+
+function onNew() {
+  if (props.full) return
+  emit('new')
+}
 
 // 就地改名的狀態只有一份：同時只會有一列在改。
 const editingKey = ref('')

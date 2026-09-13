@@ -230,8 +230,9 @@ describe('入口與彈層一一對應', () => {
 
 /*
   輸入區上面那一排放的是「每次都會碰」的五樣，其餘全部收進「＋」。
-  順序本身是產品決定：模型在最前面（它決定這一輪花多少點），新的對話在最後面
-  （它會把現在這段收起來，不該跟前四樣混在一起被誤按）。
+  順序本身是產品決定：模型在最前面（它決定這一輪花多少點），對話存檔在最後面。
+  開新對話不再是一顆獨立的鍵（owner 2026-09-13）：它住在存檔清單頂上，跟切換、
+  改名、刪除同一個地方——玩家回報「存檔跟讀檔分兩顆不統一」。
 */
 describe('快捷列', () => {
   const source = readFileSync(resolve(__dirname, '../canvas.vue'), 'utf8')
@@ -242,7 +243,7 @@ describe('快捷列', () => {
       source.indexOf('const panel = ref<CanvasPanelState>'),
     )
     const keys = Array.from(block.matchAll(/key: '([a-z-]+)'/g)).map((m) => m[1])
-    expect(keys).toEqual(['model', 'persona', 'directives', 'notepad', 'new-chat'])
+    expect(keys).toEqual(['model', 'persona', 'directives', 'notepad', 'conversations'])
   })
 
   it('「＋」裝得下全部——快捷列上的五樣也留著，玩家不必記得哪一樣在哪裡', () => {
@@ -251,12 +252,14 @@ describe('快捷列', () => {
       source.indexOf('function closeCanvasSheet'),
     )
     const keys = Array.from(block.matchAll(/key: '([a-z-]+)'/g)).map((m) => m[1])
-    for (const key of ['model', 'persona', 'directives', 'notepad', 'new-chat']) {
+    for (const key of ['model', 'persona', 'directives', 'notepad', 'conversations']) {
       expect(keys, key).toContain(key)
     }
-    for (const key of ['conversations', 'background', 'reset-chat', 'export', 'bottom']) {
+    for (const key of ['background', 'reset-chat', 'export', 'bottom']) {
       expect(keys, key).toContain(key)
     }
+    // 「存檔並開新對話」那顆已經併進存檔清單，選單裡不再有第二個入口
+    expect(keys).not.toContain('new-chat')
   })
 })
 

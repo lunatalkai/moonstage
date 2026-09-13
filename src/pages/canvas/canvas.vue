@@ -125,10 +125,11 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'conversations'" :title="t('canvas.archive.load')"
+    <CanvasPopup :open="panel.sheet === 'conversations'" :title="t('canvas.archive.entry')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasConversationList
-        :title="t('canvas.archive.load')"
+        :title="t('canvas.archive.entry')"
+        :new-text="t('canvas.archive.newChat')"
         :count-text="archiveCountText"
         :items="archiveRows"
         :empty-text="t('canvas.panel.historyEmpty')"
@@ -140,6 +141,7 @@
         @pick="onPickArchive"
         @rename="onRenameArchive"
         @delete="onDeleteArchive"
+        @new="onNewFromArchives"
         @close="closeCanvasSheet"
       />
     </CanvasPopup>
@@ -8290,7 +8292,7 @@ const shortcutItems = computed(() => previewOnly.value ? [] : [
   { key: 'persona', label: t('canvas.panel.persona') },
   { key: 'directives', label: t('directive.entry') },
   { key: 'notepad', label: t('notepad.entry') },
-  { key: 'new-chat', label: t('chat.newchat'), disabled: archivesFull.value },
+  { key: 'conversations', label: t('canvas.archive.entry') },
 ])
 
 // ── 底部功能面板與彈層 ─────────────────────────────────────────────────
@@ -8311,10 +8313,10 @@ const moreItems = computed(() => previewOnly.value ? [
   // AI 自己每輪記下的記錄（owner 2026-09-05：「AI 自己記的記錄，我們都看不到」）。
   // 身分跟 mobile 同一條判準：Agent 開著是「AI 記事本」，沒開是「永久記憶」。
   { key: 'memory', label: deepPrepOn.value ? t('chat.aiNotebookEntry') : t('chat.permanentMemory') },
-  // owner 2026-09-05：這兩顆照它們實際做的事叫——「新的對話」其實是存檔（把現在這段
-  // 存起來、開新的），清單入口其實是讀檔。分叉屬於訊息那一層（每則的「⋯」），不放這裡。
-  { key: 'new-chat', label: t('canvas.archive.saveAndNew'), disabled: archivesFull.value },
-  { key: 'conversations', label: t('canvas.archive.load') },
+  // owner 2026-09-13：開新對話、切換、改名、刪除全在「對話存檔」一個視窗裡（玩家回報
+  // 存檔跟讀檔分兩顆不統一）。開新的不會動到舊的那段，所以清單頂上那顆不再跳確認框。
+  // 分叉屬於訊息那一層（每則的「⋯」），不放這裡。
+  { key: 'conversations', label: t('canvas.archive.entry') },
   { key: 'background', label: t('canvas.panel.background') },
   { key: 'font', label: t('canvas.panel.font') },
   { key: 'reset-chat', label: t('canvas.panel.reset') },
@@ -9507,6 +9509,13 @@ const archiveLabels = computed(() => ({
 function openConversationList() {
   panel.value = openSheet(panel.value, 'conversations')
   loadArchives()
+}
+
+/** 清單頂上的「開新對話」：舊的那段留在清單裡，不用問；滿了那顆本來就按不了。 */
+function onNewFromArchives() {
+  if (archivesFull.value) { askArchivesFull(); return }
+  closeCanvasSheet()
+  onConfirmStartNewConversation()
 }
 
 async function loadArchives() {

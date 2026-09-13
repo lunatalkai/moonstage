@@ -144,6 +144,20 @@ describe('存檔面板：玩家按下去會發生什麼', () => {
     expect(wrapper.emitted('pick')).toBeUndefined()
   })
 
+  it('清單頂上一顆「開新對話」：點了把 new 交出去；滿了就變灰、按了不交', async () => {
+    const wrapper = mountList({ newText: '開新對話' })
+    const btn = wrapper.element.querySelector('.cl-new') as HTMLButtonElement
+    expect(btn.textContent).toContain('開新對話')
+    await wrapper.find('.cl-new').trigger('click')
+    expect(wrapper.emitted('new')?.length).toBe(1)
+
+    const full = mountList({ newText: '開新對話', full: true, fullText: '存檔已滿（20/20），刪掉一段再開。' })
+    const fullBtn = full.element.querySelector('.cl-new') as HTMLButtonElement
+    expect(fullBtn.disabled).toBe(true)
+    await full.find('.cl-new').trigger('click')
+    expect(full.emitted('new')).toBeUndefined()
+  })
+
   it('滿了就把提示畫出來；沒滿就不佔位', () => {
     const full = mountList({ full: true, fullText: '存檔已滿（20/20），刪掉一段再開。' }).element as HTMLElement
     expect(full.querySelector('.cl-full')!.textContent).toBe('存檔已滿（20/20），刪掉一段再開。')

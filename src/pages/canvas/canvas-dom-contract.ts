@@ -350,6 +350,7 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
 
   { selector: '.conversation-list-scope', region: 'conversations', origin: 'mmd', why: '卡片替清單換底色' },
   { selector: '.cl-item', region: 'conversations', origin: 'mmd', why: '一列對話' },
+  { selector: '.conversation-list-scope .cl-new', region: 'conversations', origin: 'lt', why: '清單頂上的「開新對話」' },
   { selector: '.bottom .btn', region: 'conversations', origin: 'mmd', why: '卡片寫 .conversation-list-scope .bottom .btn 改關閉鍵' },
 ]
 

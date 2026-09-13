@@ -3119,6 +3119,35 @@
     color: var(--lt-canvas-muted);
   }
 
+  /* 開新對話：清單頂上一顆虛線框的鍵，跟列同底色；滿了變灰（提示句在它上面） */
+  .cl-new {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px dashed var(--lt-canvas-muted);
+    border-radius: var(--lt-canvas-radius);
+    background: var(--lt-canvas-sheet-item-bg);
+    color: inherit;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .cl-new svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .cl-new:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .cl-list {
     display: flex;
     flex-direction: column;

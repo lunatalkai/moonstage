@@ -3983,6 +3983,8 @@
 	"canvas.archive.saveAndNew": "저장하고 새로 시작",
 	"canvas.archive.saveAndNewHint": "지금 대화를 저장하고 새 대화를 시작합니다. 나중에 불러오기로 돌아올 수 있습니다.",
 	"canvas.archive.load": "불러오기",
+	"canvas.archive.entry": "대화 저장",
+	"canvas.archive.newChat": "새 대화 시작",
 	"canvas.archive.forkHere": "여기서 분기",
 	"canvas.archive.forkFromHint": "지금 대화를 저장하고 이 메시지에서 새 분기를 시작합니다. 이후의 메시지는 가져오지 않습니다.",
 	"canvas.panel.background": "배경 변경",

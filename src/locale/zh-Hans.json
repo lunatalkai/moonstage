@@ -3983,6 +3983,8 @@
 	"canvas.archive.saveAndNew": "存档并开新对话",
 	"canvas.archive.saveAndNewHint": "把现在这段存成一个存档，然后开一段新的。之后可以从读档切回来。",
 	"canvas.archive.load": "读档",
+	"canvas.archive.entry": "对话存档",
+	"canvas.archive.newChat": "开新对话",
 	"canvas.archive.forkHere": "从这里分叉",
 	"canvas.archive.forkFromHint": "把现在这段存起来，从这一则分出一段新的；这一则之后的消息不会带过去。",
 	"canvas.panel.background": "更换背景",

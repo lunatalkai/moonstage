@@ -138,6 +138,7 @@ function mountRegion(region: string) {
           title: '歷史對話',
           items: [{ key: 'c1', name: '示範角色', time: '昨天', current: true }],
           closeText: '關閉',
+          newText: '開新對話',
         },
       })
     case 'persona':
