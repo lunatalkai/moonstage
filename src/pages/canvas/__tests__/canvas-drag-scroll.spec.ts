@@ -70,3 +70,42 @@ describe('滑鼠拖曳捲動', () => {
     expect(el.scrollLeft).toBe(0)
   })
 })
+
+// Windows 用戶 2026-09-13：「游標停在廠商 tab 上滾滾輪不生效」。兩個原因各釘一條：
+// Firefox 的滾輪單位是「行」（一格 deltaY=3），不換算等於沒動；模型選單的 rail 是資料到了
+// 才長出來的節點，開面板那一刻逐個掛會掛不到，改掛在殼上用事件委派。
+import { attachDelegatedDragScroll, WHEEL_LINE_PX } from '../canvas-drag-scroll'
+
+describe('滾輪單位與事件委派', () => {
+  it('deltaMode 是「行」時換成像素，一格就看得出在動', () => {
+    const el = rail()
+    attachDragScroll(el)
+    const e = new Event('wheel', { bubbles: true, cancelable: true }) as any
+    Object.assign(e, { deltaX: 0, deltaY: 3, deltaMode: 1 })
+    el.dispatchEvent(e)
+    expect(el.scrollLeft).toBe(3 * WHEEL_LINE_PX)
+    expect(e.defaultPrevented).toBe(true)
+  })
+
+  it('掛在殼上：掛完之後才長出來的 rail 也接得到滾輪與拖曳', () => {
+    const shell = document.createElement('div')
+    document.body.appendChild(shell)
+    const handle = attachDelegatedDragScroll(shell, '.ms-rail')
+    const el = rail()
+    el.className = 'ms-rail'
+    shell.appendChild(el)
+    const chip = document.createElement('span'); el.appendChild(chip)
+    const wheel = new Event('wheel', { bubbles: true, cancelable: true }) as any
+    Object.assign(wheel, { deltaX: 0, deltaY: 120, deltaMode: 0 })
+    chip.dispatchEvent(wheel)
+    expect(el.scrollLeft).toBe(120)
+    chip.dispatchEvent(pointer('pointerdown', 200))
+    chip.dispatchEvent(pointer('pointermove', 100))
+    expect(el.scrollLeft).toBe(220)
+    handle.detach()
+    const wheel2 = new Event('wheel', { bubbles: true, cancelable: true }) as any
+    Object.assign(wheel2, { deltaX: 0, deltaY: 120, deltaMode: 0 })
+    chip.dispatchEvent(wheel2)
+    expect(el.scrollLeft).toBe(220)
+  })
+})

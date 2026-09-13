@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch, nextTick } from 'vue'
 import ModelSelectPanel from '@/components/model-select/ModelSelectPanel.vue'
-import { attachDragScrollAll } from '../canvas-drag-scroll'
+import { attachDelegatedDragScroll } from '../canvas-drag-scroll'
 
 const props = withDefaults(defineProps<{
   /** 彈層開著嗎——模型選單靠它決定要不要重抓清單 */
@@ -96,14 +96,15 @@ const emit = defineEmits<{
 const picker = ref<any>(null)
 const shellEl = ref<HTMLElement | null>(null)
 
-// 分類與排序那兩條橫向 rail 在桌機要拉得動（滑鼠沒有橫向滾輪）。每次打開重掛：
-// rail 是選單重新渲染出來的節點。
+// 分類與排序那兩條橫向 rail 在桌機要拉得動（滑鼠沒有橫向滾輪）。掛在殼上用事件委派：
+// rail 是資料到了才長出來、換分頁又重畫的節點，開面板那一刻逐個掛會掛到已經不在
+// 畫面上的那一批——Windows 用戶「游標停在廠商 tab 上滾滾輪不生效」（2026-09-13）。
 let detachRails: () => void = () => {}
 watch(() => props.open, async (open) => {
   detachRails(); detachRails = () => {}
   if (!open) return
   await nextTick()
-  detachRails = attachDragScrollAll(shellEl.value, '.ms-rail')
+  detachRails = attachDelegatedDragScroll(shellEl.value, '.ms-rail').detach
 }, { immediate: true })
 onBeforeUnmount(() => { detachRails() })
 
