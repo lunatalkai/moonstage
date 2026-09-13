@@ -3373,7 +3373,10 @@
     gap: 8px;
   }
 
-  .role-setting .gender-item {
+  /* 人設來源那三檔跟性別一樣是三選一的藥丸：之前沒給樣式，畫出來就是三段文字，
+     看不出能點，也看不出選了哪個（owner 2026-09-13 截圖）。 */
+  .role-setting .gender-item,
+  .role-setting .mode-item {
     flex: 1 1 auto;
     min-height: 36px;
     display: inline-flex;
@@ -3385,10 +3388,18 @@
     cursor: pointer;
   }
 
-  .role-setting .gender-item.selected {
+  .role-setting .gender-item.selected,
+  .role-setting .mode-item.selected {
     border-color: var(--lt-canvas-accent);
     background: var(--lt-canvas-accent-bg);
     color: var(--lt-canvas-accent);
+  }
+
+  /* 選項底下那句「這一檔是什麼意思」：說明字，不是正文 */
+  .role-setting .mode-hint {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
   }
 
   .role-setting-error {
