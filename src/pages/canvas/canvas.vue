@@ -8458,8 +8458,11 @@ watch(selectedVariant, (variant) => {
   formData.selectModelName = composeModelDisplayName(variant, variant.family)
 }, { immediate: true })
 
-const modelScoreText = computed(() => scoreParts(selectedVariant.value).text)
-const modelScoreDynamic = computed(() => scoreParts(selectedVariant.value).dynamic)
+// 每輪點數跟著上下文檔位與思考深度走，跟模型面板同一份算法（用戶 2026-09-13：
+// 固定計價的線路選了 128K，面板寫 900、左下角還是 180）。
+const modelScoreOpts = computed(() => ({ context: Number(formData.context) || 1, thinkingDepth: String(formData.thinkingDepth || '') }))
+const modelScoreText = computed(() => scoreParts(selectedVariant.value, modelScoreOpts.value).text)
+const modelScoreDynamic = computed(() => scoreParts(selectedVariant.value, modelScoreOpts.value).dynamic)
 const modelPanelLabels = computed(() => ({
   close: t('main.cancel'),
   done: t('main.sure'),
