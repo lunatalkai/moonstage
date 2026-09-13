@@ -108,3 +108,31 @@ describe('一輪多少點', () => {
     expect(scoreParts(null)).toEqual({ text: '', dynamic: false })
   })
 })
+
+// 用戶 2026-09-13：固定計價的線路（凌波）選了 128K，面板寫 900、輸入區左下角還是 180。
+// 每輪點數只能有一種算法：固定＝costScore × 檔位（MAX 用 maxScore）＋思考加價；動態＝估算區間。
+describe('每輪點數跟著上下文檔位', () => {
+  it('固定計價：檔位 5 是 costScore × 5；沒給檔位當 1', () => {
+    const v = { value: 'relay-claude', costScore: 180 } as any
+    expect(scoreParts(v).text).toBe('180')
+    expect(scoreParts(v, { context: 5 }).text).toBe('900')
+    expect(scoreParts(v, { context: 2 })).toEqual({ text: '360', dynamic: false })
+  })
+  it('MAX 檔位且模型支援 MAX 時用 maxScore，不是 costScore × 100', () => {
+    const v = { value: 'relay-claude', costScore: 180, maxScore: 1200, isSupportMax: true } as any
+    expect(scoreParts(v, { context: 100 }).text).toBe('1200')
+    const noMax = { value: 'x', costScore: 180 } as any
+    // 不支援 MAX 的模型，MAX 當第 5 檔算（伺服器同一規則）
+    expect(scoreParts(noMax, { context: 100 }).text).toBe('900')
+  })
+  it('思考深度的固定加價只給 deepseek-v4-flash：max +10、high／on +5', () => {
+    const v = { value: 'deepseek-v4-flash', costScore: 10 } as any
+    expect(scoreParts(v, { context: 1, thinkingDepth: 'max' }).text).toBe('20')
+    expect(scoreParts(v, { context: 2, thinkingDepth: 'high' }).text).toBe('25')
+    expect(scoreParts({ value: 'other', costScore: 10 } as any, { context: 1, thinkingDepth: 'max' }).text).toBe('10')
+  })
+  it('動態計價的區間不乘檔位（估算已經是該檔位的）', () => {
+    const v = { value: 'grok', billingType: 'dynamic', estMinScore: 269, estMaxScore: 823 } as any
+    expect(scoreParts(v, { context: 5 })).toEqual({ text: '269–823', dynamic: true })
+  })
+})

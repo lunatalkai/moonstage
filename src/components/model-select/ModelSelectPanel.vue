@@ -379,6 +379,7 @@
 <script lang="ts" setup>
 	// @ts-nocheck
 	import { CanvasInput } from '@/pages/canvas/components/canvas-field'
+	import { variantPrice } from '@/pages/canvas/canvas-model-catalog'
 	import icon_deepseek from '@/static/icon/models/deepseek.png';
 	import icon_gpt from '@/static/icon/models/gpt.png';
 	import icon_claude from '@/static/icon/models/claude.png';
@@ -1730,30 +1731,12 @@ const truncationText = (completionRate: number) => {
 		return defaultThinkingDepthValue(variant.thinkingDepthOptions, variant.defaultThinkingDepth);
 	};
 
-	const getFixedThinkingDepthSurcharge = (variant) => {
-		if (!variant || variant.value !== 'deepseek-v4-flash') return 0;
-		const depth = getVariantThinkingDepth(variant);
-		if (depth === 'max') return 10;
-		if (depth === 'high' || depth === 'on') return 5;
-		return 0;
-	};
-
+	// 每輪點數的算法只有一份（canvas-model-catalog.ts 的 variantPrice）：面板的線路列、
+	// 面板標題、輸入區左下角三處都從它算。之前輸入區自己拿 costScore 原值，固定計價的
+	// 線路選了 128K 之後面板寫 900、左下角還是 180（用戶 2026-09-13 回報）。
 	const getVariantPrice = (variant) => {
 		if (!variant) return { fixed: 0, isDynamic: false };
-		if (variant.billingType === 'dynamic') {
-			return {
-				isDynamic: true,
-				min: variant.estMinScore || 0,
-				max: variant.estMaxScore || 0,
-				source: variant.estSource || 'formula',
-				sampleCount: variant.estSampleCount || 0,
-			};
-		}
-		const thinkingSurcharge = getFixedThinkingDepthSurcharge(variant);
-		if (formData.context === 100 && variant.isSupportMax) {
-			return { fixed: (variant.maxScore || 0) + thinkingSurcharge, isDynamic: false };
-		}
-		return { fixed: ((variant.costScore || 0) * formData.context) + thinkingSurcharge, isDynamic: false };
+		return variantPrice(variant, { context: formData.context, thinkingDepth: getVariantThinkingDepth(variant) });
 	};
 
 	const formatPrice = (priceObj) => {
