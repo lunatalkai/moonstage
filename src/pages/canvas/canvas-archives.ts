@@ -3,8 +3,8 @@
  *
  * 「只列本角色」不是客戶端過濾出來的——伺服器的 /conversation/archives 依 roleId
  * 只回這張卡的段落，客戶端要做的是把 roleId 送上去。這裡管的是清單到畫面之間的
- * 那幾件小事：目前這段標出來、沒名字的照建立順序編號、最後一句當摘要、滿檔判定、
- * 以及刪掉目前這段之後該接手哪一段。
+ * 那幾件小事：目前這段標出來、沒名字的給「序號＋建立日」當預設名、最後一句當摘要、
+ * 滿檔判定、以及刪掉目前這段之後該接手哪一段。
  */
 
 export interface ServerArchive {
@@ -19,7 +19,7 @@ export interface ServerArchive {
 
 export interface ArchiveRow {
   key: string
-  /** 畫面上的名字：有 title 用 title，沒有就是「第 k 段」 */
+  /** 畫面上的名字：有 title 用 title，沒有就是預設名「存檔 k・建立日」 */
   name: string
   /** 玩家自己取的名字；空字串代表沒取（改名輸入框的初值） */
   title: string
@@ -32,7 +32,8 @@ export interface ArchiveRow {
 }
 
 export interface ArchiveLabels {
-  segment: (n: number) => string
+  /** 沒取名的段的預設名：n 是建立順序的序號，createdAt 是建立時間（毫秒） */
+  defaultName: (n: number, createdAt: number) => string
   messages: (n: number) => string
 }
 
@@ -54,8 +55,12 @@ function formatTime(raw: string | null | undefined): string {
 }
 
 /**
- * 伺服器回的是最近更新在前；編號照建立時間由舊到新（第 1 段是最早開的那段），
- * 這樣分叉出來的新段永遠拿到最大的號碼，玩家看得出哪段是後來分出來的。
+ * 伺服器回的是最近更新在前；序號照建立時間由舊到新（1 是最早開的那段），這樣新開的、
+ * 分叉出來的段永遠拿到最大的號碼，而且不會因為玩家切換或繼續聊而跳號。
+ * owner 2026-09-14：預設名就用「序號＋建立日」，不拿內容取名、也不叫模型取名——
+ * 玩過很久之後內容取的名字自己也認不得。建立時間同一秒時用 id 決勝，不然兩段的號碼
+ * 會隨伺服器回傳的順序對調（同一秒開兩段是探針做得到的事，玩家連點也做得到）。
+ * 剩下的不穩定只有一種：刪掉前面的一段，後面的號碼會往前補一號。
  */
 export function buildArchiveRows(list: ServerArchive[] | undefined, labels: ArchiveLabels): ArchiveRow[] {
   if (!Array.isArray(list)) return []
@@ -76,9 +81,9 @@ export function buildArchiveRows(list: ServerArchive[] | undefined, labels: Arch
         updatedAt: toMillis(item.lastUpdateTime),
       } as ArchiveRow
     })
-  const byCreation = [...rows].sort((a, b) => a.createdAt - b.createdAt)
+  const byCreation = [...rows].sort((a, b) => (a.createdAt - b.createdAt) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
   byCreation.forEach((row, index) => {
-    if (!row.name) row.name = labels.segment(index + 1)
+    if (!row.name) row.name = labels.defaultName(index + 1, row.createdAt)
   })
   return rows
 }

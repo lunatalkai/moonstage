@@ -20,7 +20,11 @@ import {
 import CanvasConversationList from '../components/canvas-conversation-list.vue'
 
 const LABELS = {
-  segment: (n: number) => `第 ${n} 段`,
+  // 測試用的預設名：序號＋建立日（月/日，UTC），真正的字形在頁面用 i18n 組
+  defaultName: (n: number, createdAt: number) => {
+    const d = new Date(createdAt)
+    return `存檔 ${n}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+  },
   messages: (n: number) => `${n} 則訊息`,
 }
 
@@ -35,17 +39,36 @@ describe('存檔清單：伺服器回的清單怎麼變成列', () => {
     expect(archiveRequestQuery('role-1')).toEqual({ roleId: 'role-1' })
   })
 
-  it('有名字用名字，沒名字照建立順序編號；目前這段標出來；最後一句當摘要', () => {
+  it('有名字用名字，沒名字用「序號＋建立日」；序號照建立順序；目前這段標出來；最後一句當摘要', () => {
     const rows = buildArchiveRows(SERVER_LIST, LABELS)
     expect(rows.map((r) => r.key)).toEqual(['c-new', 'c-mid', 'c-old'])
-    expect(rows[0].name).toBe('第 3 段')
+    expect(rows[0].name).toBe('存檔 3・9/4')
     expect(rows[0].current).toBe(true)
     expect(rows[0].summary).toBe('最新的一句')
     expect(rows[0].countText).toBe('12 則訊息')
     expect(rows[1].name).toBe('分岔路')
     expect(rows[1].title).toBe('分岔路')
     expect(rows[1].current).toBe(false)
-    expect(rows[2].name).toBe('第 1 段')
+    expect(rows[2].name).toBe('存檔 1・9/1')
+  })
+
+  it('預設名的日期是建立日，不是最後更新日——名字不能隨著玩家繼續聊而變', () => {
+    const rows = buildArchiveRows([
+      { conversationId: 'c-1', title: '', isCurrent: true, messageCount: 9, createTime: '2026-09-01T10:00:00Z', lastUpdateTime: '2026-09-13T12:00:00Z' },
+    ], LABELS)
+    expect(rows[0].name).toBe('存檔 1・9/1')
+  })
+
+  it('同一秒建立的兩段，序號不隨伺服器回傳順序變——切換後號碼不能對調', () => {
+    const a = { conversationId: 'c-aaa', title: '', isCurrent: false, messageCount: 2, createTime: '2026-09-13T10:00:00Z', lastUpdateTime: '2026-09-13T10:05:00Z' }
+    const b = { conversationId: 'c-bbb', title: '', isCurrent: true, messageCount: 2, createTime: '2026-09-13T10:00:00Z', lastUpdateTime: '2026-09-13T10:09:00Z' }
+    const nameOf = (rows: ReturnType<typeof buildArchiveRows>, key: string) => rows.find((r) => r.key === key)?.name
+    const first = buildArchiveRows([b, a], LABELS)
+    const second = buildArchiveRows([a, b], LABELS)
+    expect(nameOf(first, 'c-aaa')).toBe('存檔 1・9/13')
+    expect(nameOf(first, 'c-bbb')).toBe('存檔 2・9/13')
+    expect(nameOf(second, 'c-aaa')).toBe(nameOf(first, 'c-aaa'))
+    expect(nameOf(second, 'c-bbb')).toBe(nameOf(first, 'c-bbb'))
   })
 
   it('壞掉的回應不炸：不是陣列就是空清單', () => {

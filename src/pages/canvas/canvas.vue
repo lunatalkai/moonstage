@@ -9515,8 +9515,27 @@ const archiveActionLabels = computed(() => ({
   done: t('canvas.archive.done'),
   cancel: t('main.cancel'),
 }))
+/**
+ * 預設存檔名的日期：月/日，照顯示語言排；不是今年開的才帶年份，免得舊段跟今年的撞名。
+ * 建立時間壞掉（0）就只給序號，別畫出 1970。
+ */
+function archiveDateLabel(createdAt: number): string {
+  if (!createdAt) return ''
+  const date = new Date(createdAt)
+  const withYear = date.getFullYear() !== new Date().getFullYear()
+  try {
+    return new Intl.DateTimeFormat(locale.value, withYear
+      ? { year: 'numeric', month: 'numeric', day: 'numeric' }
+      : { month: 'numeric', day: 'numeric' }).format(date)
+  } catch {
+    return `${withYear ? date.getFullYear() + '/' : ''}${date.getMonth() + 1}/${date.getDate()}`
+  }
+}
 const archiveLabels = computed(() => ({
-  segment: (n: number) => t('canvas.archive.segment', { n }),
+  defaultName: (n: number, createdAt: number) => {
+    const date = archiveDateLabel(createdAt)
+    return date ? t('canvas.archive.defaultName', { n, date }) : t('canvas.archive.defaultNameNoDate', { n })
+  },
   messages: (n: number) => t('canvas.archive.messages', { n }),
 }))
 
