@@ -286,6 +286,19 @@ describe('沙箱宿主橋', () => {
     host.destroy()
   })
 
+  it('殼文件根節點狀態轉給宿主：docstate → onDocState', async () => {
+    const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const got: unknown[] = []
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello, onDocState: (st) => got.push(st) })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    h.fromShell({ type: 'docstate', html: { className: 'zzhud-on', data: { 'data-ba-beauty': 'day' } }, body: { className: 'ba-enabled', data: {} } })
+    expect(got).toEqual([{ html: { className: 'zzhud-on', data: { 'data-ba-beauty': 'day' } }, body: { className: 'ba-enabled', data: {} } }])
+    host.destroy()
+  })
+
   it('input 鏡射不回音；action 對應宿主動作；back 交涉；握手逾時回報', async () => {
     vi.useFakeTimers()
     const state = { current: makeState({ messages: [msg({ id: '60', text: 'x', canonicalLatestAI: true })] }) }

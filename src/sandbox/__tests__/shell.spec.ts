@@ -135,6 +135,16 @@ describe('殼：冷啟動與事件順序', () => {
     await expect(p).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
   })
 
+  it('作者腳本改 html／body 的 class 或 data-*，殼把文件狀態送給宿主（docstate）', async () => {
+    const s = boot(config({ card: { rules: [SCRIPT_RULE(`document.documentElement.setAttribute('data-ba-beauty','day'); document.body.classList.add('ba-enabled');`)], statusbar: '' } }))
+    s.handle({ type: 'messages', messages: [] })
+    await new Promise((r) => setTimeout(r, 120))
+    const last = sent.filter((m) => m.type === 'docstate').pop() as { html: { data: Record<string, string> }; body: { className: string } } | undefined
+    expect(last).toBeTruthy()
+    expect(last!.html.data['data-ba-beauty']).toBe('day')
+    expect(last!.body.className).toContain('ba-enabled')
+  })
+
   it('晚訂閱：mount/done 補發所有已掛氣泡；ready 不補發；回呼內 querySelector 只看當前氣泡', () => {
     const s = boot(config({ card: { rules: [{ id: 2, find: '/按鈕/', replace: '<button class="hello-btn">hi</button>' }], statusbar: '' } }))
     s.handle({ type: 'messages', messages: [

@@ -310,6 +310,33 @@ export function createShell(options: CreateShellOptions): Shell {
   }
   refs.headerBack.addEventListener('click', () => { if (!handleBack()) transport.send({ type: 'action', name: 'back' }) })
 
+  // ── 文件根節點狀態同步：作者腳本在 html／body 上記的 class 與 data-*，宿主那一層的面板要套作者樣式時用得到。 ──
+  const dataOf = (el: Element): Record<string, string> => {
+    const out: Record<string, string> = {}
+    for (const a of Array.from(el.attributes)) if (a.name.startsWith('data-') && a.name !== 'data-sandbox') out[a.name] = a.value
+    return out
+  }
+  let docStateKey = ''
+  const postDocState = () => {
+    const state = { html: { className: doc.documentElement.className, data: dataOf(doc.documentElement) }, body: { className: doc.body.className, data: dataOf(doc.body) } }
+    const key = JSON.stringify(state)
+    if (key === docStateKey) return
+    docStateKey = key
+    transport.send({ type: 'docstate', ...state })
+  }
+  let docStateQueued = false
+  const queueDocState = () => {
+    if (docStateQueued) return
+    docStateQueued = true
+    win.setTimeout(() => { docStateQueued = false; postDocState() }, 50)
+  }
+  const docObserver = typeof MutationObserver === 'function' ? new MutationObserver(queueDocState) : null
+  if (docObserver) {
+    docObserver.observe(doc.documentElement, { attributes: true })
+    docObserver.observe(doc.body, { attributes: true })
+  }
+  postDocState()
+
   let readySent = false
   const coldStart = (messages: SandboxMessage[]) => {
     list.reset(messages)
@@ -403,6 +430,7 @@ export function createShell(options: CreateShellOptions): Shell {
       try { stageApp.unmount() } catch { /* 已經拆掉 */ }
       for (const app of chromeApps) { try { app.unmount() } catch { /* 已經拆掉 */ } }
       if (panels) panels.unmount()
+      if (docObserver) docObserver.disconnect()
       if (headerResize) headerResize.disconnect()
       doc.removeEventListener('click', onGesture, true)
       doc.removeEventListener('keydown', onGesture, true)

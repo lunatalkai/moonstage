@@ -224,6 +224,11 @@ export type ShellToHost =
   | { type: 'message.ui'; id: string; kind: 'swipe'; delta: number }
   /** 標準頁首與輸入區上的按鍵（送出、停止、更多、快捷列…）。 */
   | { type: 'ui'; event: ChromeUiEvent; key?: string }
+  /**
+   * 殼文件根節點（html／body）的 class 與 data-* 屬性：作者腳本會在上面記狀態（日夜開關之類），
+   * 宿主那一層還留著的面板（模型設定）要套作者樣式時得知道這些。變了就送。
+   */
+  | { type: 'docstate'; html: { className: string; data: Record<string, string> }; body: { className: string; data: Record<string, string> } }
   /** 面板（panel＝sheet 名）、訊息選單（panel＝'menu'）、彈層外框（panel＝'popup'）上的事件與參數。 */
   | { type: 'panel.ui'; panel: string; event: string; args: unknown[] }
   | { type: 'composer'; visible: boolean }

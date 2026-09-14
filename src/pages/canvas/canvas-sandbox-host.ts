@@ -47,6 +47,8 @@ export interface SandboxHostDeps {
   onUi?(event: ChromeUiEvent, key?: string): void
   /** 殼裡面板／訊息選單／彈層外框上的事件。 */
   onPanelUi?(panel: string, event: string, args: unknown[]): void
+  /** 殼文件根節點（html／body）的 class 與 data-* 變了。 */
+  onDocState?(state: { html: { className: string; data: Record<string, string> }; body: { className: string; data: Record<string, string> } }): void
   /**
    * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 10 秒，跟握手逾時一樣）。
    * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
@@ -399,6 +401,9 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
         return
       case 'ui':
         if (deps.onUi) deps.onUi(message.event, message.key)
+        return
+      case 'docstate':
+        if (deps.onDocState) deps.onDocState({ html: message.html, body: message.body })
         return
       case 'panel.ui':
         if (deps.onPanelUi) deps.onPanelUi(message.panel, message.event, Array.isArray(message.args) ? message.args : [])

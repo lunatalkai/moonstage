@@ -2348,6 +2348,70 @@ function buildChromeState() {
   };
 }
 
+// ── 宿主層面板的皮膚同步 ─────────────────────────────────────────────
+//
+// 模型設定留在宿主這一層（它自己抓清單、牽到登入態）。要讓它跟其他面板一樣吃到作者的美化，
+// 面板開著的期間把「作者的樣式表」與「作者腳本在殼的 html／body 上記的狀態」套到宿主頁：只套樣式，
+// 一行作者腳本都不跑；面板關掉就撤掉、還原 html／body。作者樣式本來就能改整個舊頁，這裡沒有比舊頁更多的權限。
+const sandboxDocState = ref<{ html: { className: string; data: Record<string, string> }; body: { className: string; data: Record<string, string> } } | null>(null);
+const sandboxSkinOn = ref(false);
+let sandboxSkinStyle: HTMLStyleElement | null = null;
+let sandboxSkinBefore: { html: string; body: string; htmlData: Record<string, string>; bodyData: Record<string, string> } | null = null;
+const SANDBOX_STYLE_RE = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+
+function sandboxCardCss(): string {
+  const rules = Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [];
+  const chunks: string[] = [];
+  for (const r of rules) {
+    const rep = String((r && (r.replace ?? r.replaceString)) || '');
+    for (const m of rep.matchAll(SANDBOX_STYLE_RE)) chunks.push(m[1]);
+  }
+  return chunks.join('\n');
+}
+
+function applySandboxSkin() {
+  if (typeof document === 'undefined' || !sandboxCard.value) return;
+  const root = document.documentElement;
+  const body = document.body;
+  if (!sandboxSkinBefore) {
+    sandboxSkinBefore = { html: root.className, body: body.className, htmlData: {}, bodyData: {} };
+  }
+  if (!sandboxSkinStyle) {
+    sandboxSkinStyle = document.createElement('style');
+    sandboxSkinStyle.setAttribute('data-lt', 'sandbox-skin');
+    sandboxSkinStyle.textContent = sandboxCardCss();
+    document.head.appendChild(sandboxSkinStyle);
+  }
+  const st = sandboxDocState.value;
+  if (st) {
+    const merge = (el: HTMLElement, base: string, cls: string, data: Record<string, string>, store: Record<string, string>) => {
+      const set = new Set(base.split(/\s+/).filter(Boolean));
+      for (const c of cls.split(/\s+/).filter(Boolean)) set.add(c);
+      el.className = Array.from(set).join(' ');
+      for (const [k, v] of Object.entries(data)) { if (!(k in store)) store[k] = el.getAttribute(k) ?? '\u0000'; el.setAttribute(k, v); }
+    };
+    merge(root, sandboxSkinBefore.html, st.html.className, st.html.data, sandboxSkinBefore.htmlData);
+    merge(body, sandboxSkinBefore.body, st.body.className, st.body.data, sandboxSkinBefore.bodyData);
+  }
+  sandboxSkinOn.value = true;
+}
+
+function removeSandboxSkin() {
+  if (!sandboxSkinOn.value) return;
+  if (sandboxSkinStyle) { sandboxSkinStyle.remove(); sandboxSkinStyle = null; }
+  if (sandboxSkinBefore && typeof document !== 'undefined') {
+    document.documentElement.className = sandboxSkinBefore.html;
+    document.body.className = sandboxSkinBefore.body;
+    for (const [k, v] of Object.entries(sandboxSkinBefore.htmlData)) { if (v === '\u0000') document.documentElement.removeAttribute(k); else document.documentElement.setAttribute(k, v); }
+    for (const [k, v] of Object.entries(sandboxSkinBefore.bodyData)) { if (v === '\u0000') document.body.removeAttribute(k); else document.body.setAttribute(k, v); }
+  }
+  sandboxSkinBefore = null;
+  sandboxSkinOn.value = false;
+}
+
+// 宿主層還留著的面板：開著就套皮膚，關了就撤。
+watch(() => sandboxCard.value && panel.value.sheet === 'model', (on) => { if (on) applySandboxSkin(); else removeSandboxSkin(); });
+
 // 面板與訊息選單的呈現資料：跟模板上綁給各面板元件的是同一批值（模板那份在沙箱模式不畫）。
 // 只送開著那張面板的屬性；模型選擇留在宿主自己畫，殼看到 sheet='model' 什麼都不畫。
 function buildPanelsState() {
@@ -2509,6 +2573,8 @@ function observeSandboxTheme(host: SandboxHost) {
 }
 
 function destroySandboxHost() {
+  removeSandboxSkin();
+  sandboxDocState.value = null;
   if (sandboxHostRef.value) { try { sandboxHostRef.value.destroy(); } catch (e) { /* 收尾不得拋錯 */ } }
   sandboxHostRef.value = null;
   if (sandboxThemeObserver) { sandboxThemeObserver.disconnect(); sandboxThemeObserver = null; }
@@ -2577,6 +2643,7 @@ function mountSandbox(asset: any) {
       onMessageAction: (hostId, key) => { const found = findTalkItem(hostId); if (found) onMessageAction(key, found.index); },
       onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
       onPanelUi: (panelName, event, args) => onSandboxPanelUi(panelName, event, args),
+      onDocState: (state) => { sandboxDocState.value = state; if (sandboxSkinOn.value) applySandboxSkin(); },
       // 殼裡標準頁首與輸入區的按鍵：跟這一頁自己的元件綁的是同一批函式。
       onUi: (event, key) => {
         switch (event) {
