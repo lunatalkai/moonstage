@@ -154,7 +154,7 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   只認 `event.source === iframe.contentWindow` 且 origin 相符的訊息；握手逾時（10 秒）顯示提示。
   殼那一側每 500ms 重喊 `ready-shell` 直到 `hello` 到（最多 10 秒），宿主對重複的 `ready-shell` 只回一次 `hello`。
   冷啟動等歷史：握手或切會話後，宿主列表還是空的（歷史在載）或還是切換前那一份時不送全量、也不做差分，
-  最多等 `coldStartTimeoutMs`（3 秒）；歷史一到才送 `messages`，殼收到才發 `ready`——`ready` 最後且不補發的契約靠這個。
+  最多等 `coldStartTimeoutMs`（10 秒，同握手逾時）；歷史一到才送 `messages`，殼收到才發 `ready`——`ready` 最後且不補發的契約靠這個。
   宿主換 id（送出時的暫時 id → 伺服器正式 id）：同位置同角色、內容相同或尚未定稿，追蹤改掛新 id，不發 remove/new。
   `sync()` 每次都先讀 `hud.read()` 再看握手完成沒：宿主用響應式 effect 呼叫它，第一次空手而回 effect 就沒追蹤到任何狀態。
   子網域標籤一律小寫（瀏覽器與 `event.origin` 都是小寫）；宿主頁網址帶 `?sdkDebug=1` 時 `hello.config.debug`

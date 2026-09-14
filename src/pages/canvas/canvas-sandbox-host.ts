@@ -35,8 +35,10 @@ export interface SandboxHostDeps {
   onBack?(): void
   onDebug?(level: 'log' | 'warn' | 'error', args: unknown[]): void
   /**
-   * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 3 秒）。
+   * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 10 秒，跟握手逾時一樣）。
    * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
+   * 每個會話至少有一則開場白，列表為空實際上就是「還在載」；這個上限只擋住真的卡死的情況——
+   * 手機上冷開一張卡（開對話 + 拉歷史兩趟往返）常常要 2–5 秒，設 3 秒會把正常情況打成降級。
    */
   coldStartTimeoutMs?: number
   /** 殼在這段時間內沒喊 ready-shell 就視為載入失敗（預設 10 秒）。 */
@@ -112,7 +114,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     coldStartTimer = setTimeout(() => {
       coldStartTimer = null
       if (awaitingColdStart && !destroyed) { coldStart(hud.read()); syncGeneration(hud.read()) }
-    }, deps.coldStartTimeoutMs ?? 3000)
+    }, deps.coldStartTimeoutMs ?? 10_000)
   }
   const tryColdStart = (snapshot: HudHostState): boolean => {
     const list = visible(snapshot)
