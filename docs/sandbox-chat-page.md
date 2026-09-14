@@ -146,15 +146,18 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 
 ## 5. 宿主側
 
-- `canvas-sandbox-host.ts`：`createSandboxHost({ hud: HudHost, bridge: HudBridge, origin, iframe })`。
-  訂閱 `HudBridge` 的 snapshot／streaming／finished 翻成 `messages`／`message.*`；殼的 `request`
-  對應 `hud.sendMessage`／`hud.setInputText`／（`edit` → `hud.regenerateMessage` 換文路徑）／
-  `StageHost.saves`；`action` 對應既有面板開關。
+- `canvas-sandbox-host.ts`：`createSandboxHost({ hud: HudHost, iframe, origin, roleId, hello, saves })`。
+  每次 `sync()` 讀一次 `hud.read()` 做差分：新氣泡 `message.new`、內容長了 `message.stream`、
+  定稿 `message.done`（一則只一次；已定稿的內容變了＝改寫，換一顆新氣泡）、消失 `message.remove`；
+  `generation`／`input` 只在變化時送。殼的 `request` 對應 `hud.sendMessage`／`hud.openEdit`+`submitEdit`／
+  `SandboxSavesStore`；`action` 對應既有面板開關；`back` 先問殼（舞台開著殼會關）再導頁。
+  只認 `event.source === iframe.contentWindow` 且 origin 相符的訊息；握手逾時（10 秒）顯示提示。
 - `canvas.vue`：`applyAuthorAsset` 看到 `pageMode === 'sandbox'` → 進沙箱模式：訊息列表與輸入區
   `v-show=false`，掛 `<iframe>`；既有面板（模型、人設、存檔、確認框）維持為宿主層彈層。
   舊頁路徑（規則引擎、author scope、HUD 橋）在沙箱模式下**不啟動**。
-- `sandboxOrigin(roleId)` 由 `installMoonStage` 的 `sandbox` 選項提供；沒給就用不透明 origin
-  載同源的 `/sandbox/`（playground 與本機開發）。
+- 殼在哪裡由 `installMoonStage({ sandbox: { shellUrl(roleId), origin(roleId), saves? } })` 決定
+  （`src/host/sandbox-host.ts`）；沒給就用不透明 origin 載同源的 `/sandbox/index.html`
+  （iframe 不給 allow-same-origin，origin 為 'null'）。
 - 試玩草稿（`author-draft.ts`）加 `chatPage: 'classic' | 'sandbox'`，匯入 `chatVersion: 1` 時設；
   `draftToAuthorAsset` 輸出 `pageMode: 'sandbox'`。不鎖「首次儲存後不可改」——作者改錯可以改回來。
 
@@ -174,8 +177,8 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   `chatPage`；畫布看到 `sandbox` 先顯示「這張卡是新版沙箱寫的，播放器尚未支援」。
 - [x] P2 殼：`protocol.ts`、`sdk/`、`render/`、`rules.ts`、`sanitize.ts`、`scope.ts`、
   `vite.sandbox.config.ts`、邊界檢查；測試以本文 §3–§4 為契約（`npm run build:sandbox` → dist-sandbox/）。
-- [ ] P3 宿主橋：`canvas-sandbox-host.ts`、`canvas.vue` 沙箱模式、`installMoonStage({ sandbox })`；
-  Hearthroom 子網域路由 + 殼頁 CSP。
+- [x] P3a 宿主橋：`canvas-sandbox-host.ts`、`canvas.vue` 沙箱模式、`installMoonStage({ sandbox })`。
+- [ ] P3b Hearthroom 子網域路由 + 殼頁 CSP。
 - [ ] P4 能力補齊：`saves`（D1）、`message.edit`、主題／視窗事件、切存檔。
 - [ ] P5 真機驗證：拿一張真的新版卡在正式站跑，逐事件對照 §3；收尾刪探針卡。
 

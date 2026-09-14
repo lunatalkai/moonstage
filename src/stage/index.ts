@@ -13,6 +13,7 @@
 import type { App } from 'vue'
 import type { StageHost } from '@/host/stage-host'
 import { setStageHost } from '@/host/stage-host'
+import { setSandboxHostOptions, type SandboxHostOptions, type SandboxSavesStore } from '@/host/sandbox-host'
 import { installUniShim } from './uni-shim'
 import fui from '@/common/fui-app'
 import http from '@/components/firstui/fui-request'
@@ -24,6 +25,8 @@ import loading from '@/utils/loadingManager.js'
 
 export { browserHost, setStageHost, useStageHost } from '@/host/stage-host'
 export type { StageHost } from '@/host/stage-host'
+export type { SandboxHostOptions, SandboxSavesStore } from '@/host/sandbox-host'
+export { sandboxOriginFor } from '@/sandbox/protocol'
 export { default as MoonStage } from './MoonStage.vue'
 export { STAGE_ROUTE_OPTIONS } from './uni-app-shim'
 
@@ -53,6 +56,11 @@ export interface InstallMoonStageOptions {
   auth: StageAuth
   api: StageApi
   i18n?: StageI18n
+  /**
+   * 新版沙箱卡的殼在哪裡（每張卡一個子網域）與存檔怎麼落地。沒給就用不透明 origin 載同源的
+   * /sandbox/index.html（宿主要自己把 moonstage 的 dist-sandbox/ 放到那個路徑）。
+   */
+  sandbox?: SandboxHostOptions
 }
 
 let installed = false
@@ -64,6 +72,7 @@ export async function installMoonStage(app: App, options: InstallMoonStageOption
   const { host, auth, api, i18n } = options
 
   setStageHost(host)
+  setSandboxHostOptions(options.sandbox || null)
   installUniShim(host)
   useExternalAuth(auth)
 

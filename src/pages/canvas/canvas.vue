@@ -21,17 +21,30 @@
       :show-model="!previewOnly"
       :back-label="t('common.back')"
       :model-label="t('chat.modelSelectAria')"
-      @back="goBackToEntry"
+      @back="onHeaderBack"
       @model="openModelSelect"
     />
 
-    <CanvasStage :background-url="playerBackgroundUrl" @scroll="onStageScroll">
-      <CanvasIntro :text="introText" :open="introOpen" @toggle="introOpen = !introOpen" />
-      <!-- 新版沙箱卡：整個聊天區本該交給作者的殼；播放器還沒接上殼之前先說清楚，
-           對話照舊頁的素文字顯示（規則不套、腳本不跑），玩家至少知道為什麼跟作者說的不一樣。 -->
-      <div v-if="sandboxCard" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
+    <!-- 新版沙箱卡（pageMode=sandbox）：整個聊天區交給作者的殼，跑在跨源 iframe 裡；訊息與輸入
+         由 canvas-sandbox-host 用 postMessage 餵進去，宿主只留頂欄與各面板。殼在時限內沒握手
+         （網址錯、被擋）就顯示提示，玩家至少知道為什麼跟作者說的不一樣。 -->
+    <div v-if="sandboxCard" class="canvas-sandbox-frame" data-lt="sandbox-frame">
+      <div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
         {{ t('canvas.sandbox.unsupported') }}
       </div>
+      <iframe
+        v-else
+        ref="sandboxFrame"
+        class="canvas-sandbox-iframe"
+        :src="sandboxUrl"
+        :sandbox="sandboxAttr"
+        allow="autoplay; fullscreen"
+        title="chat sandbox"
+      ></iframe>
+    </div>
+
+    <CanvasStage v-if="!sandboxCard" :background-url="playerBackgroundUrl" @scroll="onStageScroll">
+      <CanvasIntro :text="introText" :open="introOpen" @toggle="introOpen = !introOpen" />
 
       <CanvasMessage
         v-for="(item, index) in talkList"
@@ -66,6 +79,7 @@
     </CanvasStage>
 
     <CanvasComposer
+      v-if="!sandboxCard"
       ref="composerRef"
       :value="content"
       :placeholder="t('canvas.placeholder')"
@@ -371,6 +385,8 @@ import { createAuthorScope } from '@/utils/author-asset-scope.js'
 import { needsKaiFallback, ensureKaiFallback, applyFontMode } from './canvas-font-fallback'
 import { getAuthorDraftStore } from '@/common/author-draft-store'
 import { draftToAuthorAsset, draftDisplayName, type AuthorDraft } from '@/common/author-draft'
+import { createSandboxHost, type SandboxHost } from './canvas-sandbox-host'
+import { resolveSandbox } from '@/host/sandbox-host'
 import { hoistFixedAuthorNodes } from './canvas-author-node-hoist'
 import { composerOverhang } from './canvas-composer-overhang'
 import { createStageIntentApi } from '@/utils/stage-intent-api.js'
@@ -2233,8 +2249,95 @@ function authorRuleOptions() {
   };
 }
 
-// 新版沙箱卡：作者宣告 pageMode=sandbox。播放器還沒有沙箱殼，先只提示（見 applyAuthorAsset）。
+// ── 新版沙箱卡（pageMode=sandbox）──
+// 整個聊天區交給作者的殼（跨源 iframe）；宿主橋把畫布狀態翻成協議訊息餵進去。
+// 舊頁的規則引擎、作者範圍、HUD 橋在沙箱模式下一律不啟動（見 applyAuthorAsset）。
 const sandboxCard = ref(false);
+const sandboxFailed = ref(false);
+const sandboxUrl = ref('');
+const sandboxAttr = ref('');
+const sandboxFrame = ref<HTMLIFrameElement | null>(null);
+const sandboxHostRef = shallowRef<SandboxHost | null>(null);
+let sandboxAsset: any = null;
+
+function detectSandboxTheme(): 'dark' | 'light' {
+  if (typeof document === 'undefined') return 'dark';
+  const root = document.documentElement;
+  const attr = root.getAttribute('data-theme') || root.getAttribute('data-color-scheme') || '';
+  if (/light/i.test(attr) || root.classList.contains('light')) return 'light';
+  return 'dark';
+}
+
+function destroySandboxHost() {
+  if (sandboxHostRef.value) { try { sandboxHostRef.value.destroy(); } catch (e) { /* 收尾不得拋錯 */ } }
+  sandboxHostRef.value = null;
+}
+
+function mountSandbox(asset: any) {
+  destroySandboxHost();
+  sandboxAsset = asset;
+  sandboxFailed.value = false;
+  const targetRoleId = String(unref(roleId) || '');
+  const resolved = resolveSandbox(targetRoleId);
+  sandboxUrl.value = resolved.shellUrl;
+  sandboxAttr.value = resolved.sandboxAttr;
+  nextTick(() => {
+    const frame = sandboxFrame.value;
+    if (!frame || !sandboxCard.value) return;
+    const host = createSandboxHost({
+      hud: buildHudHost(),
+      iframe: frame,
+      win: window,
+      origin: resolved.origin,
+      roleId: targetRoleId,
+      saves: resolved.saves,
+      hello: () => {
+        const info: any = unref(userInfo) || {};
+        const view: any = roleView.value || {};
+        return {
+          theme: detectSandboxTheme(),
+          locale: String(locale.value || ''),
+          role: { name: convertPlainText(view.roleName || '', displayScript), avatarUrl: view.roleAvatar ? String(cfImage(view.roleAvatar, 'avatarMedium') || '') : '' },
+          user: { nickname: userDisplayName(), avatarUrl: String(info.avatar || '') },
+          card: { rules: Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [], statusbar: String(sandboxAsset?.mountTrigger || '') },
+          variants: sandboxAsset?.variants || null,
+          composer: true,
+          backgroundUrl: String(playerBackgroundUrl.value || '') || undefined,
+        };
+      },
+      onAction: (name) => {
+        if (name === 'more') { panel.value = toggleMore(panel.value); return; }
+        if (name === 'open-model') { openModelSelect(); return; }
+        if (name === 'open-persona') { openPersonaSheet(); return; }
+        if (name === 'open-archives') { onPanelPick('archives'); }
+      },
+      onBack: () => goBackToEntry(),
+      onDebug: (level, args) => { (console as any)[level === 'log' ? 'info' : level]('[sandbox]', ...args); },
+      onHandshakeTimeout: () => { sandboxFailed.value = true; },
+    });
+    sandboxHostRef.value = host;
+    host.start();
+  });
+}
+
+// 狀態一變就讓橋差分一次；sync() 裡讀到的 ref 都在這個 effect 的追蹤範圍內。
+watchEffect(() => {
+  const host = sandboxHostRef.value;
+  if (!host) return;
+  host.sync();
+}, { flush: 'post' });
+
+// 換存檔／開新對話：訊息列表整個換掉，殼要清空再收全量。
+watch(() => String(unref(conversationId) || ''), (next, prev) => {
+  if (!sandboxHostRef.value || next === prev) return;
+  sandboxHostRef.value.conversationSwitched();
+});
+
+function onHeaderBack() {
+  const host = sandboxHostRef.value;
+  if (!host) { goBackToEntry(); return; }
+  host.requestBack().then((handled) => { if (!handled) goBackToEntry(); });
+}
 
 // 沉浸模式：作者宣告的滿版乾淨畫布。
 //
@@ -2565,8 +2668,10 @@ function applyAuthorAsset(asset) {
     if (sandboxCard.value) {
       setActiveAuthorAsset(null);
       applyImmersiveMode(false);
+      mountSandbox(res.data);
       return;
     }
+    destroySandboxHost();
     setActiveAuthorAsset(res.data);
     cardFormat.value = normalizeCardFormat(res.data.cardFormat);
     applyImmersiveMode(res.data.pageMode === 'immersive');
@@ -9925,6 +10030,7 @@ function restoreDocumentOnLeave() {
 // 最後的兜底掃除：作者範圍記不到的路徑（Promise、Observer 回呼）塞進 body／html／head 的節點，
 // 等 Vue 把子元件都卸完再掃，Teleport 出去的彈層才不會被我們先動手。
 onUnmounted(() => {
+  destroySandboxHost();
   const swept = sweepForeignNodes(typeof document !== 'undefined' ? document : null, enterBodySnapshot)
   if (swept.removed > 0) console.info('[canvas] 離開對話頁時清掉卡片殘留節點', swept)
 })

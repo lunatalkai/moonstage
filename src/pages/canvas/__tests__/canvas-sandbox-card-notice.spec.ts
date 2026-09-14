@@ -20,25 +20,30 @@ function functionBody(anchor: string): string {
 }
 
 /**
- * 新版沙箱卡（pageMode=sandbox）在播放器接上沙箱殼之前的契約：
- *   1. 舊頁的規則引擎與作者程式碼一律不啟動——那些規則是寫給沙箱殼的固定節點與 sdk 的，硬套只會壞。
- *   2. 畫面上有一行提示，讓玩家知道為什麼跟作者說的不一樣。
+ * 新版沙箱卡（pageMode=sandbox）的畫布契約（docs/sandbox-chat-page.md §5）：
+ *   1. 舊頁的規則引擎與作者程式碼一律不啟動——那些規則是寫給沙箱殼的固定節點與 sdk 的，硬套只會壞；
+ *      改成掛殼（mountSandbox）。
+ *   2. 原生訊息列表與輸入區讓位給 iframe；殼沒握手上才顯示提示。
  *   3. 五語都有這句提示。
- * 之後接上殼（docs/sandbox-chat-page.md P3）時，第 1 點改成「掛殼」，這支測試要跟著改。
  */
-describe('新版沙箱卡：接上殼之前先提示、不套舊頁規則', () => {
-  it('applyAuthorAsset 看到 sandbox 就停在提示，不建規則執行環境', () => {
+describe('新版沙箱卡：掛殼、不套舊頁規則', () => {
+  it('applyAuthorAsset 看到 sandbox 就掛殼並 return，不建規則執行環境', () => {
     const body = functionBody('function applyAuthorAsset(asset)')
     const guard = body.indexOf("pageMode === 'sandbox'")
+    const mountCall = body.indexOf('mountSandbox(')
     const runtime = body.indexOf('createAuthorAssetRuntime(')
     expect(guard).toBeGreaterThan(-1)
-    expect(runtime).toBeGreaterThan(guard)
-    // 守衛與建立執行環境之間必須有一個 return
+    expect(mountCall).toBeGreaterThan(guard)
+    expect(runtime).toBeGreaterThan(mountCall)
     expect(body.slice(guard, runtime)).toMatch(/\breturn\b/)
   })
 
-  it('模板裡有提示節點，且只在 sandboxCard 時出現', () => {
-    expect(CANVAS).toMatch(/<div v-if="sandboxCard" class="canvas-sandbox-notice" data-lt="sandbox-notice"/)
+  it('模板：沙箱卡時列表與輸入區不畫、改畫 iframe；握手失敗才顯示提示', () => {
+    expect(CANVAS).toMatch(/<div v-if="sandboxCard" class="canvas-sandbox-frame"/)
+    expect(CANVAS).toMatch(/<iframe\s+v-else\s+ref="sandboxFrame"/)
+    expect(CANVAS).toMatch(/<CanvasStage v-if="!sandboxCard"/)
+    expect(CANVAS).toMatch(/<CanvasComposer\s+v-if="!sandboxCard"/)
+    expect(CANVAS).toMatch(/<div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice"/)
     expect(CANVAS).toContain("t('canvas.sandbox.unsupported')")
   })
 
