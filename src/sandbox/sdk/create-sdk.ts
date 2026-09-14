@@ -177,6 +177,11 @@ export function createSdk(host: SdkHost, bus: EventBus): SdkController {
         const target = requireString(id, 'id')
         const body = requireString(text, 'text')
         if (!target || !body.trim()) throw new SdkError('INVALID_ARGS')
+        // 改寫會重送、會花點數：跟送出一樣，不在手勢裡就先問玩家。
+        if (!host.inGesture()) {
+          const ok = await host.askSendPermission(body)
+          if (!ok) throw new SdkError('UNAUTHORIZED')
+        }
         takeSlot('message.edit')
         await host.request('message.edit', [target, body])
       },

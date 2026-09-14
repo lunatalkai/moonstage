@@ -102,9 +102,11 @@ export function createShell(options: CreateShellOptions): Shell {
       transport.send({ type: 'request', reqId, op, args })
     })
 
-  // ── 手勢：捕獲階段記下，派送完就放掉。 ──
+  // ── 手勢：捕獲階段記下，派送完就放掉。只認瀏覽器真的派送的事件（isTrusted）：
+  //    作者腳本跟送出鍵、確認框住在同一份文件裡，用程式合成的 click 不能算玩家點過。 ──
   let gesture = false
-  const onGesture = () => {
+  const onGesture = (event: Event) => {
+    if (!event.isTrusted) return
     gesture = true
     win.setTimeout(() => { gesture = false }, 0)
   }
@@ -132,7 +134,12 @@ export function createShell(options: CreateShellOptions): Shell {
     getCursor: () => { const el = standardChrome ? standardTextarea() : refs.input; return el ? (el.selectionStart ?? 0) : input.get().length },
     setCursor: (n: number) => { const el = standardChrome ? standardTextarea() : refs.input; if (!el) return; const p = Math.min(n, input.get().length); try { el.setSelectionRange(p, p) } catch { /* 沒聚焦時部分瀏覽器會丟 */ } },
   }
-  const sendUi = (event: ChromeUiEvent, key?: string) => transport.send(key == null ? { type: 'ui', event } : { type: 'ui', event, key })
+  // 會花玩家點數的動作（送出、繼續、幫答）只在真的手勢裡轉給宿主；作者腳本要送訊息走 sdk.message.send（有確認框）。
+  const COSTLY_UI = new Set<ChromeUiEvent>(['send', 'continue', 'assist'])
+  const sendUi = (event: ChromeUiEvent, key?: string) => {
+    if (COSTLY_UI.has(event) && !gesture) { debug.warn('ignored: not a user gesture', event); return }
+    transport.send(key == null ? { type: 'ui', event } : { type: 'ui', event, key })
+  }
 
   const sdkHost: SdkHost = {
     input: {
@@ -206,7 +213,11 @@ export function createShell(options: CreateShellOptions): Shell {
     menuLabel: config.menuLabel,
     onGrow: () => { scrollView.scrollTop = scrollView.scrollHeight },
     // 三個點、動作列、開場白切換：殼只負責畫，做事的是宿主。
-    onUi: (id, ui) => transport.send({ type: 'message.ui', id, ...ui } as ShellToHost),
+    onUi: (id, ui) => {
+      // 重新生成、繼續（會花點數）同樣只認真的手勢。
+      if (ui.kind === 'action' && (ui.key === 'rewrite' || ui.key === 'resume-agent') && !gesture) { debug.warn('ignored: not a user gesture', ui.key); return }
+      transport.send({ type: 'message.ui', id, ...ui } as ShellToHost)
+    },
     // 宿主的渲染管線保留正文裡的 <script>（跟一般卡同一套信任模型）：掛上後在那則的作用域裡跑一次。
     runScripts: runMessageScripts,
   })

@@ -124,7 +124,8 @@ export function confirmDialog(doc: Document, mount: HTMLElement, opts: { title: 
     mask.appendChild(box)
     const finish = (value: boolean) => { mask.remove(); resolve(value) }
     cancel.addEventListener('click', () => finish(false))
-    ok.addEventListener('click', () => finish(true))
+    // 「允許」只認瀏覽器真的派送的點擊：確認框跟作者腳本同一份文件，合成的 click 不算玩家同意。
+    ok.addEventListener('click', (e) => { if (e.isTrusted) finish(true) })
     mount.appendChild(mask)
     ok.focus()
   })

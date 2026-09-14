@@ -115,6 +115,26 @@ describe('殼：冷啟動與事件順序', () => {
     expect(t.refs.root.getAttribute('data-chrome')).toBe('shell')
   })
 
+  it('標準輸入區：作者腳本合成的 click 按不動送出鍵（不是真的手勢）；確認框的「允許」也只認真的點擊', async () => {
+    const chromeState = {
+      header: { roleName: '露娜', avatar: '', modelName: 'M', badge: '', showModel: true, backLabel: '返回', modelLabel: '模型' },
+      composer: { placeholder: '說點什麼', sendState: 'send', generating: false, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [], modelScore: '', assistBusy: false, assistCost: '', labels: { stop: '停止', more: '更多', send: '送出', paste: '貼上', clear: '清除', model: '模型', assist: '幫答', perTurn: '每輪' } },
+    }
+    const s = boot(config({ chromeState, card: { rules: [SCRIPT_RULE(`sdk.input.set('嗨'); document.querySelector('.lt-send').click();`)], statusbar: '' } }))
+    s.handle({ type: 'messages', messages: [] })
+    expect(s.refs.root.getAttribute('data-chrome')).toBe('standard')
+    expect(sent.filter((m) => m.type === 'ui')).toEqual([])
+    // 真的手勢（isTrusted 在 jsdom 裡合成不了，直接量 gesture 的判式：非 trusted 的 click 不放行）
+    const p = s.sdk.message.send('自動送')
+    await Promise.resolve()
+    const ok = s.refs.root.querySelector('[data-chat="alert-ok"]') as HTMLElement
+    ok.click()
+    await Promise.resolve()
+    expect(s.refs.root.querySelector('[data-chat="alert"]')).not.toBeNull()
+    ;(s.refs.root.querySelector('[data-chat="alert-cancel"]') as HTMLElement).click()
+    await expect(p).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+  })
+
   it('晚訂閱：mount/done 補發所有已掛氣泡；ready 不補發；回呼內 querySelector 只看當前氣泡', () => {
     const s = boot(config({ card: { rules: [{ id: 2, find: '/按鈕/', replace: '<button class="hello-btn">hi</button>' }], statusbar: '' } }))
     s.handle({ type: 'messages', messages: [
