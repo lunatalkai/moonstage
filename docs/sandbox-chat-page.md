@@ -173,7 +173,14 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   交宿主執行（選單開在宿主那一層，座標加上 iframe 位移）。一般卡與沙箱卡的訊息區長得一模一樣，作者對標準結構
   （`.mes`、`.mes_text`…）寫的美化兩邊都套得上；MMD 契約的 `data-chat` 節點名掛在同一批節點上（元件的 `chat` 屬性）。
   宿主的 `--lt-canvas-*` 變數隨 hello 與 theme 推送進殼。正文裡的 `<script>` 照一般卡的信任模型在氣泡掛上後跑一次。
-  舊頁路徑（規則引擎、author scope、HUD 橋）在沙箱模式下**不啟動**。
+  **頁首與輸入區也是標準元件**（第三輪）：殼載入 `canvas-header.vue`／`canvas-composer.vue`，資料由宿主的
+  `hud.read().chrome`（`ChromeState`：角色名、模型、送出鍵狀態、快捷列、「＋」面板項目、點數、文案…）隨 hello 與
+  `chrome` 訊息送來；按鍵發 `ui` 訊息（send／stop／continue／more／assist／more-pick／model／shortcut／back）交宿主
+  執行；面板與彈層仍在宿主頁（蓋在 iframe 上）。宿主頁自己的頁首與輸入區在沙箱模式下只藏不拆（`v-show`）。
+  殼的 `data-chrome` 三態：`standard`（標準元件）、`host`（宿主畫）、`shell`（殼的陽春版，獨立殼／測試用）。
+  訊息與狀態欄的 HTML 由宿主用一般卡的規則引擎算好（`activeAuthorAsset` 照登記；`activateMessageScripts` 在沙箱模式
+  不掛任何東西到宿主頁）；作者腳本同一段只在殼裡跑一次（裝卡時跑過的、正文裡再出現不重跑）。
+  沙箱模式下不跑的舊頁路徑：author scope 容器、HUD 橋、作者程式碼。
 - 殼在哪裡由 `installMoonStage({ sandbox: { shellUrl(roleId), origin(roleId), saves? } })` 決定
   （`src/host/sandbox-host.ts`）；沒給就用不透明 origin 載同源的 `/sandbox/index.html`
   （iframe 不給 allow-same-origin，origin 為 'null'）。

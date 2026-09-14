@@ -36,7 +36,7 @@ html, body { margin: 0; padding: 0; height: 100%; }
   min-height: var(--chat-viewport-height, 100%);
   overflow: hidden;
 }
-/* 殼自己畫頁首與輸入區時（獨立殼）才用這套底色與字型；宿主接管時底色、字型跟標準畫布（.canvas-root）。 */
+/* 殼自己畫陽春版頁首與輸入區時才用這套底色與字型；標準元件或宿主接管時，底色、字型跟標準畫布（.canvas-root）。 */
 [data-chat="root"][data-chrome="shell"] {
   background: var(--chat-bg);
   background-size: cover;
@@ -47,7 +47,7 @@ html, body { margin: 0; padding: 0; height: 100%; }
 }
 @media (min-width: 961px) { [data-chat="root"] { --rpx: calc(375px / 750); } }
 
-[data-chat="header"] {
+[data-chat="root"][data-chrome="shell"] [data-chat="header"] {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -57,11 +57,11 @@ html, body { margin: 0; padding: 0; height: 100%; }
   background: var(--chat-composer-bg);
   border-bottom: 1px solid var(--chat-border);
 }
-[data-chat="header-back"] { background: none; border: 0; color: var(--chat-text); font-size: 26px; line-height: 1; padding: 0 6px; cursor: pointer; }
-[data-chat="header-title"] { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-weight: 600; }
-[data-chat="header-title"] img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-[data-chat="header-title"] span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-[data-chat="header-actions"], [data-slot="header-extra"] { display: flex; align-items: center; gap: 8px; }
+[data-chat="root"][data-chrome="shell"] [data-chat="header-back"] { background: none; border: 0; color: var(--chat-text); font-size: 26px; line-height: 1; padding: 0 6px; cursor: pointer; }
+[data-chat="root"][data-chrome="shell"] [data-chat="header-title"] { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-weight: 600; }
+[data-chat="root"][data-chrome="shell"] [data-chat="header-title"] img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+[data-chat="root"][data-chrome="shell"] [data-chat="header-title"] span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-chat="root"][data-chrome="shell"] [data-chat="header-actions"], [data-chat="root"][data-chrome="shell"] [data-slot="header-extra"] { display: flex; align-items: center; gap: 8px; }
 
 /* 訊息區裝的是標準舞台（.chat-scope-box 撐滿、.scroll-view 在裡面捲），所以這一層自己不捲、只給高度。 */
 [data-chat="messages"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
@@ -69,26 +69,26 @@ html, body { margin: 0; padding: 0; height: 100%; }
 [data-chat="list-spacer"] { height: calc(24 * var(--rpx)); }
 
 /* 氣泡本身是標準訊息元件（canvas.css 的 .mes 一族），殼不再另寫一套訊息樣式。 */
-[data-slot="left"], [data-slot="right"] { position: absolute; top: 45px; bottom: 0; width: 0; }
+[data-slot="left"], [data-slot="right"] { position: absolute; top: var(--shell-header-h, 45px); bottom: 0; width: 0; }
 [data-slot="left"] { left: 0; }
 [data-slot="right"] { right: 0; }
 
 [data-chat="author-stage"] { display: none; background: var(--chat-bg); overflow: auto; }
-[data-chat="author-stage"][data-stage="content"] { display: block; position: absolute; left: 0; right: 0; top: 45px; bottom: 0; z-index: 2000; }
+[data-chat="author-stage"][data-stage="content"] { display: block; position: absolute; left: 0; right: 0; top: var(--shell-header-h, 45px); bottom: 0; z-index: 2000; }
 [data-chat="author-stage"][data-stage="full"] { display: block; position: absolute; inset: 0; z-index: 3000; }
 
-[data-chat="composer"] { flex-shrink: 0; background: var(--chat-composer-bg); color: var(--chat-composer-text); border-top: 1px solid var(--chat-border); padding: calc(12 * var(--rpx)) calc(20 * var(--rpx)) calc(12 * var(--rpx) + env(safe-area-inset-bottom)); }
+[data-chat="root"][data-chrome="shell"] [data-chat="composer"] { flex-shrink: 0; background: var(--chat-composer-bg); color: var(--chat-composer-text); border-top: 1px solid var(--chat-border); padding: calc(12 * var(--rpx)) calc(20 * var(--rpx)) calc(12 * var(--rpx) + env(safe-area-inset-bottom)); }
 [data-chat="composer"][hidden] { display: none; }
-[data-chat="composer-row"] { display: flex; align-items: flex-end; gap: 8px; }
-[data-chat="more"] { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--chat-shortcut-bg); color: var(--chat-shortcut-text); font-size: 20px; cursor: pointer; }
-[data-chat="input"] {
+[data-chat="root"][data-chrome="shell"] [data-chat="composer-row"] { display: flex; align-items: flex-end; gap: 8px; }
+[data-chat="root"][data-chrome="shell"] [data-chat="more"] { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--chat-shortcut-bg); color: var(--chat-shortcut-text); font-size: 20px; cursor: pointer; }
+[data-chat="root"][data-chrome="shell"] [data-chat="input"] {
   flex: 1; min-height: 36px; max-height: 120px; resize: none; box-sizing: border-box;
   padding: 8px 12px; border-radius: 18px; border: 1px solid var(--chat-input-border);
   background: var(--chat-input-bg); color: var(--chat-input-text); font: inherit; outline: none;
 }
-[data-chat="input"]::placeholder { color: var(--chat-input-placeholder); }
-[data-chat="send"] { flex-shrink: 0; height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: var(--chat-accent); color: #fff; font: inherit; cursor: pointer; }
-[data-chat="send"]:disabled { opacity: .5; cursor: default; }
+[data-chat="root"][data-chrome="shell"] [data-chat="input"]::placeholder { color: var(--chat-input-placeholder); }
+[data-chat="root"][data-chrome="shell"] [data-chat="send"] { flex-shrink: 0; height: 36px; padding: 0 16px; border-radius: 18px; border: 0; background: var(--chat-accent); color: #fff; font: inherit; cursor: pointer; }
+[data-chat="root"][data-chrome="shell"] [data-chat="send"]:disabled { opacity: .5; cursor: default; }
 
 [data-chat="alert"] { position: absolute; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); }
 [data-chat="alert-box"] { width: min(320px, 86vw); background: var(--chat-modal-bg); color: var(--chat-modal-text); border-radius: 14px; padding: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }

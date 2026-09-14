@@ -39,6 +39,8 @@ export interface SandboxCard {
   rules: SandboxRule[]
   /** 功能欄的原文；空字串＝整塊不存在。 */
   statusbar: string
+  /** 宿主用一般卡的管線算好的狀態欄 HTML；有就直接掛，沒有殼才自己套規則。 */
+  statusbarHtml?: string
 }
 
 export interface SandboxCapabilities {
@@ -67,6 +69,8 @@ export interface SandboxHelloConfig {
    * （input／composer／stage）轉給宿主做；殼內那顆隱藏的輸入框仍是 sdk.input 的資料來源。
    */
   chrome?: 'shell' | 'host'
+  /** 殼用標準元件畫頁首與輸入區時的初始資料（之後由 chrome 訊息更新）；沒給就用殼自己的陽春版。 */
+  chromeState?: ChromeState
   /** 標準訊息元件的文案與三個點的標題（宿主語系）。 */
   labels?: MessageLabels
   menuLabel?: string
@@ -120,6 +124,30 @@ export interface MessageLabels {
   continueAction?: string
 }
 
+/**
+ * 標準頁首與輸入區的呈現資料（canvas-header.vue／canvas-composer.vue 的屬性），由宿主算好送來、變了再送。
+ * 殼用同一套元件畫頁首與輸入區，作者對標準結構寫的美化才套得上；按鍵事件用 ui 訊息交回宿主做。
+ */
+export interface ChromeState {
+  header: { roleName: string; avatar: string; modelName: string; badge: string; showModel: boolean; backLabel: string; modelLabel: string }
+  composer: {
+    placeholder: string
+    sendState: string
+    generating: boolean
+    enterSends: boolean
+    shortcuts: Array<{ key: string; label: string; disabled?: boolean }>
+    moreOpen: boolean
+    moreItems: Array<{ key: string; label: string; disabled?: boolean }>
+    modelScore: string
+    assistBusy: boolean
+    assistCost: string | number
+    labels: { stop: string; more: string; send: string; paste: string; clear: string; model: string; assist: string; perTurn: string }
+  }
+}
+
+/** 標準頁首與輸入區上的按鍵，交給宿主做。 */
+export type ChromeUiEvent = 'send' | 'stop' | 'continue' | 'more' | 'assist' | 'more-pick' | 'model' | 'shortcut' | 'back'
+
 /** 三個點選單從哪裡呼出（座標是 iframe 內的；宿主自己換算）。 */
 export type MessageMenuAnchor =
   | { kind: 'point'; x: number; y: number }
@@ -142,6 +170,8 @@ export type HostToShell =
   | { type: 'input'; value: string }
   | { type: 'reply'; reqId: number; ok: boolean; value?: unknown; error?: SandboxError }
   | { type: 'theme'; theme: SandboxTheme; vars?: Record<string, string> }
+  /** 頁首與輸入區的呈現資料變了。 */
+  | { type: 'chrome'; state: ChromeState }
   /** 訊息的呈現資料變了（可重生成、上下文用量…），正文沒變。 */
   | { type: 'message.view'; id: string; view: MessageView }
   | { type: 'viewport'; height: number }
@@ -166,6 +196,8 @@ export type ShellToHost =
   | { type: 'message.ui'; id: string; kind: 'menu'; anchor: MessageMenuAnchor | null }
   | { type: 'message.ui'; id: string; kind: 'action'; key: string }
   | { type: 'message.ui'; id: string; kind: 'swipe'; delta: number }
+  /** 標準頁首與輸入區上的按鍵（送出、停止、更多、快捷列…）。 */
+  | { type: 'ui'; event: ChromeUiEvent; key?: string }
   | { type: 'composer'; visible: boolean }
   | { type: 'back-handled'; handled: boolean }
   | { type: 'debug'; level: 'log' | 'warn' | 'error'; args: unknown[] }

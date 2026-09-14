@@ -42,11 +42,12 @@ describe('新版沙箱卡：掛殼、不套舊頁規則', () => {
     expect(CANVAS).toMatch(/<div v-if="sandboxCard" class="canvas-sandbox-frame"/)
     expect(CANVAS).toMatch(/<iframe\s+v-else\s+ref="sandboxFrame"/)
     expect(CANVAS).toMatch(/<CanvasStage v-if="!sandboxCard"/)
-    // 輸入區不能 v-if 掉：模型、面板、點數都在裡面，沙箱卡也要跟一般卡一模一樣
+    // 頁首與輸入區在沙箱模式下由殼用同一套標準元件畫（資料走 hud.read().chrome）；這一頁自己的只藏不拆
     expect(CANVAS).not.toMatch(/<CanvasComposer\s+v-if=/)
-    expect(CANVAS).toMatch(/<CanvasComposer\s+v-show="!sandboxCard \|\| \(!sandboxComposerHidden && sandboxStage !== 'full'\)"/)
-    expect(CANVAS).toMatch(/<CanvasHeader\s+v-show="!\(sandboxCard && sandboxStage === 'full'\)"/)
-    expect(CANVAS).toContain("chrome: 'host' as const")
+    expect(CANVAS).toMatch(/<CanvasComposer\s+v-show="!sandboxCard"/)
+    expect(CANVAS).toMatch(/<CanvasHeader\s+v-show="!sandboxCard"/)
+    expect(CANVAS).toContain("chrome: 'shell' as const")
+    expect(CANVAS).toContain('chrome: sandboxCard.value ? buildChromeState() : undefined')
     expect(CANVAS).toMatch(/<div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice"/)
     expect(CANVAS).toContain("t('canvas.sandbox.unsupported')")
   })

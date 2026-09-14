@@ -14,7 +14,7 @@
     :data-lt-author-owns="authorOwnedRegions || null"
   >
     <CanvasHeader
-      v-show="!(sandboxCard && sandboxStage === 'full')"
+      v-show="!sandboxCard"
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
       :model-name="formData.selectModelName"
@@ -26,9 +26,9 @@
       @model="openModelSelect"
     />
 
-    <!-- 沙箱卡（pageMode=sandbox）：訊息區交給作者的殼，跑在跨源 iframe 裡；頁首與輸入區仍是宿主自己的
-         （跟一般卡完全一樣，模型、面板、點數都在），訊息與輸入由 canvas-sandbox-host 用 postMessage 餵進去。
-         作者開全螢幕舞台時頁首與輸入區藏起來、iframe 蓋滿整頁。殼在時限內沒握手（網址錯、被擋）就顯示提示，
+    <!-- 沙箱卡（pageMode=sandbox）：整個聊天頁交給殼，跑在跨源 iframe 裡。殼用的是跟這一頁同一套標準元件
+         （頁首、訊息、輸入區），資料由 canvas-sandbox-host 用 postMessage 餵進去、按鍵事件轉回這裡執行；
+         面板與彈層仍在這一頁（蓋在 iframe 上）。殼在時限內沒握手（網址錯、被擋）就顯示提示，
          玩家至少知道為什麼跟作者說的不一樣。 -->
     <div v-if="sandboxCard" class="canvas-sandbox-frame" :class="{ 'is-full': sandboxStage === 'full' }" data-lt="sandbox-frame">
       <div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
@@ -81,7 +81,7 @@
     </CanvasStage>
 
     <CanvasComposer
-      v-show="!sandboxCard || (!sandboxComposerHidden && sandboxStage !== 'full')"
+      v-show="!sandboxCard"
       ref="composerRef"
       :value="content"
       :placeholder="t('canvas.placeholder')"
@@ -2318,6 +2318,34 @@ function collectCanvasVars(): Record<string, string> {
   return out;
 }
 
+// 頁首與輸入區的呈現資料：跟模板上綁給 CanvasHeader／CanvasComposer 的是同一批值，殼那邊用同一套元件畫。
+function buildChromeState() {
+  return {
+    header: {
+      roleName: convertPlainText(roleView.value.roleName || '', displayScript),
+      avatar: String(cfImage(roleView.value.roleAvatar, 'avatarMedium') || ''),
+      modelName: String(formData.selectModelName || ''),
+      badge: previewDraft.value ? t('openChat.preview.badge') : (trialCard.value ? t('openChat.trial.badge') : ''),
+      showModel: !previewOnly.value,
+      backLabel: t('common.back'),
+      modelLabel: t('chat.modelSelectAria'),
+    },
+    composer: {
+      placeholder: t('canvas.placeholder'),
+      sendState: composerSendState.value,
+      generating: isGenerating.value,
+      enterSends: !isTouchDevice.value,
+      shortcuts: shortcutItems.value,
+      moreOpen: !!panel.value.more,
+      moreItems: moreItems.value,
+      modelScore: modelScoreText.value,
+      assistBusy: assistBusy.value,
+      assistCost: ASSIST_COST,
+      labels: composerLabels.value,
+    },
+  };
+}
+
 function translateSandboxAnchor(anchor: any): any {
   const frame = sandboxFrame.value;
   if (!anchor || !frame) return anchor;
@@ -2374,11 +2402,18 @@ function mountSandbox(asset: any) {
           locale: String(locale.value || ''),
           role: { name: convertPlainText(view.roleName || '', displayScript), avatarUrl: view.roleAvatar ? String(cfImage(view.roleAvatar, 'avatarMedium') || '') : '' },
           user: { nickname: userDisplayName(), avatarUrl: String(info.avatar || '') },
-          card: { rules: Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [], statusbar: String(sandboxAsset?.mountTrigger || '') },
+          card: {
+            rules: Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [],
+            statusbar: String(sandboxAsset?.mountTrigger || ''),
+            // 狀態欄也用一般卡的管線算（跟訊息同一套規則引擎與範圍處理），殼直接掛。
+            statusbarHtml: sandboxAsset?.mountTrigger
+              ? scopeCardHtml(applyTavernRules(String(sandboxAsset.mountTrigger), activeAuthorAsset.value.rules, authorRuleOptions()).html, cardFormat.value)
+              : '',
+          },
           variants: sandboxAsset?.variants || null,
           composer: true,
-          // 頁首與輸入區由宿主畫（跟一般卡同一套），殼只畫訊息區。
-          chrome: 'host' as const,
+          // 頁首與輸入區也在殼裡畫，用的是跟這一頁同一套標準元件（資料走 hud.read().chrome）。
+          chrome: 'shell' as const,
           labels: messageLabels.value,
           menuLabel: t('canvas.actions.more'),
           themeVars: collectCanvasVars(),
@@ -2401,6 +2436,19 @@ function mountSandbox(asset: any) {
       },
       onMessageAction: (hostId, key) => { const found = itemOf(hostId); if (found) onMessageAction(key, found.index); },
       onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
+      // 殼裡標準頁首與輸入區的按鍵：跟這一頁自己的元件綁的是同一批函式。
+      onUi: (event, key) => {
+        switch (event) {
+          case 'send': case 'continue': onCanvasSend(); return;
+          case 'stop': onCanvasStop(); return;
+          case 'more': panel.value = toggleMore(panel.value); return;
+          case 'assist': onAssist(); return;
+          case 'more-pick': onPanelPick(String(key || '')); return;
+          case 'model': openModelSelect(); return;
+          case 'shortcut': onShortcut(String(key || '')); return;
+          case 'back': goBackToEntry(); return;
+        }
+      },
       onComposer: (visible) => { sandboxComposerHidden.value = !visible; },
       onBack: () => goBackToEntry(),
       onDebug: (level, args) => { (console as any)[level === 'log' ? 'info' : level]('[sandbox]', ...args); },
@@ -2598,6 +2646,7 @@ function buildHudHost(): HudHost {
       const view: any = roleView.value || {};
       const groups = (modelGroups.value || []) as any[];
       return {
+        chrome: sandboxCard.value ? buildChromeState() : undefined,
         character: {
           id: String(unref(roleId) || '') || null,
           name: convertPlainText(view.roleName || '', displayScript),
@@ -2762,7 +2811,10 @@ function applyAuthorAsset(asset) {
     // 這裡不套任何規則、不掛任何作者程式碼，畫面上放一行提示。
     sandboxCard.value = res.data.pageMode === 'sandbox';
     if (sandboxCard.value) {
-      setActiveAuthorAsset(null);
+      // 規則照樣登記：訊息與狀態欄的 HTML 由這一頁用一般卡的管線算好送進殼（同一份規則引擎）；
+      // 但作者程式碼不在這一頁跑（activateMessageScripts 看到沙箱卡就不動），那是殼的事。
+      setActiveAuthorAsset(res.data);
+      cardFormat.value = normalizeCardFormat(res.data.cardFormat);
       applyImmersiveMode(false);
       mountSandbox(res.data);
       return;
@@ -3611,6 +3663,8 @@ function formatThinkingSize(value: string) {
 const activatedMessageScripts = new WeakMap<object, string>();
 function activateMessageScripts(item: any, html: string) {
   if (!item || !item.chatFinish) return;
+  // 沙箱卡：作者的腳本與樣式只在殼（別的源）裡跑，這一頁一行都不掛。
+  if (sandboxCard.value) return;
   if (!/<(script|style)[\s>]/i.test(html || '')) return;
   if (activatedMessageScripts.get(item) === html) return;
   activatedMessageScripts.set(item, html);

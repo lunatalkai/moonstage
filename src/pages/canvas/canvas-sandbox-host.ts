@@ -19,7 +19,7 @@ import {
   type HostToShell, type SandboxHelloConfig, type SandboxMessage, type ShellAction, type ShellToHost,
 } from '@/sandbox/protocol'
 import type { SandboxSavesStore } from '@/host/sandbox-host'
-import type { MessageMenuAnchor, MessageView, StageState } from '@/sandbox/protocol'
+import type { ChromeState, ChromeUiEvent, MessageMenuAnchor, MessageView, StageState } from '@/sandbox/protocol'
 
 export interface SandboxHostDeps {
   hud: HudHost
@@ -43,6 +43,8 @@ export interface SandboxHostDeps {
   onMessageMenu?(hostId: string, anchor: MessageMenuAnchor | null): void
   onMessageAction?(hostId: string, key: string): void
   onMessageSwipe?(hostId: string, delta: number): void
+  /** 殼裡標準頁首與輸入區的按鍵。 */
+  onUi?(event: ChromeUiEvent, key?: string): void
   /**
    * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 10 秒，跟握手逾時一樣）。
    * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
@@ -234,6 +236,17 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     post({ type: 'generation', busy })
   }
 
+  let lastChromeKey = ''
+  const chromeOf = (snapshot: HudHostState): ChromeState | undefined => (snapshot.chrome ? (snapshot.chrome as ChromeState) : undefined)
+  const syncChrome = (snapshot: HudHostState) => {
+    const chrome = chromeOf(snapshot)
+    if (!chrome) return
+    const key = JSON.stringify(chrome)
+    if (key === lastChromeKey) return
+    lastChromeKey = key
+    post({ type: 'chrome', state: chrome })
+  }
+
   const syncInput = (snapshot: HudHostState) => {
     const value = snapshot.inputText
     if (value === lastInputFromShell || value === lastInputPosted) return
@@ -258,9 +271,12 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     const base = deps.hello()
     // 殼一開始的草稿是空的；宿主此刻的草稿若非空，第一次 sync 會送過去，空的就不必。
     lastInputPosted = ''
+    const helloSnapshot = hud.read()
+    const chrome = chromeOf(helloSnapshot)
+    if (chrome) lastChromeKey = JSON.stringify(chrome)
     post({
       type: 'hello',
-      config: { ...base, capabilities: { saves: savesOk, edit: true, send: true }, saves },
+      config: { ...base, capabilities: { saves: savesOk, edit: true, send: true }, saves, chromeState: chrome },
     })
     // 殼建好之後才有東西可畫：歷史一到就送全量訊息，殼跑完冷啟動再喊 ready。
     armColdStart()
@@ -362,6 +378,9 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       case 'composer':
         if (deps.onComposer) deps.onComposer(!!message.visible)
         return
+      case 'ui':
+        if (deps.onUi) deps.onUi(message.event, message.key)
+        return
       case 'message.ui': {
         const hostId = hostIdOf(message.id)
         if (!hostId) return
@@ -393,6 +412,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       const snapshot = hud.read()
       if (!helloSent) return
       if (awaitingColdStart) {
+        syncChrome(snapshot)
         if (!tryColdStart(snapshot)) return
         syncGeneration(snapshot)
         syncInput(snapshot)
@@ -402,6 +422,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       syncMessages(snapshot)
       syncGeneration(snapshot)
       syncInput(snapshot)
+      syncChrome(snapshot)
     },
     conversationSwitched() {
       if (!helloSent || destroyed) return
