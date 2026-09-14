@@ -23,3 +23,6 @@ pnpm-debug.log*
 
 # 舞台套件的 build 產物（npm run build:stage）
 dist-stage/
+
+# 沙箱殼的 build 產物（npm run build:sandbox）
+dist-sandbox/

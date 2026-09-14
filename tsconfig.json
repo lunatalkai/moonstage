@@ -21,9 +21,11 @@
     "src/pages/canvas/*.ts",
     "src/pages/canvas/components/*.ts",
     "src/pages/canvas/components/*.vue",
+    "src/sandbox/**/*.ts",
     "vitest.config.ts"
   ],
   "exclude": [
-    "src/pages/canvas/__tests__/**"
+    "src/pages/canvas/__tests__/**",
+    "src/sandbox/__tests__/**"
   ]
 }

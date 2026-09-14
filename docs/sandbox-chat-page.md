@@ -64,6 +64,9 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 | `reply` | `{ reqId, ok, value?, error? }` | 回應殼發出的請求（send／edit／saves） |
 | `theme` | `{ theme: 'dark' \| 'light' }` | 使用者切主題 |
 | `viewport` | `{ height }` | 視窗變動（鍵盤彈出） |
+| `conversation.switch` | — | 切存檔：殼清氣泡、關舞台、清補發記錄，之後宿主再送 `messages` |
+| `back` | — | 宿主的返回：舞台開著殼先關舞台並回 `back-handled: true`；否則回 false 由宿主導頁 |
+| `dispose` | — | 離開頁面 |
 
 殼 → 宿主：
 
@@ -71,10 +74,12 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 |---|---|
 | `ready-shell` | 殼載好，要 `hello` |
 | `ready` | 作者腳本已跑、`ready` 事件已發 |
-| `request` | `{ reqId, op, args }`，op ∈ `message.send`／`message.edit`／`save.get`／`save.set`／`save.remove`／`save.keys` |
+| `request` | `{ reqId, op, args }`，op ∈ `message.send`／`message.edit`／`save.set`／`save.remove`（`save.get`／`keys` 讀殼內預載的副本，不經宿主） |
 | `input` | `{ value }` 殼內輸入框變了（宿主鏡射，讓草稿跨頁保留） |
-| `action` | `{ name }`：`open-model`／`open-persona`／`open-archives`／`back`／`stop`／`regenerate` |
-| `stage` | `{ state: 'closed' \| 'content' \| 'full' }` 舞台狀態（宿主據此決定要不要讓出更多空間） |
+| `action` | `{ name }`：`back`／`more`／`open-model`／`open-persona`／`open-archives`／`stop`／`regenerate` |
+| `stage` | `{ state: 'closed' \| 'content' \| 'full' }` 舞台狀態 |
+| `composer` | `{ visible }` 作者開關了底部輸入區 |
+| `back-handled` | `{ handled }` 回應宿主的 `back` |
 | `debug` | `{ level, args }` 轉給宿主 console |
 
 訊息 `id` 由宿主決定，形如 `l1`、`l2`…遞增；`serverId` 只在 AI 訊息定稿後有值，玩家訊息永遠 `null`。
@@ -88,20 +93,22 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 | `input.get/set/add/insert/clear/focus/blur/getCursor/setCursor` | 實作 | 對殼內 `[data-chat="input"]` |
 | `composer.show/hide/visible` | 實作 | `hide` 後 `visible()` 為 false；`data-composer` 屬性同步（比原站更一致） |
 | `message.send(text)` | 實作 | 非手勢呼叫 → 殼內問「允許腳本發送訊息？」，拒絕回 `UNAUTHORIZED`；手勢直接送 |
-| `message.edit(text)` | 分階段 | 宿主沒宣告 `edit` 能力時 `HOST_DENIED` |
+| `message.edit(id, text)` | 分階段 | 宿主沒宣告 `edit` 能力時 `HOST_DENIED`；`id` 是氣泡上的 `data-msg-id`（＝載荷的 `serverId`） |
 | `cache.get/set/remove` | 實作 | 殼內記憶體，換頁即失 |
 | `save.get/set/remove/keys` | 分階段 | 宿主沒宣告 `saves` 能力時 `HOST_DENIED`；key 只許 `[A-Za-z0-9_-]{1,64}`，否則 `INVALID_ARGS`；最多 10 個 key、單值 64 KB |
-| `stage.open(html)/close/el/visible` | 實作 | `content`（蓋訊息區，z 2000）／`full`（整屏，z 3000） |
-| `role.get()` / `user.get()` | 實作 | 來自 `hello.config.macros` |
+| `stage.open(mode)/close/el/visible` | 實作 | `content`（蓋訊息區，z 2000）／`full`（整屏，z 3000）；`el()` 關著也回節點，開關只看 `visible()`；作者自己 `close()` 不發 `stage:close` |
+| `role.get()` / `user.get()` | 實作 | 來自 `hello.config.role/user`，欄位封閉：`{name, avatarUrl}`／`{nickname, avatarUrl}` |
 | `on(event, fn)` | 實作 | 見事件表 |
 | `debug.log(...)` | 實作 | 殼內面板 + 轉宿主 console |
 | `version` | `'1'` | |
 
-錯誤碼：`INVALID_ARGS`、`HOST_DENIED`、`UNAUTHORIZED`、`BUSY`、`NOT_SUPPORTED`、`TIMEOUT`、`INTERNAL`。
-方法回傳 Promise；`save.get/keys` 在存檔尚未載入時同步丟 `HOST_DENIED`（跟原站一致，作者會用 try）。
+錯誤碼：`UNAUTHORIZED`、`RATE_LIMITED`、`INVALID_ARGS`、`HOST_DENIED`、`NETWORK`、`NOT_SUPPORTED`、`BUSY`
+（另有 `UNKNOWN_CAPABILITY` 備用）。非同步能力回 Promise；同步能力直接 throw `SdkError`——
+`save.get/keys` 在存檔尚未載入時同步丟 `HOST_DENIED`（跟原站一致，作者會用 try）。
+限頻（60 秒窗）：`save.set` 20、`message.send` 手勢 3／自動 3、`message.edit` 10 → `RATE_LIMITED`。
 
-事件（12）：`ready`、`message:new`、`message:mount`、`message:done`、`message:stream`、`input:change`、
-`composer:show`、`composer:hide`、`stage:open`、`stage:close`、`theme:change`、`viewport:change`。
+事件（12）：`ready`、`message:new`、`message:done`、`message:stream`、`message:mount`、`message:unmount`、
+`input:change`、`conversation:switch`、`theme:change`、`back`、`stage:close`、`dispose`。
 
 順序與補發規則（作者腳本依賴這些）：
 
@@ -156,16 +163,17 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 做到跟原站一致：事件順序、補發規則、載荷形狀、訊息作用域、`save` 的 key 規則與早期 `HOST_DENIED`、
 非手勢 `message.send` 的授權提示、淨化清單、Markdown 行為、CSP 形狀。
 
-明確不做：串流前的空內容 `message:done`（原站 bug）；生成中的非手勢 `send` 回 `BUSY`（原站實際是
-先問授權，我們照原站）；原站的 `<abc_vars>` 狀態變數子系統（契約未公布，等有公開契約再接）。
+明確不做：串流前的空內容 `message:done`（原站 bug）；原站的 `<abc_vars>` 狀態變數子系統（契約未公布，
+等有公開契約再接）；訊息列表虛擬化（先全量渲染，長對話再做）。生成中的 `message.send` 回 `BUSY`——
+照官方契約，不照原站實際的「先問授權」（作者的程式碼是對著契約寫的）。
 
 ## 7. 階段與進度
 
 - [x] P0 伺服器：`pageMode` 接受 `sandbox`（正規化、往返測試、回包）。
 - [ ] P1 認得新版卡：Hearthroom 匯入／匯出 `chatVersion`、編輯器「聊天頁版本」；Moonstage 草稿
   `chatPage`；畫布看到 `sandbox` 先顯示「這張卡是新版沙箱寫的，播放器尚未支援」。
-- [ ] P2 殼：`protocol.ts`、`sdk/`、`render/`、`rules.ts`、`sanitize.ts`、`scope.ts`、
-  `vite.sandbox.config.ts`、邊界檢查；測試以本文 §3–§4 為契約。
+- [x] P2 殼：`protocol.ts`、`sdk/`、`render/`、`rules.ts`、`sanitize.ts`、`scope.ts`、
+  `vite.sandbox.config.ts`、邊界檢查；測試以本文 §3–§4 為契約（`npm run build:sandbox` → dist-sandbox/）。
 - [ ] P3 宿主橋：`canvas-sandbox-host.ts`、`canvas.vue` 沙箱模式、`installMoonStage({ sandbox })`；
   Hearthroom 子網域路由 + 殼頁 CSP。
 - [ ] P4 能力補齊：`saves`（D1）、`message.edit`、主題／視窗事件、切存檔。

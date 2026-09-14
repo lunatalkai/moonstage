@@ -10,7 +10,9 @@
     "i18n:check": "node scripts/i18n-check.js",
     "test": "vitest run",
     "build:stage": "vite build --config vite.stage.config.ts --mode production",
-    "check:stage-boundary": "node scripts/check-stage-boundary.mjs"
+    "check:stage-boundary": "node scripts/check-stage-boundary.mjs",
+    "build:sandbox": "vite build --config vite.sandbox.config.ts && node scripts/check-sandbox-boundary.mjs",
+    "check:sandbox-boundary": "node scripts/check-sandbox-boundary.mjs"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4060620250520001",
