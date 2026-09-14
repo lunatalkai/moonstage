@@ -178,8 +178,10 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 - [x] P2 殼：`protocol.ts`、`sdk/`、`render/`、`rules.ts`、`sanitize.ts`、`scope.ts`、
   `vite.sandbox.config.ts`、邊界檢查；測試以本文 §3–§4 為契約（`npm run build:sandbox` → dist-sandbox/）。
 - [x] P3a 宿主橋：`canvas-sandbox-host.ts`、`canvas.vue` 沙箱模式、`installMoonStage({ sandbox })`。
-- [ ] P3b Hearthroom 子網域路由 + 殼頁 CSP。
-- [ ] P4 能力補齊：`saves`（D1）、`message.edit`、主題／視窗事件、切存檔。
+- [x] P3b Hearthroom 子網域路由 + 殼頁 CSP（`src/sandbox.ts`；DNS 萬用記錄由站台管理者加）。
+- [x] P4a `saves`（Hearthroom D1：`card_saves`，`/v1/me/cards/:roleId/saves`）、`message.edit`
+  （`hud.openEdit` + `submitEdit`）、切存檔（`conversation.switch`）。
+- [ ] P4b 主題切換與視窗高度的即時推送（目前握手時給一次；殼自己量 visualViewport）；訊息列表虛擬化。
 - [ ] P5 真機驗證：拿一張真的新版卡在正式站跑，逐事件對照 §3；收尾刪探針卡。
 
 ## 8. 測試
