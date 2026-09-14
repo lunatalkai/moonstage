@@ -10,7 +10,26 @@
 import { defineConfig } from 'vite'
 import path from 'node:path'
 
+/**
+ * 殼可能跑在不透明源（iframe 沒給 allow-same-origin，origin 為 'null'）：module script 與帶 crossorigin 的
+ * <link> 一律走 CORS 模式，資源層沒回 Access-Control-Allow-Origin 就整個被擋。所以殼的腳本打成 IIFE、
+ * 標籤去掉 type="module" 與 crossorigin，用傳統 no-cors 方式載入，哪個站台都不必為它加 CORS 標頭。
+ * check-sandbox-boundary 會掃產物的 index.html，出現這兩個屬性就失敗。
+ */
+const classicScriptTags = {
+  name: 'sandbox-classic-script-tags',
+  transformIndexHtml: {
+    order: 'post' as const,
+    handler: (html: string) =>
+      html
+        // module script 本來就延後執行；換成傳統 script 後要補 defer，否則在 <head> 裡跑時 body 還不存在。
+        .replace(/<script type="module" crossorigin src=/g, '<script defer src=')
+        .replace(/<link rel="stylesheet" crossorigin href=/g, '<link rel="stylesheet" href='),
+  },
+}
+
 export default defineConfig({
+  plugins: [classicScriptTags],
   root: path.resolve(__dirname, 'src/sandbox'),
   base: './',
   publicDir: false,
@@ -30,12 +49,11 @@ export default defineConfig({
     rollupOptions: {
       input: path.resolve(__dirname, 'src/sandbox/index.html'),
       output: {
+        // 傳統腳本（見上），單一進入點、不切 chunk：Worker 端只要記三個檔名。
+        format: 'iife',
+        inlineDynamicImports: true,
         entryFileNames: 'sandbox.js',
-        chunkFileNames: 'sandbox-[name].js',
         assetFileNames: (info) => (info.name && info.name.endsWith('.css') ? 'sandbox.css' : 'assets/[name]-[hash][extname]'),
-        // 殼只有一個進入點；不切 chunk，Worker 端只要記三個檔名。
-        manualChunks: () => 'sandbox',
-        inlineDynamicImports: false,
       },
     },
   },

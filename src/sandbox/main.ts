@@ -37,6 +37,7 @@ export function bootSandbox(win: Window & typeof globalThis = window) {
         transport: { send: post },
         debugFromUrl: /[?&]sdkDebug=1\b/.test(win.location.search),
       })
+      mount.setAttribute('data-sandbox', 'ready')
       return
     }
     if (event.origin !== hostOrigin) return

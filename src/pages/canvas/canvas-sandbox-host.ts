@@ -13,7 +13,7 @@
  * 安全：只認 `event.source === iframe.contentWindow` 且 origin 相符的訊息；送出去也只送給
  * 那個 origin（不透明 origin 'null' 只能用 '*'，此時靠 source 核）。
  */
-import type { HudHost, HudHostMessage } from './canvas-hud-bridge'
+import type { HudHost, HudHostMessage, HudHostState } from './canvas-hud-bridge'
 import {
   envelope, isSandboxEnvelope, targetOriginFor,
   type HostToShell, type SandboxHelloConfig, type SandboxMessage, type ShellAction, type ShellToHost,
@@ -34,6 +34,11 @@ export interface SandboxHostDeps {
   /** 殼沒處理的返回（舞台沒開）：宿主自己導頁。 */
   onBack?(): void
   onDebug?(level: 'log' | 'warn' | 'error', args: unknown[]): void
+  /**
+   * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 3 秒）。
+   * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
+   */
+  coldStartTimeoutMs?: number
   /** 殼在這段時間內沒喊 ready-shell 就視為載入失敗（預設 10 秒）。 */
   handshakeTimeoutMs?: number
   onHandshakeTimeout?(): void
@@ -81,7 +86,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     target.postMessage(envelope(message), targetOriginFor(deps.origin))
   }
 
-  const visible = (): HudHostMessage[] => hud.read().messages.filter((m) => m.role !== 'system')
+  const visible = (snapshot: HudHostState = hud.read()): HudHostMessage[] => snapshot.messages.filter((m) => m.role !== 'system')
   const roleOf = (m: HudHostMessage): 'user' | 'ai' => (m.role === 'user' ? 'user' : 'ai')
   const finishedOf = (m: HudHostMessage) => m.role === 'user' || !!m.finished
   const toShell = (m: HudHostMessage, shellId: string): SandboxMessage => {
@@ -95,9 +100,35 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     }
   }
 
-  const coldStart = () => {
+  // 冷啟動要等宿主把歷史載進來：宿主一換會話，列表先是舊的或空的，這時送全量就是錯的那一包。
+  // awaitingColdStart 期間不做差分；列表非空且不是切換前那一份、或等過了頭，才送 messages（殼收到才發 ready）。
+  let awaitingColdStart = false
+  let staleIds: Set<string> = new Set()
+  let coldStartTimer: ReturnType<typeof setTimeout> | null = null
+  const armColdStart = () => {
+    awaitingColdStart = true
+    staleIds = new Set(tracked.keys())
+    if (coldStartTimer) clearTimeout(coldStartTimer)
+    coldStartTimer = setTimeout(() => {
+      coldStartTimer = null
+      if (awaitingColdStart && !destroyed) { coldStart(hud.read()); syncGeneration(hud.read()) }
+    }, deps.coldStartTimeoutMs ?? 3000)
+  }
+  const tryColdStart = (snapshot: HudHostState): boolean => {
+    const list = visible(snapshot)
+    if (!list.length) return false
+    const sameAsStale = list.length === staleIds.size && list.every((m) => staleIds.has(m.id))
+    if (sameAsStale) return false
+    coldStart(snapshot)
+    return true
+  }
+
+  const coldStart = (snapshot: HudHostState) => {
+    awaitingColdStart = false
+    if (coldStartTimer) { clearTimeout(coldStartTimer); coldStartTimer = null }
     tracked.clear()
-    const list = visible()
+    const list = visible(snapshot)
+    lastOrder = list.map((m) => m.id)
     const messages = list.map((m, index) => {
       const shellId = index === 0 && m.opening && roleOf(m) === 'ai' ? 'greeting' : `h${m.id}`
       tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished: finishedOf(m) })
@@ -106,8 +137,28 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     post({ type: 'messages', messages })
   }
 
-  const syncMessages = () => {
-    const list = visible()
+  // 宿主的訊息 id 會換：送出時玩家那則與 AI 占位先拿暫時 id，伺服器受理／定稿後換成正式 id。
+  // 對殼而言那還是同一顆氣泡——同位置、同角色，內容相同或本來就還沒定稿，就把追蹤記錄改掛到新 id 上，
+  // 不發 remove + new（作者綁在氣泡上的東西會掉，串流中的 AI 也不該閃一下）。
+  let lastOrder: string[] = []
+  const rekeyReplacedIds = (list: HudHostMessage[]) => {
+    const present = new Set(list.map((m) => m.id))
+    list.forEach((m, index) => {
+      if (tracked.has(m.id)) return
+      const oldId = lastOrder[index]
+      if (!oldId || present.has(oldId)) return
+      const t = tracked.get(oldId)
+      if (!t || t.role !== roleOf(m)) return
+      if (t.content !== m.text && (t.finished || t.role !== 'ai')) return
+      tracked.delete(oldId)
+      tracked.set(m.id, t)
+    })
+    lastOrder = list.map((m) => m.id)
+  }
+
+  const syncMessages = (snapshot: HudHostState) => {
+    const list = visible(snapshot)
+    rekeyReplacedIds(list)
     const present = new Set(list.map((m) => m.id))
     for (const [hostId, t] of Array.from(tracked.entries())) {
       if (present.has(hostId)) continue
@@ -148,15 +199,15 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     }
   }
 
-  const syncGeneration = () => {
-    const busy = hud.read().generation !== 'idle'
+  const syncGeneration = (snapshot: HudHostState = hud.read()) => {
+    const busy = snapshot.generation !== 'idle'
     if (busy === lastBusy) return
     lastBusy = busy
     post({ type: 'generation', busy })
   }
 
-  const syncInput = () => {
-    const value = hud.read().inputText
+  const syncInput = (snapshot: HudHostState) => {
+    const value = snapshot.inputText
     if (value === lastInputFromShell || value === lastInputPosted) return
     lastInputPosted = value
     post({ type: 'input', value })
@@ -183,9 +234,10 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       type: 'hello',
       config: { ...base, capabilities: { saves: savesOk, edit: true, send: true }, saves },
     })
-    // 殼建好之後才有東西可畫：緊接著送全量訊息，殼跑完冷啟動再喊 ready。
-    coldStart()
-    syncGeneration()
+    // 殼建好之後才有東西可畫：歷史一到就送全量訊息，殼跑完冷啟動再喊 ready。
+    armColdStart()
+    const snapshot = hud.read()
+    if (tryColdStart(snapshot)) syncGeneration(snapshot)
   }
 
   const reply = (reqId: number, ok: boolean, value?: unknown, error?: { code: string; message?: string }) => {
@@ -293,16 +345,28 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       }
     },
     sync() {
-      if (!helloSent || destroyed) return
+      if (destroyed) return
+      // 每次都先讀宿主狀態，再看握手完成沒：宿主是用響應式 effect 呼叫 sync 的，第一次呼叫若在
+      // 握手前就空手而回，effect 什麼都沒追蹤到，之後狀態再變也不會再被叫——殼就永遠停在冷啟動那一包。
+      const snapshot = hud.read()
+      if (!helloSent) return
+      if (awaitingColdStart) {
+        if (!tryColdStart(snapshot)) return
+        syncGeneration(snapshot)
+        syncInput(snapshot)
+        return
+      }
       // 先訊息後生成旗標：定稿的 done 要在 busy=false 之前到，作者「done 後才解鎖按鈕」的邏輯才順。
-      syncMessages()
-      syncGeneration()
-      syncInput()
+      syncMessages(snapshot)
+      syncGeneration(snapshot)
+      syncInput(snapshot)
     },
     conversationSwitched() {
       if (!helloSent || destroyed) return
       post({ type: 'conversation.switch' })
-      coldStart()
+      armColdStart()
+      const snapshot = hud.read()
+      if (tryColdStart(snapshot)) syncGeneration(snapshot)
     },
     postTheme: (theme) => post({ type: 'theme', theme }),
     postViewport: (height) => post({ type: 'viewport', height }),
@@ -318,6 +382,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     destroy() {
       if (destroyed) return
       if (handshakeTimer) clearTimeout(handshakeTimer)
+      if (coldStartTimer) { clearTimeout(coldStartTimer); coldStartTimer = null }
       if (helloSent) { try { post({ type: 'dispose' }) } catch { /* iframe 可能已經拆了 */ } }
       destroyed = true
       win.removeEventListener('message', onMessage)

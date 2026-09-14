@@ -48,8 +48,22 @@ for (const file of files) {
   }
 }
 
+// 殼可能跑在不透明源（origin 'null'）：module script 與 crossorigin 的 link 走 CORS，資源層沒加 CORS 標頭就整個被擋。
+// 標籤必須是傳統 no-cors 載入（vite.sandbox.config.ts 的 classicScriptTags 負責改），這裡量產物守住。
+const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8')
+for (const needle of ['type="module"', 'crossorigin', 'rel="modulepreload"']) {
+  if (html.includes(needle)) {
+    bad++
+    console.error(`[sandbox-boundary] index.html 含「${needle}」：不透明源下會被 CORS 擋，殼必須用傳統 script/link 標籤`)
+  }
+}
+if (!/<script defer src="\.\/sandbox\.js">/.test(html)) {
+  bad++
+  console.error('[sandbox-boundary] index.html 的殼腳本必須是 <script defer src="./sandbox.js">：傳統 script 在 <head> 裡不 defer 會在 body 建好前執行')
+}
+
 if (bad) {
-  console.error(`[sandbox-boundary] ${bad} 處違規：殼不得帶宿主的請求層／憑證／API 位址`)
+  console.error(`[sandbox-boundary] ${bad} 處違規：殼不得帶宿主的請求層／憑證／API 位址，標籤不得走 CORS 模式`)
   process.exit(1)
 }
 console.log(`[sandbox-boundary] OK（${files.join(', ')}）`)

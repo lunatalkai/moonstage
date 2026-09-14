@@ -76,7 +76,9 @@ describe('渲染管線', () => {
     expect(html).toContain('<em>斜</em>')
     expect(html).toContain('<b class="hp">HP</b>')
     expect(html).not.toContain('<状态>')
-    expect(html).toContain('x')
+    // 剝殼發生在 markdown 之前：不是被跳脫成文字印出來，而是真的只剩內容
+    expect(html).not.toContain('&lt;状态')
+    expect(html).toContain('</b>x</p>')
   })
 
   it('裸字面量與 /…/ 都生效；引號在標籤屬性裡不上色', () => {

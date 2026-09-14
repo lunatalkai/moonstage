@@ -11,7 +11,7 @@
 import MarkdownIt from 'markdown-it'
 import { applyDisplayRules } from '@/utils/display-rule-engine.js'
 import type { SandboxRule } from './protocol'
-import { sanitizeAuthorHtml } from './sanitize'
+import { sanitizeAuthorHtml, stripUnknownTags } from './sanitize'
 
 export interface InstalledCard {
   /** 替換內容已抽掉 style/script 的規則，給渲染用。 */
@@ -103,7 +103,9 @@ export function renderContent(content: string, rules: SandboxRule[], options: Re
   const doc = options.doc || document
   const expanded = expandMacros(content, options.macros)
   const applied = applyDisplayRules(expanded, rules, { variants: options.variants || null }).html as string
-  const html = md.render(applied)
+  // 不在白名單的標籤（含中文尖括號那種）在進 markdown 之前就剝殼：markdown 會把它們跳脫成文字，
+  // 之後的淨化就看不到、玩家會看到「<状态>」原樣印出來。反引號裡的原樣保留（stripUnknownTags 自己護）。
+  const html = md.render(stripUnknownTags(applied))
   const clean = sanitizeAuthorHtml(html, doc)
   const holder = doc.createElement('div')
   holder.innerHTML = clean

@@ -97,28 +97,93 @@ describe('沙箱宿主橋', () => {
     host.destroy()
   })
 
+  it('sync() 在握手前也會讀宿主狀態：宿主用響應式 effect 呼叫，第一次沒讀到就永遠不會再被叫', async () => {
+    const state = { current: makeState({ messages: [] }) }
+    const { hud } = fakeHud(state)
+    let reads = 0
+    const spyHud = { ...hud, read: () => { reads++; return state.current } }
+    const host = createSandboxHost({ hud: spyHud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
+    host.start()
+    host.sync()
+    expect(reads).toBe(1)
+    expect(h.posted.length).toBe(0)
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    // 握手時列表是空的（歷史還在載）：不送全量；歷史一到，那次 sync 才做冷啟動
+    expect(h.posted.map((m) => m.type)).toEqual(['hello'])
+    state.current = makeState({ messages: [msg({ id: '11', role: 'user', text: '嗨' })] })
+    host.sync()
+    expect(h.posted.map((m) => m.type)).toEqual(['hello', 'messages', 'generation'])
+    expect(h.posted[1]).toMatchObject({ messages: [{ id: 'h11', role: 'user' }] })
+    host.destroy()
+  })
+
+  it('歷史一直沒到：等過 coldStartTimeoutMs 就用空列表冷啟動，殼才發得出 ready', async () => {
+    const state = { current: makeState({ messages: [] }) }
+    const { hud } = fakeHud(state)
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello, coldStartTimeoutMs: 30 })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    expect(h.posted.map((m) => m.type)).toEqual(['hello'])
+    await new Promise((r) => setTimeout(r, 80))
+    expect(h.posted.map((m) => m.type)).toEqual(['hello', 'messages', 'generation'])
+    expect(h.posted[1]).toEqual({ ms: 1, type: 'messages', messages: [] })
+    host.destroy()
+  })
+
   it('差分：送出後 user new、ai new(pending)、串流 stream、定稿 done 只一次；generation 跟著變', async () => {
-    const state = { current: makeState() }
+    const greeting = msg({ id: '10', text: '你好', opening: true })
+    const state = { current: makeState({ messages: [greeting] }) }
     const { hud } = fakeHud(state)
     const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
     host.start()
     h.fromShell({ type: 'ready-shell' })
     await flush()
     h.posted.length = 0
-    state.current = makeState({ generation: 'starting', messages: [msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '', finished: false })] })
+    state.current = makeState({ generation: 'starting', messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '', finished: false })] })
     host.sync()
-    state.current = makeState({ generation: 'streaming', streamingMessageId: '21', messages: [msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你', finished: false })] })
+    state.current = makeState({ generation: 'streaming', streamingMessageId: '21', messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你', finished: false })] })
     host.sync()
-    state.current = makeState({ generation: 'streaming', streamingMessageId: '21', messages: [msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: false })] })
+    state.current = makeState({ generation: 'streaming', streamingMessageId: '21', messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: false })] })
     host.sync()
     host.sync()
-    state.current = makeState({ messages: [msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: true, canonicalLatestAI: true })] })
+    state.current = makeState({ messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: true, canonicalLatestAI: true })] })
     host.sync()
     host.sync()
     expect(h.posted.map((p) => p.type)).toEqual(['message.new', 'message.new', 'generation', 'message.stream', 'message.stream', 'message.done', 'generation'])
     expect(h.posted[0]).toMatchObject({ message: { id: 'l1', role: 'user', content: '嗨', serverId: null } })
     expect(h.posted[1]).toMatchObject({ message: { id: 'l2', role: 'ai', content: '', serverId: null, state: 'pending' } })
     expect(h.posted[5]).toEqual({ ms: 1, type: 'message.done', id: 'l2', content: '你好', serverId: '21' })
+    host.destroy()
+  })
+
+  it('宿主換 id（暫時 id → 正式 id）：同位置同角色、內容相同或尚未定稿 → 追蹤改掛新 id，不發 remove/new', async () => {
+    const greeting = msg({ id: '10', text: '你好', opening: true })
+    const state = { current: makeState({ messages: [greeting] }) }
+    const { hud } = fakeHud(state)
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    h.posted.length = 0
+    state.current = makeState({ generation: 'starting', messages: [greeting, msg({ id: 'tmp-u', role: 'user', text: '嗨' }), msg({ id: 'tmp-a', text: '', finished: false })] })
+    host.sync()
+    // 伺服器受理：AI 占位換成正式 id 並開始串流
+    state.current = makeState({ generation: 'streaming', streamingMessageId: '21', messages: [greeting, msg({ id: 'tmp-u', role: 'user', text: '嗨' }), msg({ id: '21', text: '你', finished: false })] })
+    host.sync()
+    state.current = makeState({ messages: [greeting, msg({ id: 'tmp-u', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: true, canonicalLatestAI: true })] })
+    host.sync()
+    // 定稿後玩家那則也換成正式 id，內容沒變 → 靜默
+    state.current = makeState({ messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '21', text: '你好', finished: true, canonicalLatestAI: true })] })
+    host.sync()
+    expect(h.posted.map((p) => p.type)).toEqual(['message.new', 'message.new', 'generation', 'message.stream', 'message.done', 'generation'])
+    expect(h.posted[3]).toEqual({ ms: 1, type: 'message.stream', id: 'l2', content: '你' })
+    expect(h.posted[4]).toEqual({ ms: 1, type: 'message.done', id: 'l2', content: '你好', serverId: '21' })
+    // 內容不同又已定稿的換 id 仍然是 remove + new（那是改寫）
+    state.current = makeState({ messages: [greeting, msg({ id: '20', role: 'user', text: '嗨' }), msg({ id: '22', text: '換了', finished: true, canonicalLatestAI: true })] })
+    host.sync()
+    expect(h.posted.slice(6).map((p) => p.type)).toEqual(['message.remove', 'message.new', 'message.done'])
     host.destroy()
   })
 

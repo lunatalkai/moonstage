@@ -146,8 +146,16 @@ export function createShell(options: CreateShellOptions): Shell {
   })
 
   // ── 輸入區 ──
-  const emitInput = () => {
+  // input:change 只在值真的變了才發：冷啟動時宿主同步一次空草稿、殼自己也有初始的空值，
+  // 沒有這道去重會在 mount 與 done 之間多冒出兩則空的 input:change。
+  let lastInputEmitted = refs.input.value
+  const emitInputChange = () => {
+    if (refs.input.value === lastInputEmitted) return
+    lastInputEmitted = refs.input.value
     bus.emit('input:change', refs.input.value)
+  }
+  const emitInput = () => {
+    emitInputChange()
     transport.send({ type: 'input', value: refs.input.value })
   }
   refs.input.addEventListener('input', emitInput)
@@ -213,7 +221,7 @@ export function createShell(options: CreateShellOptions): Shell {
         return
       case 'input':
         refs.input.value = String(message.value ?? '')
-        bus.emit('input:change', refs.input.value)
+        emitInputChange()
         return
       case 'reply': {
         const waiter = pending.get(message.reqId)

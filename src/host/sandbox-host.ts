@@ -44,7 +44,8 @@ export function setSandboxHostOptions(next: SandboxHostOptions | null): void {
 export function resolveSandbox(roleId: string | number): ResolvedSandbox {
   const id = String(roleId)
   if (!options) {
-    return { shellUrl: '/sandbox/index.html', origin: 'null', sandboxAttr: OPAQUE_ATTR, saves: null }
+    // 用目錄路徑而不是 index.html：靜態資源層多半把 /index.html 轉址到 /，iframe 跟著轉址雖然能載，多一跳。
+    return { shellUrl: '/sandbox/', origin: 'null', sandboxAttr: OPAQUE_ATTR, saves: null }
   }
   const origin = options.origin(id)
   return {

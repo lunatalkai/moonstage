@@ -148,13 +148,16 @@ export function createMessageList(deps: MessageListDeps): MessageList {
     done(id, content, serverId) {
       const entry = entries.get(String(id))
       if (!entry) return
+      // 宿主對「一到就是定稿」的訊息會先送 new（state done、內容齊）再送 done：氣泡已經畫好也 mount 過，
+      // 這裡只補 done 事件，不重畫也不再 mount，作者看到的仍是 new → mount → done 一輪。
+      const unchanged = entry.message.state === 'done' && entry.message.content === content
       entry.message.content = content
       entry.message.state = 'done'
       entry.message.serverId = serverId == null ? null : String(serverId)
-      paint(entry)
+      if (!unchanged) paint(entry)
       bus.emit('message:done', payloadOf(entry.message), { bubble: entry.article, key: `${entry.message.id}:done` })
       // 定稿後氣泡重畫，作者綁在氣泡上的按鈕要重綁：再 mount 一次（補發記錄換成新的）。
-      mount(entry)
+      if (!unchanged) mount(entry)
     },
     remove,
     bubbleOf: (id) => entries.get(String(id))?.article || null,

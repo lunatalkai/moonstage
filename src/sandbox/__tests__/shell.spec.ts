@@ -82,6 +82,25 @@ describe('殼：冷啟動與事件順序', () => {
     expect(s.refs.list.querySelectorAll('[data-chat="message"]')[1].getAttribute('data-msg-id')).toBe('9527')
   })
 
+  it('一到就是定稿的訊息（宿主先 new 再 done、內容相同）：new → mount → done，不重畫也不再 mount', () => {
+    const s = boot(config({ card: { rules: [SCRIPT_RULE(`window.__ev = []; ['message:new','message:mount','message:done'].forEach(function (ev) { sdk.on(ev, function (p) { window.__ev.push([ev, p.id, p.serverId]); }); });`)], statusbar: '' } }))
+    s.handle({ type: 'messages', messages: [] })
+    const ev = (window as unknown as { __ev: unknown[] }).__ev
+    ev.length = 0
+    s.handle({ type: 'message.new', message: { id: 'l1', role: 'ai', content: '哈囉', serverId: '77', state: 'done' } })
+    const bodyBefore = s.refs.list.querySelector('[data-chat="message-body"]')
+    s.handle({ type: 'message.done', id: 'l1', content: '哈囉', serverId: '77' })
+    expect(ev).toEqual([
+      ['message:new', 'l1', '77'],
+      ['message:mount', 'l1', '77'],
+      ['message:done', 'l1', '77'],
+    ])
+    expect(s.refs.list.querySelector('[data-chat="message-body"]')).toBe(bodyBefore)
+    // 內容真的變了才重畫、再 mount
+    s.handle({ type: 'message.done', id: 'l1', content: '哈囉！', serverId: '77' })
+    expect(ev.slice(3)).toEqual([['message:done', 'l1', '77'], ['message:mount', 'l1', '77']])
+  })
+
   it('晚訂閱：mount/done 補發所有已掛氣泡；ready 不補發；回呼內 querySelector 只看當前氣泡', () => {
     const s = boot(config({ card: { rules: [{ id: 2, find: '/按鈕/', replace: '<button class="hello-btn">hi</button>' }], statusbar: '' } }))
     s.handle({ type: 'messages', messages: [

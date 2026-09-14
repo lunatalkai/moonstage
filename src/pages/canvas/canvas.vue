@@ -2330,8 +2330,10 @@ watchEffect(() => {
 }, { flush: 'post' });
 
 // 換存檔／開新對話：訊息列表整個換掉，殼要清空再收全量。
+// 從「還沒有會話」變成有會話不算切換：那是第一次載入，橋在握手後等歷史到齊做冷啟動；
+// 開新對話會先把會話清成空字串（那一步才是切換）再拿到新的 id。
 watch(() => String(unref(conversationId) || ''), (next, prev) => {
-  if (!sandboxHostRef.value || next === prev) return;
+  if (!sandboxHostRef.value || next === prev || !prev) return;
   sandboxHostRef.value.conversationSwitched();
 });
 
