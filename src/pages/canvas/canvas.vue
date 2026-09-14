@@ -27,6 +27,11 @@
 
     <CanvasStage :background-url="playerBackgroundUrl" @scroll="onStageScroll">
       <CanvasIntro :text="introText" :open="introOpen" @toggle="introOpen = !introOpen" />
+      <!-- 新版沙箱卡：整個聊天區本該交給作者的殼；播放器還沒接上殼之前先說清楚，
+           對話照舊頁的素文字顯示（規則不套、腳本不跑），玩家至少知道為什麼跟作者說的不一樣。 -->
+      <div v-if="sandboxCard" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
+        {{ t('canvas.sandbox.unsupported') }}
+      </div>
 
       <CanvasMessage
         v-for="(item, index) in talkList"
@@ -2228,6 +2233,9 @@ function authorRuleOptions() {
   };
 }
 
+// 新版沙箱卡：作者宣告 pageMode=sandbox。播放器還沒有沙箱殼，先只提示（見 applyAuthorAsset）。
+const sandboxCard = ref(false);
+
 // 沉浸模式：作者宣告的滿版乾淨畫布。
 //
 // 掛在 <html> 而不是頁面根節點，因為要收掉的是 uni-app 的全站左右 window，
@@ -2550,6 +2558,15 @@ function ensureAuthorScope() {
 function applyAuthorAsset(asset) {
   try {
     const res = { data: asset };
+    // 新版沙箱卡（pageMode=sandbox）：規則與腳本是寫給沙箱殼的固定節點與 sdk 的，
+    // 舊頁的規則引擎跑不了它們——硬套只會出現半截 HTML 與報錯的腳本。播放器接上殼之前，
+    // 這裡不套任何規則、不掛任何作者程式碼，畫面上放一行提示。
+    sandboxCard.value = res.data.pageMode === 'sandbox';
+    if (sandboxCard.value) {
+      setActiveAuthorAsset(null);
+      applyImmersiveMode(false);
+      return;
+    }
     setActiveAuthorAsset(res.data);
     cardFormat.value = normalizeCardFormat(res.data.cardFormat);
     applyImmersiveMode(res.data.pageMode === 'immersive');

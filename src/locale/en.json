@@ -3972,6 +3972,7 @@
 	"canvas.panel.historyCurrent": "Current",
 	"canvas.archive.defaultName": "Save {n} · {date}",
 	"canvas.archive.defaultNameNoDate": "Save {n}",
+	"canvas.sandbox.unsupported": "This card was written for the new chat page, which this player can't show yet. The conversation is shown in the plain style for now; the author's layout and interactions aren't available.",
 	"canvas.archive.messages": "{n} messages",
 	"canvas.archive.rename": "Rename",
 	"canvas.archive.done": "Done",

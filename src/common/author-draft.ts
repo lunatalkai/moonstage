@@ -8,6 +8,7 @@
 import type { TavernRule } from '@/pages/canvas/canvas-rule-engine'
 import type { CardFormat } from './card-format'
 export type DraftMountLayer = 'under' | 'over' | 'cover'
+export type DraftChatPage = 'classic' | 'sandbox'
 
 export interface AuthorDraft {
   id: string
@@ -18,8 +19,13 @@ export interface AuthorDraft {
   rules: TavernRule[]
   mountTrigger: string
   mountLayer: DraftMountLayer
-  /** 沉浸模式：作者宣告的滿版乾淨畫布 */
+  /** 沉浸模式：作者宣告的滿版乾淨畫布（舊頁的一種版面） */
   immersive: boolean
+  /**
+   * 聊天頁版本。classic＝規則直接套在畫布上（舊頁）；sandbox＝整個聊天區交給作者的殼在
+   * 獨立 iframe 裡渲染（MMD 匯出檔 chatVersion: 1）。缺欄位的舊草稿當 classic。
+   */
+  chatPage: DraftChatPage
   /** 預覽時當作第一則 AI 訊息 */
   opening: string
   /** 匯入時辨認出的格式，給清單顯示 */
@@ -217,6 +223,11 @@ function normalizeLayer(v: any): DraftMountLayer {
   return s === 'under' || s === 'cover' ? s : 'over'
 }
 
+/** MMD 匯出檔的 chatVersion：1（數字或字串）是新版沙箱卡；其他值或缺欄位是舊頁。 */
+function chatPageFromChatVersion(v: any): DraftChatPage {
+  return String(v ?? '').trim() === '1' ? 'sandbox' : 'classic'
+}
+
 function compact(rules: Array<TavernRule | null>): TavernRule[] {
   return rules.filter((r): r is TavernRule => !!r)
 }
@@ -229,6 +240,7 @@ function baseDraft() {
     mountTrigger: '',
     mountLayer: 'over' as DraftMountLayer,
     immersive: false,
+    chatPage: 'classic' as DraftChatPage,
     opening: '',
     createdAt: now,
     updatedAt: now,
@@ -329,6 +341,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
     mountTrigger: '',
     mountLayer: 'over' as DraftMountLayer,
     immersive: false,
+    chatPage: 'classic' as DraftChatPage,
     opening: '',
     createdAt: now,
     updatedAt: now,
@@ -378,8 +391,8 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
   }
 
   // MMD 的匯出檔（作者從原站「導出正則」拿到的那份）：頂層 regex_scripts 用酒館的欄位名，
-  // 旁邊是 statusbar（掛載點）、beginning（開場白）、pageDepth（數字）。
-  if (Array.isArray(parsed.regex_scripts) && ('statusbar' in parsed || 'beginning' in parsed || 'pageDepth' in parsed)) {
+  // 旁邊是 statusbar（掛載點）、beginning（開場白）、pageDepth（數字）；新版卡多一個 chatVersion: 1。
+  if (Array.isArray(parsed.regex_scripts) && ('statusbar' in parsed || 'beginning' in parsed || 'pageDepth' in parsed || 'chatVersion' in parsed)) {
     return {
       ...base,
       name: fallbackName || str(parsed.roleName || parsed.name),
@@ -387,6 +400,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
       rules: compact(parsed.regex_scripts.map(stRule)),
       mountTrigger: str(parsed.statusbar),
       mountLayer: layerFromPageDepth(parsed.pageDepth),
+      chatPage: chatPageFromChatVersion(parsed.chatVersion),
       opening: str(parsed.beginning),
     }
   }
@@ -407,6 +421,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
       rules: compact(parsed.rules.map(mmdRule)),
       mountTrigger: str(parsed.statusbar),
       mountLayer: layerFromPageDepth(parsed.pageDepth),
+      chatPage: chatPageFromChatVersion(parsed.chatVersion),
       opening: str(parsed.welcome),
     }
   }
@@ -423,6 +438,7 @@ export function importAuthorDraft(text: string, fallbackName = ''): AuthorDraft 
       mountTrigger: str(asset.mountTrigger),
       mountLayer: normalizeLayer(asset.mountLayer),
       immersive: asset.pageMode === 'immersive',
+      chatPage: asset.pageMode === 'sandbox' ? 'sandbox' : 'classic',
       opening: str(asset.opening),
     }
   }
@@ -627,6 +643,7 @@ export function mergeAuthorDraft(base: AuthorDraft, incoming: AuthorDraft): Auth
     merged.mountTrigger = incoming.mountTrigger
     merged.mountLayer = incoming.mountLayer
     merged.immersive = incoming.immersive
+    merged.chatPage = incoming.chatPage
     merged.cardFormat = incoming.cardFormat
     merged.format = incoming.format
     if (incoming.opening) merged.opening = incoming.opening
@@ -641,8 +658,10 @@ export function upgradeStoredDraft(row: any): AuthorDraft {
   if (!row || typeof row !== 'object') return row
   if (row.cardFormat == null && row.source != null) {
     const { source, ...rest } = row
-    return { ...rest, cardFormat: source === 'tavern' ? 'tavern' : 'mmd' }
+    row = { ...rest, cardFormat: source === 'tavern' ? 'tavern' : 'mmd' }
   }
+  // chatPage 是後來加的：之前存的草稿都是舊頁。
+  if (row.chatPage !== 'sandbox' && row.chatPage !== 'classic') row = { ...row, chatPage: 'classic' }
   return row
 }
 
@@ -654,7 +673,7 @@ export function draftToAuthorAsset(draft: AuthorDraft) {
     variants: null,
     mountTrigger: draft.mountTrigger,
     mountLayer: draft.mountLayer,
-    pageMode: draft.immersive ? 'immersive' : 'normal',
+    pageMode: draft.chatPage === 'sandbox' ? 'sandbox' : draft.immersive ? 'immersive' : 'classic',
     cardFormat: draft.cardFormat,
   }
 }

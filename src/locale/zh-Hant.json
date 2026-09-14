@@ -3972,6 +3972,7 @@
 	"canvas.panel.historyCurrent": "目前",
 	"canvas.archive.defaultName": "存檔 {n}・{date}",
 	"canvas.archive.defaultNameNoDate": "存檔 {n}",
+	"canvas.sandbox.unsupported": "這張卡是用新版聊天頁寫的，播放器還沒接上它的畫面；現在先以一般樣式顯示對話，作者設計的版面與互動暫時看不到。",
 	"canvas.archive.messages": "{n} 則訊息",
 	"canvas.archive.rename": "改名",
 	"canvas.archive.done": "完成",

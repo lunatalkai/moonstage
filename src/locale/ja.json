@@ -3972,6 +3972,7 @@
 	"canvas.panel.historyCurrent": "現在",
 	"canvas.archive.defaultName": "セーブ {n}・{date}",
 	"canvas.archive.defaultNameNoDate": "セーブ {n}",
+	"canvas.sandbox.unsupported": "このカードは新版チャット画面向けに作られていますが、プレイヤーはまだ対応していません。今は通常の表示で会話を進めます。作者のレイアウトや仕掛けはまだ表示されません。",
 	"canvas.archive.messages": "{n} 件のメッセージ",
 	"canvas.archive.rename": "名前を変更",
 	"canvas.archive.done": "完了",

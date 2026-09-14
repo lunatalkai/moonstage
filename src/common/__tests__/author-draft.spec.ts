@@ -104,6 +104,25 @@ describe('importAuthorDraft', () => {
     expect(d2.format).toBe('moonstage-asset')
   })
 
+  it('新版卡：MMD 匯出檔 chatVersion 1 → chatPage sandbox，資產 pageMode 往返；舊檔與舊草稿是 classic', () => {
+    const six = { chatVersion: 1, pageDepth: 2, statusbar: '《s》', beginning: 'hi', personality: 'p', regex_scripts: [{ id: -1, scriptName: 'r', findRegex: '《s》', replaceString: '<b/>' }] }
+    const d = importAuthorDraft(JSON.stringify(six), 'x')
+    expect(d.format).toBe('mmd-export')
+    expect(d.chatPage).toBe('sandbox')
+    expect(draftToAuthorAsset(d).pageMode).toBe('sandbox')
+    const { chatVersion: _omit, ...old } = six
+    expect(importAuthorDraft(JSON.stringify(old), 'x').chatPage).toBe('classic')
+    expect(importAuthorDraft(JSON.stringify({ ...old, chatVersion: '1' }), 'x').chatPage).toBe('sandbox')
+    expect(draftToAuthorAsset(importAuthorDraft(JSON.stringify(old), 'x')).pageMode).toBe('classic')
+    const payload = { rules: [{ find: '《s》', replace: '<b/>' }], statusbar: '《s》', welcome: 'hi', chatVersion: 1 }
+    expect(importAuthorDraft(JSON.stringify(payload), 'x').chatPage).toBe('sandbox')
+    const asset = importAuthorDraft(JSON.stringify({ mountLayer: 'over', mountTrigger: '', pageMode: 'sandbox', rules: [{ id: 1, name: 'r', find: 'a', replace: 'b', enabled: true }] }), 'x')
+    expect(asset.chatPage).toBe('sandbox')
+    // 之前存的草稿沒有這個欄位：讀出來補成 classic
+    expect(upgradeStoredDraft({ id: 'k', cardFormat: 'mmd', rules: [] }).chatPage).toBe('classic')
+    expect(upgradeStoredDraft({ id: 'k', source: 'tavern', rules: [] })).toMatchObject({ cardFormat: 'tavern', chatPage: 'classic' })
+  })
+
   it('壞 JSON、空清單、認不得的形狀各自有理由', () => {
     expect(() => importAuthorDraft('{not json')).toThrow(DraftImportError)
     expect(() => importAuthorDraft('{not json')).toThrowError('invalid-json')
@@ -117,7 +136,7 @@ describe('draftToAuthorAsset', () => {
   it('產出跟 authorAssetServe 一樣的形狀，簡繁對照表為空', () => {
     const d = importAuthorDraft(JSON.stringify({ roleName: 'x', statusbar: '<s>', pageDepth: 'top', rules: [{ name: 'a', find: 'b', replace: 'c' }] }))
     const asset = draftToAuthorAsset(d)
-    expect(asset).toMatchObject({ mountTrigger: '<s>', mountLayer: 'over', pageMode: 'normal', cardFormat: 'mmd', variants: null })
+    expect(asset).toMatchObject({ mountTrigger: '<s>', mountLayer: 'over', pageMode: 'classic', cardFormat: 'mmd', variants: null })
     expect(asset.rules).toBe(d.rules)
   })
 })
@@ -377,7 +396,7 @@ describe('舊草稿的 source 欄位升級成 cardFormat', () => {
     expect(up.cardFormat).toBe('tavern')
     expect('source' in up).toBe(false)
     expect(upgradeStoredDraft({ id: 'b', source: 'whatever' } as any).cardFormat).toBe('mmd')
-    const fresh = { id: 'c', name: 'c', cardFormat: 'mmd', rules: [] }
+    const fresh = { id: 'c', name: 'c', cardFormat: 'mmd', rules: [], chatPage: 'classic' }
     expect(upgradeStoredDraft(fresh)).toBe(fresh)
   })
 })

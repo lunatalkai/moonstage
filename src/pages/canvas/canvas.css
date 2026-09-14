@@ -1045,6 +1045,18 @@
     display: none;
   }
 
+  /* 新版沙箱卡的提示列：播放器接上沙箱殼之前，先告訴玩家這張卡為什麼長得跟作者說的不一樣。 */
+  .canvas-sandbox-notice {
+    margin: 8px 16px 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--lt-canvas-muted);
+    background: color-mix(in srgb, var(--lt-canvas-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--lt-canvas-accent) 35%, transparent);
+  }
+
   /* ── 輸入區 ───────────────────────────────────────────────────── */
 
   .composer-scope {

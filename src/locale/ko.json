@@ -3972,6 +3972,7 @@
 	"canvas.panel.historyCurrent": "현재",
 	"canvas.archive.defaultName": "세이브 {n} · {date}",
 	"canvas.archive.defaultNameNoDate": "세이브 {n}",
+	"canvas.sandbox.unsupported": "이 카드는 신버전 채팅 페이지용으로 만들어졌지만 플레이어가 아직 지원하지 않습니다. 지금은 기본 스타일로 대화를 표시하며, 작성자가 만든 화면과 상호작용은 아직 볼 수 없습니다.",
 	"canvas.archive.messages": "메시지 {n}개",
 	"canvas.archive.rename": "이름 바꾸기",
 	"canvas.archive.done": "완료",
