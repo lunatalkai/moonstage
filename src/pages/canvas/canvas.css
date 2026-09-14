@@ -1072,6 +1072,11 @@
 
   /* 殼沒握手上（網址錯、被擋）時的提示列：玩家至少知道這張卡為什麼長得跟作者說的不一樣。 */
   .canvas-sandbox-notice {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 2;
     margin: 8px 16px 12px;
     padding: 10px 14px;
     border-radius: 12px;

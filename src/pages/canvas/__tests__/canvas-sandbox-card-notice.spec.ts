@@ -40,7 +40,9 @@ describe('新版沙箱卡：掛殼、不套舊頁規則', () => {
 
   it('模板：沙箱卡時只有訊息列表換成 iframe；頁首與輸入區仍是宿主的（作者開全螢幕舞台或收起輸入區才藏）；握手失敗才顯示提示', () => {
     expect(CANVAS).toMatch(/<div v-if="sandboxCard" class="canvas-sandbox-frame"/)
-    expect(CANVAS).toMatch(/<iframe\s+v-else\s+ref="sandboxFrame"/)
+    // 提示蓋在 iframe 上而不是取代它：殼晚到仍能接上
+    expect(CANVAS).toMatch(/<iframe\s+ref="sandboxFrame"/)
+    expect(CANVAS).toContain("onHandshake: () => { sandboxFailed.value = false; }")
     expect(CANVAS).toMatch(/<CanvasStage v-if="!sandboxCard"/)
     // 頁首與輸入區在沙箱模式下由殼用同一套標準元件畫（資料走 hud.read().chrome）；這一頁自己的只藏不拆
     expect(CANVAS).not.toMatch(/<CanvasComposer\s+v-if=/)

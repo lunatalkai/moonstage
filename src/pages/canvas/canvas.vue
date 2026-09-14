@@ -31,11 +31,11 @@
          面板與彈層仍在這一頁（蓋在 iframe 上）。殼在時限內沒握手（網址錯、被擋）就顯示提示，
          玩家至少知道為什麼跟作者說的不一樣。 -->
     <div v-if="sandboxCard" class="canvas-sandbox-frame" :class="{ 'is-full': sandboxStage === 'full' }" data-lt="sandbox-frame">
+      <!-- 提示蓋在 iframe 上而不是取代它：殼晚到（首次載入慢）仍能接上，接上就把提示收掉。 -->
       <div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
         {{ t('canvas.sandbox.unsupported') }}
       </div>
       <iframe
-        v-else
         ref="sandboxFrame"
         class="canvas-sandbox-iframe"
         :src="sandboxUrl"
@@ -2453,6 +2453,7 @@ function mountSandbox(asset: any) {
       onBack: () => goBackToEntry(),
       onDebug: (level, args) => { (console as any)[level === 'log' ? 'info' : level]('[sandbox]', ...args); },
       onHandshakeTimeout: () => { sandboxFailed.value = true; },
+      onHandshake: () => { sandboxFailed.value = false; },
     });
     sandboxHostRef.value = host;
     host.start();

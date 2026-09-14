@@ -271,6 +271,21 @@ describe('沙箱宿主橋', () => {
     host.destroy()
   })
 
+  it('逾時之後殼才到：仍握手、回報 onHandshake 讓宿主收提示', async () => {
+    const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const calls: string[] = []
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello, handshakeTimeoutMs: 20, onHandshakeTimeout: () => calls.push('timeout'), onHandshake: () => calls.push('handshake') })
+    host.start()
+    await new Promise((r) => setTimeout(r, 60))
+    expect(calls).toEqual(['timeout'])
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    expect(calls).toEqual(['timeout', 'handshake'])
+    expect(h.posted.map((m) => m.type)).toEqual(['hello', 'messages', 'generation'])
+    host.destroy()
+  })
+
   it('input 鏡射不回音；action 對應宿主動作；back 交涉；握手逾時回報', async () => {
     vi.useFakeTimers()
     const state = { current: makeState({ messages: [msg({ id: '60', text: 'x', canonicalLatestAI: true })] }) }

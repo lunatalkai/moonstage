@@ -52,9 +52,11 @@ export interface SandboxHostDeps {
    * 手機上冷開一張卡（開對話 + 拉歷史兩趟往返）常常要 2–5 秒，設 3 秒會把正常情況打成降級。
    */
   coldStartTimeoutMs?: number
-  /** 殼在這段時間內沒喊 ready-shell 就視為載入失敗（預設 10 秒）。 */
+  /** 殼在這段時間內沒喊 ready-shell 就先報逾時（預設 20 秒；首次載入殼檔可能慢）。之後殼到了仍照常握手並回報 onHandshake。 */
   handshakeTimeoutMs?: number
   onHandshakeTimeout?(): void
+  /** 逾時提示之後殼才到、握手完成：宿主把提示收掉。 */
+  onHandshake?(): void
 }
 
 export interface SandboxHost {
@@ -85,6 +87,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   const { hud, iframe, win } = deps
   const tracked = new Map<string, Tracked>()
   let helloSent = false
+  let handshakeTimedOut = false
   let shellReady = false
   let destroyed = false
   let liveSeq = 0
@@ -354,6 +357,8 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     switch (message.type) {
       case 'ready-shell':
         if (handshakeTimer) { clearTimeout(handshakeTimer); handshakeTimer = null }
+        // 逾時提示已經亮了、殼才到（首次載入殼檔慢）：照常握手，並讓宿主把提示收掉。
+        if (handshakeTimedOut && !helloSent && deps.onHandshake) { handshakeTimedOut = false; deps.onHandshake() }
         void sendHello()
         return
       case 'ready':
@@ -400,9 +405,9 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   return {
     start() {
       win.addEventListener('message', onMessage)
-      const timeout = deps.handshakeTimeoutMs ?? 10_000
+      const timeout = deps.handshakeTimeoutMs ?? 20_000
       if (deps.onHandshakeTimeout && timeout > 0) {
-        handshakeTimer = setTimeout(() => { if (!helloSent && !destroyed) deps.onHandshakeTimeout!() }, timeout)
+        handshakeTimer = setTimeout(() => { if (!helloSent && !destroyed) { handshakeTimedOut = true; deps.onHandshakeTimeout!() } }, timeout)
       }
     },
     sync() {
