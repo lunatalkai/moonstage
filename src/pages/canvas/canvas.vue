@@ -106,7 +106,9 @@
       @shortcut="onShortcut"
     />
 
+    <!-- 沙箱卡：訊息選單與面板（模型除外）改由殼用同一套元件畫（資料走 hud.read().panels），這裡的不畫。 -->
     <CanvasMessageMenu
+      v-if="!sandboxCard"
       :open="menuOpen"
       :editing="menuEditing"
       :draft="menuDraft"
@@ -146,7 +148,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'conversations'" :title="t('canvas.archive.entry')"
+    <CanvasPopup :open="panel.sheet === 'conversations'" v-if="!sandboxCard" :title="t('canvas.archive.entry')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasConversationList
         :title="t('canvas.archive.entry')"
@@ -167,7 +169,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'background'" :title="t('canvas.panel.background')"
+    <CanvasPopup :open="panel.sheet === 'background'" v-if="!sandboxCard" :title="t('canvas.panel.background')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasModify
         :title="t('canvas.panel.background')"
@@ -176,7 +178,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'font'" :title="t('canvas.panel.font')"
+    <CanvasPopup :open="panel.sheet === 'font'" v-if="!sandboxCard" :title="t('canvas.panel.font')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasModify
         :title="t('canvas.panel.fontHint')"
@@ -185,7 +187,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'persona'" :title="t('canvas.panel.persona')"
+    <CanvasPopup :open="panel.sheet === 'persona'" v-if="!sandboxCard" :title="t('canvas.panel.persona')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasPersona
         :persona-mode="asPersonaMode(formData.personaMode)"
@@ -207,7 +209,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'directives'" :title="t('directive.title')"
+    <CanvasPopup :open="panel.sheet === 'directives'" v-if="!sandboxCard" :title="t('directive.title')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasDirectives
         :list="directives.list"
@@ -237,7 +239,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'notepad'" :title="t('notepad.title')"
+    <CanvasPopup :open="panel.sheet === 'notepad'" v-if="!sandboxCard" :title="t('notepad.title')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasNotepad
         :draft="notepad.draft"
@@ -283,7 +285,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'context-breakdown'" :title="t('promptBreakdown.title')"
+    <CanvasPopup :open="panel.sheet === 'context-breakdown'" v-if="!sandboxCard" :title="t('promptBreakdown.title')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasContextBreakdown
         :report="contextBreakdown.report"
@@ -300,7 +302,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'memory'" :title="memoryLabels.title"
+    <CanvasPopup :open="panel.sheet === 'memory'" v-if="!sandboxCard" :title="memoryLabels.title"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasMemory
         :atoms="memory.atoms"
@@ -316,7 +318,7 @@
       />
     </CanvasPopup>
 
-    <CanvasPopup :open="panel.sheet === 'confirm'" :title="confirmSpec.title" heading
+    <CanvasPopup :open="panel.sheet === 'confirm'" v-if="!sandboxCard" :title="confirmSpec.title" heading
                  :close-label="t('main.cancel')" @close="onConfirmCancel">
       <CanvasConfirm
         :content="confirmSpec.content"
@@ -2346,6 +2348,138 @@ function buildChromeState() {
   };
 }
 
+// 面板與訊息選單的呈現資料：跟模板上綁給各面板元件的是同一批值（模板那份在沙箱模式不畫）。
+// 只送開著那張面板的屬性；模型選擇留在宿主自己畫，殼看到 sheet='model' 什麼都不畫。
+function buildPanelsState() {
+  const sheet = String(panel.value.sheet || '');
+  const closeLabel = t('main.cancel');
+  let title = '';
+  let props: Record<string, unknown> = {};
+  let heading = false;
+  switch (sheet) {
+    case 'conversations':
+      title = t('canvas.archive.entry');
+      props = { title, newText: t('canvas.archive.newChat'), countText: archiveCountText.value, items: archiveRows.value, emptyText: t('canvas.panel.historyEmpty'), currentLabel: t('canvas.panel.historyCurrent'), closeText: closeLabel, full: archivesFull.value, fullText: archiveFullText.value, labels: archiveActionLabels.value };
+      break;
+    case 'background':
+      title = t('canvas.panel.background');
+      props = { title, items: backgroundOptions.value };
+      break;
+    case 'font':
+      title = t('canvas.panel.font');
+      props = { title: t('canvas.panel.fontHint'), items: fontOptions.value };
+      break;
+    case 'persona':
+      title = t('canvas.panel.persona');
+      props = { personaMode: asPersonaMode(formData.personaMode), globalPersona: globalPersona.value, nickName: playerNickName.value, userName: formData.userName, userSex: formData.userSex, userDefine: formData.userDefine, sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak, defaultJailbreak: defaultJailbreak.value, sexOptions: personaSexOptions.value, sandboxOptions: personaSandboxOptions.value, saving: personaSaving.value, error: personaError.value, labels: personaLabels.value };
+      break;
+    case 'directives':
+      title = t('directive.title');
+      props = { list: directives.value.list, countText: directiveCountText(directives.value), maxLength: directives.value.maxLength, loading: directives.value.loading, loadFailed: directives.value.loadFailed, hasConversation: Boolean(unref(conversationId)), canAdd: canAddDirective(directives.value, Boolean(unref(conversationId))), draft: directives.value.draft, editingSourceId: directives.value.editingSourceId, editingText: directives.value.editingText, pendingDeleteId: directivePendingDeleteId.value, error: directives.value.error, labels: directiveLabels.value };
+      break;
+    case 'notepad':
+      title = t('notepad.title');
+      props = { draft: notepad.value.draft, savedContent: notepad.value.savedContent, maxLength: notepad.value.maxLength, discountThreshold: notepad.value.discountThreshold, loading: notepad.value.loading, loadFailed: notepad.value.loadFailed, saving: notepad.value.saving, hasConversation: Boolean(unref(conversationId)), templatesOpen: notepad.value.templatesOpen, templates: notepad.value.templates, code: notepad.value.code, previewing: notepad.value.previewing, previewOpen: notepad.value.previewOpen, previewTitle: notepad.value.previewTitle, previewContent: notepad.value.previewContent, importing: notepad.value.importing, shareOpen: notepad.value.shareOpen, shareCode: notepad.value.shareCode, copyOpen: notepad.value.copyOpen, conversations: notepadCopyRows.value, error: notepad.value.error, labels: notepadLabels.value };
+      break;
+    case 'context-breakdown':
+      title = t('promptBreakdown.title');
+      props = { report: contextBreakdown.value.report, loading: contextBreakdown.value.loading, loadFailed: contextBreakdown.value.loadFailed, activeKey: contextBreakdown.value.activeKey, modDetailsExpanded: contextBreakdown.value.modDetailsExpanded, locale: String(locale.value), labels: contextBreakdownLabels.value };
+      break;
+    case 'memory':
+      title = memoryLabels.value.title;
+      props = { atoms: memory.value.atoms, loading: memory.value.loading, loadFailed: memory.value.loadFailed, expandedIds: memory.value.expandedIds, deletingId: memory.value.deletingId, labels: memoryLabels.value };
+      break;
+    case 'confirm':
+      title = confirmSpec.value.title;
+      heading = true;
+      props = { content: confirmSpec.value.content, okText: confirmSpec.value.okText, cancelText: closeLabel };
+      break;
+    default:
+      break;
+  }
+  const mm = menuMessage.value;
+  return {
+    sheet, title, closeLabel, heading, props,
+    menu: { open: menuOpen.value, editing: menuEditing.value, draft: String(menuDraft.value || ''), message: mm ? { html: mm.html } : null, actions: menuActions.value, labels: menuLabels.value, anchor: menuAnchor.value },
+  };
+}
+
+// 殼裡面板／訊息選單上的事件：跟模板上綁給各面板元件的是同一批函式。
+function onSandboxPanelUi(panelName: string, event: string, args: unknown[]) {
+  const a0 = args[0];
+  const str = () => String(a0 ?? '');
+  if (panelName === 'popup') { if (event === 'close') { if (panel.value.sheet === 'confirm') onConfirmCancel(); else closeCanvasSheet(); } return; }
+  if (panelName === 'menu') {
+    switch (event) {
+      case 'update:draft': menuDraft.value = str(); return;
+      case 'pick': onMenuPick(str()); return;
+      case 'close': case 'cancel-edit': closeMessageMenu(); return;
+      case 'confirm-edit': onMenuConfirmEdit(); return;
+    }
+    return;
+  }
+  if (event === 'close') { closeCanvasSheet(); return; }
+  switch (panelName) {
+    case 'conversations':
+      if (event === 'pick') onPickArchive(str());
+      else if (event === 'rename') onRenameArchive(str(), String(args[1] ?? ''));
+      else if (event === 'delete') onDeleteArchive(str());
+      else if (event === 'new') onNewFromArchives();
+      return;
+    case 'background': if (event === 'pick') onPickBackground(str()); return;
+    case 'font': if (event === 'pick') onPickFont(str()); return;
+    case 'persona': if (event === 'save') onSavePersona(a0); return;
+    case 'directives':
+      switch (event) {
+        case 'add': onAddDirective(); return;
+        case 'edit': onEditDirective(str()); return;
+        case 'save-edit': onSaveDirectiveEdit(str()); return;
+        case 'cancel-edit': directives.value = cancelEditDirective(directives.value); return;
+        case 'ask-delete': directivePendingDeleteId.value = str(); return;
+        case 'confirm-delete': onDeleteDirective(str()); return;
+        case 'cancel-delete': directivePendingDeleteId.value = ''; return;
+        case 'retry': loadDirectives(); return;
+        case 'update:draft': directives.value.draft = str(); return;
+        case 'update:editing-text': directives.value.editingText = str(); return;
+      }
+      return;
+    case 'notepad':
+      switch (event) {
+        case 'save': onSaveNotepad(); return;
+        case 'retry': loadNotepad(); return;
+        case 'toggle-templates': onToggleNotepadTemplates(); return;
+        case 'apply-template': onApplyNotepadTemplate(str()); return;
+        case 'save-template': onSaveNotepadTemplate(); return;
+        case 'update:code': notepad.value.code = str(); return;
+        case 'preview-code': onPreviewShareCode(); return;
+        case 'cancel-preview': onCancelSharePreview(); return;
+        case 'confirm-import': onConfirmShareImport(); return;
+        case 'share-template': onShareNotepadTemplate(str()); return;
+        case 'delete-template': onDeleteNotepadTemplate(str()); return;
+        case 'copy-share-code': onCopyShareCode(); return;
+        case 'revoke-share': onRevokeShare(); return;
+        case 'close-share': onCloseShare(); return;
+        case 'toggle-copy': onToggleNotepadCopy(); return;
+        case 'copy-from': onCopyNotepadFrom(str()); return;
+        case 'update:draft': notepad.value.draft = str(); return;
+      }
+      return;
+    case 'context-breakdown':
+      if (event === 'select') onSelectContextBreakdownItem(str());
+      else if (event === 'toggle-mod-details') onToggleContextBreakdownModDetails();
+      else if (event === 'retry') loadContextBreakdown();
+      return;
+    case 'memory':
+      if (event === 'toggle-expand') onToggleMemoryExpand(str());
+      else if (event === 'delete') askDeleteMemoryAtom(str());
+      else if (event === 'retry') loadMemory();
+      return;
+    case 'confirm':
+      if (event === 'ok') onConfirmOk(); else if (event === 'cancel') onConfirmCancel();
+      return;
+  }
+}
+
 // 用宿主的訊息 id 找列（殼那邊只認 id）。跟 HUD 橋裡的 itemOf 同一個判準，但那個是函式內的區域變數，這裡碰不到。
 function findTalkItem(messageId: string): { item: any; index: number } | null {
   const i = talkList.value.findIndex((it: any) => String(it.id) === messageId);
@@ -2442,6 +2576,7 @@ function mountSandbox(asset: any) {
       },
       onMessageAction: (hostId, key) => { const found = findTalkItem(hostId); if (found) onMessageAction(key, found.index); },
       onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
+      onPanelUi: (panelName, event, args) => onSandboxPanelUi(panelName, event, args),
       // 殼裡標準頁首與輸入區的按鍵：跟這一頁自己的元件綁的是同一批函式。
       onUi: (event, key) => {
         switch (event) {
@@ -2654,6 +2789,7 @@ function buildHudHost(): HudHost {
       const groups = (modelGroups.value || []) as any[];
       return {
         chrome: sandboxCard.value ? buildChromeState() : undefined,
+        panels: sandboxCard.value ? buildPanelsState() : undefined,
         character: {
           id: String(unref(roleId) || '') || null,
           name: convertPlainText(view.roleName || '', displayScript),

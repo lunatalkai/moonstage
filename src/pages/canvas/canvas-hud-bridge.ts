@@ -62,6 +62,8 @@ export interface HudHostState {
   character: { id: string | null; name: string; avatar: string | null }
   /** 沙箱殼用：標準頁首與輸入區的呈現資料（見 sandbox/protocol ChromeState）。 */
   chrome?: unknown
+  /** 沙箱殼用：面板與訊息選單的呈現資料（見 sandbox/protocol PanelsState）。 */
+  panels?: unknown
   messages: HudHostMessage[]
   generation: 'idle' | 'starting' | 'streaming'
   streamingMessageId: string | null

@@ -179,6 +179,11 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   `chrome` 訊息送來；按鍵發 `ui` 訊息（send／stop／continue／more／assist／more-pick／model／shortcut／back）交宿主
   執行；面板與彈層仍在宿主頁（蓋在 iframe 上）。宿主頁自己的頁首與輸入區在沙箱模式下只藏不拆（`v-show`）。
   殼的 `data-chrome` 三態：`standard`（標準元件）、`host`（宿主畫）、`shell`（殼的陽春版，獨立殼／測試用）。
+  **面板與訊息選單也在殼裡**（第四輪，`render/panels.ts`）：人設、記憶、手帳、長期指令、對話存檔、背景、字型、上下文、
+  確認框與訊息三個點選單，用同一套標準元件畫；資料由宿主 `hud.read().panels`（`PanelsState`：開著哪張、那張的屬性、
+  選單狀態）隨 `panels` 訊息送來，面板上的事件發 `panel.ui { panel, event, args }` 交宿主的同一批函式執行。
+  可打字的欄位（草稿、編輯中的字、分享碼）殼自己持有一份，宿主回音不覆蓋。模型選擇例外：它自己抓清單、
+  牽到登入態，留在宿主那一層。chrome／panels 都先 JSON 走一趟再送（宿主的值可能是響應式代理，結構化複製會拒絕）。
   訊息與狀態欄的 HTML 由宿主用一般卡的規則引擎算好（`activeAuthorAsset` 照登記；`activateMessageScripts` 在沙箱模式
   不掛任何東西到宿主頁）；作者腳本同一段只在殼裡跑一次（裝卡時跑過的、正文裡再出現不重跑）。
   沙箱模式下不跑的舊頁路徑：author scope 容器、HUD 橋、作者程式碼。

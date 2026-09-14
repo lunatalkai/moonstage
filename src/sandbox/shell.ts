@@ -14,6 +14,7 @@ import { installMessageScope } from './scope'
 import { installCard, renderContent } from './rules'
 import { runAuthorScripts, runInlineScript } from './author-scripts'
 import { createMessageList } from './render/message-list'
+import { createPanels } from './render/panels'
 import { createApp, h } from 'vue'
 import CanvasStage from '@/pages/canvas/components/canvas-stage.vue'
 import CanvasHeader from '@/pages/canvas/components/canvas-header.vue'
@@ -252,6 +253,12 @@ export function createShell(options: CreateShellOptions): Shell {
   })
   refs.more.addEventListener('click', () => transport.send({ type: 'action', name: 'more' }))
 
+  // ── 面板與訊息選單：標準元件畫在殼裡，資料由宿主的 panels 訊息送來，事件交回宿主。 ──
+  const panelsMount = doc.createElement('div')
+  panelsMount.setAttribute('data-chat', 'panels')
+  refs.root.appendChild(panelsMount)
+  const panels = standardChrome ? createPanels({ mount: panelsMount, send: (panel, event, args) => transport.send({ type: 'panel.ui', panel, event, args }) }) : null
+
   // ── 標準頁首與輸入區：跟一般卡同一套元件，資料由宿主送來（chrome 訊息），按鍵轉回宿主做。 ──
   let chromeApps: Array<{ unmount(): void }> = []
   const headerResize = typeof ResizeObserver === 'function'
@@ -348,6 +355,9 @@ export function createShell(options: CreateShellOptions): Shell {
       case 'chrome':
         Object.assign(chromeState, message.state)
         return
+      case 'panels':
+        if (panels) panels.set(message.state)
+        return
       case 'reply': {
         const waiter = pending.get(message.reqId)
         if (!waiter) return
@@ -392,6 +402,7 @@ export function createShell(options: CreateShellOptions): Shell {
       scope.uninstall()
       try { stageApp.unmount() } catch { /* 已經拆掉 */ }
       for (const app of chromeApps) { try { app.unmount() } catch { /* 已經拆掉 */ } }
+      if (panels) panels.unmount()
       if (headerResize) headerResize.disconnect()
       doc.removeEventListener('click', onGesture, true)
       doc.removeEventListener('keydown', onGesture, true)

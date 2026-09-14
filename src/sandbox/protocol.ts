@@ -145,6 +145,30 @@ export interface ChromeState {
   }
 }
 
+/**
+ * 面板（人設、記憶、手帳、長期指令、對話存檔、背景、字型、上下文、確認框）與訊息三個點選單的呈現資料。
+ * 殼用標準面板元件畫（作者的美化才套得上），面板上的按鍵用 panel.ui 交回宿主做。
+ * 模型選擇不在這裡：它自己抓清單、牽到登入態，留在宿主那一層。
+ */
+export interface PanelsState {
+  /** 開著哪一張面板；'' 沒開。 */
+  sheet: string
+  title: string
+  closeLabel: string
+  heading?: boolean
+  /** 開著那張面板元件的屬性（宿主算好的）。 */
+  props: Record<string, unknown>
+  menu: {
+    open: boolean
+    editing: boolean
+    draft: string
+    message: { html?: string } | null
+    actions: Array<{ key: string; label: string; disabled?: boolean }>
+    labels: { cancel: string; confirm: string }
+    anchor: MessageMenuAnchor | null
+  }
+}
+
 /** 標準頁首與輸入區上的按鍵，交給宿主做。 */
 export type ChromeUiEvent = 'send' | 'stop' | 'continue' | 'more' | 'assist' | 'more-pick' | 'model' | 'shortcut' | 'back'
 
@@ -172,6 +196,8 @@ export type HostToShell =
   | { type: 'theme'; theme: SandboxTheme; vars?: Record<string, string> }
   /** 頁首與輸入區的呈現資料變了。 */
   | { type: 'chrome'; state: ChromeState }
+  /** 面板與訊息選單的呈現資料變了。 */
+  | { type: 'panels'; state: PanelsState }
   /** 訊息的呈現資料變了（可重生成、上下文用量…），正文沒變。 */
   | { type: 'message.view'; id: string; view: MessageView }
   | { type: 'viewport'; height: number }
@@ -198,6 +224,8 @@ export type ShellToHost =
   | { type: 'message.ui'; id: string; kind: 'swipe'; delta: number }
   /** 標準頁首與輸入區上的按鍵（送出、停止、更多、快捷列…）。 */
   | { type: 'ui'; event: ChromeUiEvent; key?: string }
+  /** 面板（panel＝sheet 名）、訊息選單（panel＝'menu'）、彈層外框（panel＝'popup'）上的事件與參數。 */
+  | { type: 'panel.ui'; panel: string; event: string; args: unknown[] }
   | { type: 'composer'; visible: boolean }
   | { type: 'back-handled'; handled: boolean }
   | { type: 'debug'; level: 'log' | 'warn' | 'error'; args: unknown[] }
