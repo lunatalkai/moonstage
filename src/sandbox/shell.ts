@@ -53,6 +53,8 @@ export function createShell(options: CreateShellOptions): Shell {
     composerVisible: config.composer !== false,
     backgroundUrl: config.backgroundUrl,
   })
+  // 宿主接管頁首與輸入區時，殼只畫訊息區：樣式看 data-chrome 藏掉自己的那兩塊（節點留著，作者的 sdk.input 仍有東西可讀）。
+  refs.root.setAttribute('data-chrome', config.chrome === 'host' ? 'host' : 'shell')
   if (config.viewportHeight) setViewportHeight(refs, config.viewportHeight)
 
   const scope = installMessageScope(doc)

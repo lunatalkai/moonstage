@@ -14,6 +14,7 @@
     :data-lt-author-owns="authorOwnedRegions || null"
   >
     <CanvasHeader
+      v-show="!(sandboxCard && sandboxStage === 'full')"
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
       :model-name="formData.selectModelName"
@@ -25,10 +26,11 @@
       @model="openModelSelect"
     />
 
-    <!-- 新版沙箱卡（pageMode=sandbox）：整個聊天區交給作者的殼，跑在跨源 iframe 裡；訊息與輸入
-         由 canvas-sandbox-host 用 postMessage 餵進去，宿主只留頂欄與各面板。殼在時限內沒握手
-         （網址錯、被擋）就顯示提示，玩家至少知道為什麼跟作者說的不一樣。 -->
-    <div v-if="sandboxCard" class="canvas-sandbox-frame" data-lt="sandbox-frame">
+    <!-- 沙箱卡（pageMode=sandbox）：訊息區交給作者的殼，跑在跨源 iframe 裡；頁首與輸入區仍是宿主自己的
+         （跟一般卡完全一樣，模型、面板、點數都在），訊息與輸入由 canvas-sandbox-host 用 postMessage 餵進去。
+         作者開全螢幕舞台時頁首與輸入區藏起來、iframe 蓋滿整頁。殼在時限內沒握手（網址錯、被擋）就顯示提示，
+         玩家至少知道為什麼跟作者說的不一樣。 -->
+    <div v-if="sandboxCard" class="canvas-sandbox-frame" :class="{ 'is-full': sandboxStage === 'full' }" data-lt="sandbox-frame">
       <div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice" role="status">
         {{ t('canvas.sandbox.unsupported') }}
       </div>
@@ -79,7 +81,7 @@
     </CanvasStage>
 
     <CanvasComposer
-      v-if="!sandboxCard"
+      v-show="!sandboxCard || (!sandboxComposerHidden && sandboxStage !== 'full')"
       ref="composerRef"
       :value="content"
       :placeholder="t('canvas.placeholder')"
@@ -2258,19 +2260,59 @@ const sandboxUrl = ref('');
 const sandboxAttr = ref('');
 const sandboxFrame = ref<HTMLIFrameElement | null>(null);
 const sandboxHostRef = shallowRef<SandboxHost | null>(null);
+/** 作者舞台的狀態：full 時宿主的頁首與輸入區讓位，iframe 蓋滿整頁。 */
+const sandboxStage = ref<'closed' | 'content' | 'full'>('closed');
+/** 作者用 sdk.composer.hide 把輸入區收起來（輸入區是宿主畫的，所以由宿主藏）。 */
+const sandboxComposerHidden = ref(false);
+let sandboxThemeObserver: MutationObserver | null = null;
 let sandboxAsset: any = null;
 
+// 殼的深淺要跟宿主頁一致。宿主怎麼標主題沒有統一規格：站台可能放 data-mode（實際生效的深淺）、
+// data-theme（可能是配色名，不一定是 light/dark）、class；都沒有就量畫布真正的底色——那才是玩家看到的。
 function detectSandboxTheme(): 'dark' | 'light' {
   if (typeof document === 'undefined') return 'dark';
   const root = document.documentElement;
-  const attr = root.getAttribute('data-theme') || root.getAttribute('data-color-scheme') || '';
-  if (/light/i.test(attr) || root.classList.contains('light')) return 'light';
+  const explicit = [root.getAttribute('data-mode'), root.getAttribute('data-color-scheme'), root.getAttribute('data-theme')]
+    .map((v) => String(v || '').toLowerCase())
+    .find((v) => v === 'light' || v === 'dark');
+  if (explicit) return explicit as 'dark' | 'light';
+  if (root.classList.contains('light')) return 'light';
+  if (root.classList.contains('dark')) return 'dark';
+  const luminance = backgroundLuminance(document.querySelector('.canvas-root') as HTMLElement | null)
+    ?? backgroundLuminance(document.body);
+  if (luminance != null) return luminance > 0.5 ? 'light' : 'dark';
+  if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
   return 'dark';
+}
+
+function backgroundLuminance(el: HTMLElement | null): number | null {
+  if (!el || typeof getComputedStyle !== 'function') return null;
+  const m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(getComputedStyle(el).backgroundColor || '');
+  if (!m) return null;
+  if (m[4] != null && Number(m[4]) === 0) return null;
+  const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])].map((c) => c / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// 玩家切深淺（站台改 html 上的屬性）時，殼要跟著換：盯著 html 的屬性，變了就推一次 theme。
+function observeSandboxTheme(host: SandboxHost) {
+  if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
+  let last = detectSandboxTheme();
+  sandboxThemeObserver = new MutationObserver(() => {
+    const next = detectSandboxTheme();
+    if (next === last) return;
+    last = next;
+    host.postTheme(next);
+  });
+  sandboxThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme', 'data-color-scheme', 'class'] });
 }
 
 function destroySandboxHost() {
   if (sandboxHostRef.value) { try { sandboxHostRef.value.destroy(); } catch (e) { /* 收尾不得拋錯 */ } }
   sandboxHostRef.value = null;
+  if (sandboxThemeObserver) { sandboxThemeObserver.disconnect(); sandboxThemeObserver = null; }
+  sandboxStage.value = 'closed';
+  sandboxComposerHidden.value = false;
 }
 
 function mountSandbox(asset: any) {
@@ -2302,6 +2344,8 @@ function mountSandbox(asset: any) {
           card: { rules: Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [], statusbar: String(sandboxAsset?.mountTrigger || '') },
           variants: sandboxAsset?.variants || null,
           composer: true,
+          // 頁首與輸入區由宿主畫（跟一般卡同一套），殼只畫訊息區。
+          chrome: 'host' as const,
           backgroundUrl: String(playerBackgroundUrl.value || '') || undefined,
           // 殼的網址是固定的，作者要開除錯面板得從宿主頁的網址帶進去：?sdkDebug=1
           debug: /[?&]sdkDebug=1\b/.test(String(window.location.search || '')),
@@ -2313,12 +2357,15 @@ function mountSandbox(asset: any) {
         if (name === 'open-persona') { openPersonaSheet(); return; }
         if (name === 'open-archives') { onPanelPick('archives'); }
       },
+      onStage: (state) => { sandboxStage.value = state; },
+      onComposer: (visible) => { sandboxComposerHidden.value = !visible; },
       onBack: () => goBackToEntry(),
       onDebug: (level, args) => { (console as any)[level === 'log' ? 'info' : level]('[sandbox]', ...args); },
       onHandshakeTimeout: () => { sandboxFailed.value = true; },
     });
     sandboxHostRef.value = host;
     host.start();
+    observeSandboxTheme(host);
   });
 }
 

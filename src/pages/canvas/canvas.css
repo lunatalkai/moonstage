@@ -1054,6 +1054,13 @@
     flex-direction: column;
   }
 
+  /* 作者開全螢幕舞台：iframe 蓋滿整頁（頁首與輸入區同時由 v-show 藏掉）。 */
+  .canvas-sandbox-frame.is-full {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+  }
+
   .canvas-sandbox-iframe {
     flex: 1 1 auto;
     min-height: 0;

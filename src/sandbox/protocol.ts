@@ -59,6 +59,12 @@ export interface SandboxHelloConfig {
   capabilities: SandboxCapabilities
   /** 底部輸入區一開始是否顯示（卡可以關掉它）。 */
   composer: boolean
+  /**
+   * 頁首與輸入區由誰畫：'shell'（預設）殼自己畫；'host' 宿主畫（殼把自己的頁首與輸入區藏起來，
+   * 只留訊息區、狀態欄與作者舞台）。宿主模式下作者操作輸入框、顯示隱藏輸入區、開舞台仍走既有訊息
+   * （input／composer／stage）轉給宿主做；殼內那顆隱藏的輸入框仍是 sdk.input 的資料來源。
+   */
+  chrome?: 'shell' | 'host'
   /** 預載的存檔；沒接存檔時省略。 */
   saves?: Record<string, unknown>
   /** 打開殼內除錯面板。 */

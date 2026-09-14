@@ -38,11 +38,15 @@ describe('新版沙箱卡：掛殼、不套舊頁規則', () => {
     expect(body.slice(guard, runtime)).toMatch(/\breturn\b/)
   })
 
-  it('模板：沙箱卡時列表與輸入區不畫、改畫 iframe；握手失敗才顯示提示', () => {
+  it('模板：沙箱卡時只有訊息列表換成 iframe；頁首與輸入區仍是宿主的（作者開全螢幕舞台或收起輸入區才藏）；握手失敗才顯示提示', () => {
     expect(CANVAS).toMatch(/<div v-if="sandboxCard" class="canvas-sandbox-frame"/)
     expect(CANVAS).toMatch(/<iframe\s+v-else\s+ref="sandboxFrame"/)
     expect(CANVAS).toMatch(/<CanvasStage v-if="!sandboxCard"/)
-    expect(CANVAS).toMatch(/<CanvasComposer\s+v-if="!sandboxCard"/)
+    // 輸入區不能 v-if 掉：模型、面板、點數都在裡面，沙箱卡也要跟一般卡一模一樣
+    expect(CANVAS).not.toMatch(/<CanvasComposer\s+v-if=/)
+    expect(CANVAS).toMatch(/<CanvasComposer\s+v-show="!sandboxCard \|\| \(!sandboxComposerHidden && sandboxStage !== 'full'\)"/)
+    expect(CANVAS).toMatch(/<CanvasHeader\s+v-show="!\(sandboxCard && sandboxStage === 'full'\)"/)
+    expect(CANVAS).toContain("chrome: 'host' as const")
     expect(CANVAS).toMatch(/<div v-if="sandboxFailed" class="canvas-sandbox-notice" data-lt="sandbox-notice"/)
     expect(CANVAS).toContain("t('canvas.sandbox.unsupported')")
   })

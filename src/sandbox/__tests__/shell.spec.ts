@@ -101,6 +101,17 @@ describe('殼：冷啟動與事件順序', () => {
     expect(ev.slice(3)).toEqual([['message:done', 'l1', '77'], ['message:mount', 'l1', '77']])
   })
 
+  it('宿主接管頁首與輸入區（chrome: host）：root 標 data-chrome=host；composer.hide／stage.open 仍通知宿主', () => {
+    const s = boot(config({ chrome: 'host', card: { rules: [SCRIPT_RULE(`sdk.composer.hide(); sdk.stage.open('full');`)], statusbar: '' } }))
+    s.handle({ type: 'messages', messages: [] })
+    expect(s.refs.root.getAttribute('data-chrome')).toBe('host')
+    expect(sent.filter((m) => m.type === 'composer')).toEqual([{ type: 'composer', visible: false }])
+    expect(sent.filter((m) => m.type === 'stage')).toEqual([{ type: 'stage', state: 'full' }])
+    // 沒說就是殼自己畫
+    const t = boot(config())
+    expect(t.refs.root.getAttribute('data-chrome')).toBe('shell')
+  })
+
   it('晚訂閱：mount/done 補發所有已掛氣泡；ready 不補發；回呼內 querySelector 只看當前氣泡', () => {
     const s = boot(config({ card: { rules: [{ id: 2, find: '/按鈕/', replace: '<button class="hello-btn">hi</button>' }], statusbar: '' } }))
     s.handle({ type: 'messages', messages: [

@@ -253,6 +253,24 @@ describe('沙箱宿主橋', () => {
     noSaves.destroy()
   })
 
+  it('殼的舞台與輸入區狀態轉給宿主：stage → onStage、composer → onComposer', async () => {
+    const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const stages: string[] = []
+    const composers: boolean[] = []
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello, onStage: (st) => stages.push(st), onComposer: (v) => composers.push(v) })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    h.fromShell({ type: 'stage', state: 'full' })
+    h.fromShell({ type: 'composer', visible: false })
+    h.fromShell({ type: 'stage', state: 'closed' })
+    h.fromShell({ type: 'composer', visible: true })
+    expect(stages).toEqual(['full', 'closed'])
+    expect(composers).toEqual([false, true])
+    host.destroy()
+  })
+
   it('input 鏡射不回音；action 對應宿主動作；back 交涉；握手逾時回報', async () => {
     vi.useFakeTimers()
     const state = { current: makeState({ messages: [msg({ id: '60', text: 'x', canonicalLatestAI: true })] }) }

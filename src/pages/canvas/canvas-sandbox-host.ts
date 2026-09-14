@@ -19,6 +19,7 @@ import {
   type HostToShell, type SandboxHelloConfig, type SandboxMessage, type ShellAction, type ShellToHost,
 } from '@/sandbox/protocol'
 import type { SandboxSavesStore } from '@/host/sandbox-host'
+import type { StageState } from '@/sandbox/protocol'
 
 export interface SandboxHostDeps {
   hud: HudHost
@@ -34,6 +35,10 @@ export interface SandboxHostDeps {
   /** 殼沒處理的返回（舞台沒開）：宿主自己導頁。 */
   onBack?(): void
   onDebug?(level: 'log' | 'warn' | 'error', args: unknown[]): void
+  /** 殼的作者舞台開關（closed／content／full）：宿主接管頁首與輸入區時，full 要把它們藏起來、讓 iframe 蓋滿整頁。 */
+  onStage?(state: StageState): void
+  /** 作者要求顯示／隱藏輸入區（sdk.composer.show/hide）：宿主接管輸入區時由宿主藏。 */
+  onComposer?(visible: boolean): void
   /**
    * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 10 秒，跟握手逾時一樣）。
    * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
@@ -329,6 +334,12 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
         return
       case 'back-handled':
         if (backWaiter) { const w = backWaiter; backWaiter = null; w(!!message.handled) }
+        return
+      case 'stage':
+        if (deps.onStage) deps.onStage(message.state)
+        return
+      case 'composer':
+        if (deps.onComposer) deps.onComposer(!!message.visible)
         return
       case 'debug':
         if (deps.onDebug) deps.onDebug(message.level, message.args)

@@ -130,3 +130,9 @@ html, body { margin: 0; padding: 0; height: 100%; }
 [data-chat="sdk-debug"] { position: fixed; left: 0; right: 0; bottom: 0; max-height: 40vh; overflow: auto; z-index: 40; background: rgba(0, 0, 0, .8); color: #9f9; font: 11px/1.4 ui-monospace, Menlo, monospace; padding: 6px 8px; pointer-events: auto; }
 [data-chat="sdk-debug"] [data-level="warn"] { color: #fd6; }
 [data-chat="sdk-debug"] [data-level="error"] { color: #f88; }
+
+/* 宿主接管頁首與輸入區（hello.config.chrome = 'host'）：殼只剩訊息區、狀態欄與舞台，舞台與側槽從頂端算起。 */
+[data-chat="root"][data-chrome="host"] [data-chat="header"] { display: none; }
+[data-chat="root"][data-chrome="host"] [data-chat="composer"] { display: none; }
+[data-chat="root"][data-chrome="host"] [data-slot="left"], [data-chat="root"][data-chrome="host"] [data-slot="right"] { top: 0; }
+[data-chat="root"][data-chrome="host"] [data-chat="author-stage"][data-stage="content"] { top: 0; }

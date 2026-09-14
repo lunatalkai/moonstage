@@ -159,8 +159,14 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   `sync()` 每次都先讀 `hud.read()` 再看握手完成沒：宿主用響應式 effect 呼叫它，第一次空手而回 effect 就沒追蹤到任何狀態。
   子網域標籤一律小寫（瀏覽器與 `event.origin` 都是小寫）；宿主頁網址帶 `?sdkDebug=1` 時 `hello.config.debug`
   為真，殼開除錯面板。
-- `canvas.vue`：`applyAuthorAsset` 看到 `pageMode === 'sandbox'` → 進沙箱模式：訊息列表與輸入區
-  `v-show=false`，掛 `<iframe>`；既有面板（模型、人設、存檔、確認框）維持為宿主層彈層。
+- `canvas.vue`：`applyAuthorAsset` 看到 `pageMode === 'sandbox'` → 進沙箱模式：**只有訊息列表**換成 `<iframe>`；
+  頁首與輸入區仍是宿主自己的那一套（模型、面板、點數、加號選單跟一般卡完全一樣，`hello.config.chrome = 'host'`，
+  殼把自己的頁首與輸入區藏起來）。作者 `sdk.composer.hide/show` → 殼送 `composer` → 宿主藏／顯示自己的輸入區；
+  `sdk.stage.open('full')` → 殼送 `stage` → 宿主藏頁首與輸入區、iframe 蓋滿整頁。殼的深淺跟宿主頁（`data-mode`／
+  `data-theme`／畫布底色亮度），玩家切換時即時推送 `theme`。
+  取捨（2026-09-14 站台管理者裁決）：三種做法——整頁跳到卡片自己的網址（殼要自己拿憑證，隔離反而破功，平台功能全要重做）、
+  MMD 式整個聊天頁都在殼裡（平台輸入區得在殼裡再做一套並長期同步）、殼只管訊息區（現行）。選第三種：一套平台 UI、
+  隔離相同、作者要的訊息區／狀態欄／舞台都在殼裡；代價是作者無法用樣式改造輸入區與頁首。
   舊頁路徑（規則引擎、author scope、HUD 橋）在沙箱模式下**不啟動**。
 - 殼在哪裡由 `installMoonStage({ sandbox: { shellUrl(roleId), origin(roleId), saves? } })` 決定
   （`src/host/sandbox-host.ts`）；沒給就用不透明 origin 載同源的 `/sandbox/index.html`
@@ -189,7 +195,7 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 - [x] P3b Hearthroom 子網域路由 + 殼頁 CSP（`src/sandbox.ts`；DNS 萬用記錄由站台管理者加）。
 - [x] P4a `saves`（Hearthroom D1：`card_saves`，`/v1/me/cards/:roleId/saves`）、`message.edit`
   （`hud.openEdit` + `submitEdit`）、切存檔（`conversation.switch`）。
-- [ ] P4b 主題切換與視窗高度的即時推送（目前握手時給一次；殼自己量 visualViewport）；訊息列表虛擬化；
+- [ ] P4b 視窗高度的即時推送（主題已做）；訊息列表虛擬化；
   作者 HTML 裡的 `<a href>`：殼沒有 allow-popups，點了會把 iframe 自己導走、對話就死了——殼要攔下錨點點擊，
   改送 `action: open-url` 讓宿主 `window.open`。
 - [x] P5a 本機端到端（wrangler dev + 探針卡 + headless Chrome）：冷啟動 `greeting`/`h<id>` 各 new→mount→done、`ready` 最後；
