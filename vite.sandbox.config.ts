@@ -8,6 +8,7 @@
  * build 完 `npm run check:sandbox-boundary` 會掃產物：出現宿主的請求層／oauth／token 字樣就失敗。
  */
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 import path from 'node:path'
 
 /**
@@ -29,7 +30,8 @@ const classicScriptTags = {
 }
 
 export default defineConfig({
-  plugins: [classicScriptTags],
+  // 殼裡的訊息區用標準播放器的 Vue 元件（canvas-message.vue）：同一份 DOM 與樣式，一般卡與沙箱卡長得一樣。
+  plugins: [vue(), classicScriptTags],
   root: path.resolve(__dirname, 'src/sandbox'),
   base: './',
   publicDir: false,

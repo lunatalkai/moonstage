@@ -19,7 +19,7 @@ import {
   type HostToShell, type SandboxHelloConfig, type SandboxMessage, type ShellAction, type ShellToHost,
 } from '@/sandbox/protocol'
 import type { SandboxSavesStore } from '@/host/sandbox-host'
-import type { StageState } from '@/sandbox/protocol'
+import type { MessageMenuAnchor, MessageView, StageState } from '@/sandbox/protocol'
 
 export interface SandboxHostDeps {
   hud: HudHost
@@ -39,6 +39,10 @@ export interface SandboxHostDeps {
   onStage?(state: StageState): void
   /** 作者要求顯示／隱藏輸入區（sdk.composer.show/hide）：宿主接管輸入區時由宿主藏。 */
   onComposer?(visible: boolean): void
+  /** 殼裡標準訊息元件的互動，交給宿主做（hostId 是宿主的訊息 id）。anchor 是 iframe 內座標。 */
+  onMessageMenu?(hostId: string, anchor: MessageMenuAnchor | null): void
+  onMessageAction?(hostId: string, key: string): void
+  onMessageSwipe?(hostId: string, delta: number): void
   /**
    * 握手或切會話後，宿主的訊息列表還是空的（歷史還在載）時最多等這麼久再做冷啟動（預設 10 秒，跟握手逾時一樣）。
    * 等的理由：ready 事件的契約是「歷史都掛好了才發、且不補發」，太早發作者就拿不到歷史。
@@ -57,7 +61,7 @@ export interface SandboxHost {
   sync(): void
   /** 宿主換了存檔／對話：殼清空，下一次 sync 重送全量。 */
   conversationSwitched(): void
-  postTheme(theme: 'dark' | 'light'): void
+  postTheme(theme: 'dark' | 'light', vars?: Record<string, string>): void
   postViewport(height: number): void
   /** 宿主的返回鍵：殼處理了（關舞台）回 true；否則回 false 由宿主導頁。 */
   requestBack(): Promise<boolean>
@@ -70,6 +74,7 @@ interface Tracked {
   role: 'user' | 'ai'
   content: string
   finished: boolean
+  viewKey: string
 }
 
 const BACK_TIMEOUT_MS = 400
@@ -96,6 +101,12 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   const visible = (snapshot: HudHostState = hud.read()): HudHostMessage[] => snapshot.messages.filter((m) => m.role !== 'system')
   const roleOf = (m: HudHostMessage): 'user' | 'ai' => (m.role === 'user' ? 'user' : 'ai')
   const finishedOf = (m: HudHostMessage) => m.role === 'user' || !!m.finished
+  const hostIdOf = (shellId: string): string | null => {
+    for (const [hostId, t] of tracked.entries()) if (t.shellId === shellId) return hostId
+    return null
+  }
+  const viewOf = (m: HudHostMessage): MessageView | undefined => (m.view ? (m.view as MessageView) : undefined)
+  const viewKeyOf = (m: HudHostMessage): string => (m.view ? JSON.stringify(m.view) : '')
   const toShell = (m: HudHostMessage, shellId: string): SandboxMessage => {
     const finished = finishedOf(m)
     return {
@@ -104,6 +115,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       content: m.text,
       serverId: roleOf(m) === 'ai' && finished ? m.id : null,
       state: finished ? 'done' : (m.text ? 'streaming' : 'pending'),
+      view: viewOf(m),
     }
   }
 
@@ -138,7 +150,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     lastOrder = list.map((m) => m.id)
     const messages = list.map((m, index) => {
       const shellId = index === 0 && m.opening && roleOf(m) === 'ai' ? 'greeting' : `h${m.id}`
-      tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished: finishedOf(m) })
+      tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished: finishedOf(m), viewKey: viewKeyOf(m) })
       return toShell(m, shellId)
     })
     post({ type: 'messages', messages })
@@ -177,7 +189,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       const finished = finishedOf(m)
       if (!t) {
         const shellId = `l${++liveSeq}`
-        tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished })
+        tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished, viewKey: viewKeyOf(m) })
         post({ type: 'message.new', message: toShell(m, shellId) })
         if (finished && roleOf(m) === 'ai' && m.text) post({ type: 'message.done', id: shellId, content: m.text, serverId: m.id })
         continue
@@ -187,22 +199,31 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
         if (t.content !== m.text) {
           post({ type: 'message.remove', id: t.shellId })
           const shellId = `l${++liveSeq}`
-          tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished })
+          tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished, viewKey: viewKeyOf(m) })
           post({ type: 'message.new', message: toShell(m, shellId) })
-          if (roleOf(m) === 'ai') post({ type: 'message.done', id: shellId, content: m.text, serverId: m.id })
+          if (roleOf(m) === 'ai') post({ type: 'message.done', id: shellId, content: m.text, serverId: m.id, view: viewOf(m) })
+          continue
         }
+        // 正文沒變、呈現資料變了（可重生成的鍵亮起、上下文用量、思考過程…）：只換呈現。
+        const key = viewKeyOf(m)
+        if (key !== t.viewKey) { t.viewKey = key; if (m.view) post({ type: 'message.view', id: t.shellId, view: m.view as MessageView }) }
         continue
       }
       if (finished) {
         t.finished = true
         t.content = m.text
-        post({ type: 'message.done', id: t.shellId, content: m.text, serverId: roleOf(m) === 'ai' ? m.id : null })
+        t.viewKey = viewKeyOf(m)
+        post({ type: 'message.done', id: t.shellId, content: m.text, serverId: roleOf(m) === 'ai' ? m.id : null, view: viewOf(m) })
         continue
       }
       if (t.content !== m.text) {
         t.content = m.text
-        post({ type: 'message.stream', id: t.shellId, content: m.text })
+        t.viewKey = viewKeyOf(m)
+        post({ type: 'message.stream', id: t.shellId, content: m.text, view: viewOf(m) })
+        continue
       }
+      const key = viewKeyOf(m)
+      if (key !== t.viewKey) { t.viewKey = key; if (m.view) post({ type: 'message.view', id: t.shellId, view: m.view as MessageView }) }
     }
   }
 
@@ -341,6 +362,14 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       case 'composer':
         if (deps.onComposer) deps.onComposer(!!message.visible)
         return
+      case 'message.ui': {
+        const hostId = hostIdOf(message.id)
+        if (!hostId) return
+        if (message.kind === 'menu' && deps.onMessageMenu) deps.onMessageMenu(hostId, message.anchor)
+        else if (message.kind === 'action' && deps.onMessageAction) deps.onMessageAction(hostId, message.key)
+        else if (message.kind === 'swipe' && deps.onMessageSwipe) deps.onMessageSwipe(hostId, message.delta)
+        return
+      }
       case 'debug':
         if (deps.onDebug) deps.onDebug(message.level, message.args)
         return
@@ -381,7 +410,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       const snapshot = hud.read()
       if (tryColdStart(snapshot)) syncGeneration(snapshot)
     },
-    postTheme: (theme) => post({ type: 'theme', theme }),
+    postTheme: (theme, vars) => post({ type: 'theme', theme, vars }),
     postViewport: (height) => post({ type: 'viewport', height }),
     requestBack() {
       if (!helloSent || destroyed) return Promise.resolve(false)

@@ -23,6 +23,8 @@ export interface SandboxMessage {
   content: string
   serverId: string | null
   state?: SandboxMessageState
+  /** 標準訊息元件的呈現資料（宿主算好的）。 */
+  view?: MessageView
 }
 
 export interface SandboxRule {
@@ -65,6 +67,11 @@ export interface SandboxHelloConfig {
    * （input／composer／stage）轉給宿主做；殼內那顆隱藏的輸入框仍是 sdk.input 的資料來源。
    */
   chrome?: 'shell' | 'host'
+  /** 標準訊息元件的文案與三個點的標題（宿主語系）。 */
+  labels?: MessageLabels
+  menuLabel?: string
+  /** 宿主畫布的樣式變數（--lt-canvas-*），殼套在根節點上，訊息區才跟宿主同一套顏色。 */
+  themeVars?: Record<string, string>
   /** 預載的存檔；沒接存檔時省略。 */
   saves?: Record<string, unknown>
   /** 打開殼內除錯面板。 */
@@ -74,6 +81,49 @@ export interface SandboxHelloConfig {
   /** 視窗高度（--chat-viewport-height），之後由 viewport 訊息更新。 */
   viewportHeight?: number
 }
+
+/**
+ * 訊息在標準訊息元件上的呈現資料（pages/canvas/components/canvas-message.vue 的 message 屬性）。
+ * 宿主用它自己的渲染管線算好 html（跟一般卡同一份），連同名字、頭像、載入中、可重生成等狀態一起送來；
+ * 殼不再自己渲染正文。沒帶 view 的訊息（獨立殼、測試）殼才用自己的管線畫。
+ */
+export interface MessageView {
+  mesid?: number
+  role?: 'ai' | 'user' | 'system'
+  name?: string
+  avatar?: string
+  html?: string
+  reasoning?: string
+  finished?: boolean
+  loading?: boolean
+  loadingLabel?: string
+  prepSteps?: string[] | null
+  prepTrail?: string[] | null
+  agentInterrupted?: boolean
+  latest?: boolean
+  latestAI?: boolean
+  contextUsage?: { label: string; tip: string; level: string } | null
+  swipes?: { index: number; total: number } | null
+}
+
+/** 標準訊息元件的文案（宿主的語系）。 */
+export interface MessageLabels {
+  copy: string
+  edit: string
+  regenerate: string
+  reasoning: string
+  prepTrail: string
+  prev: string
+  next: string
+  interruptedNotice?: string
+  interruptedNoticeSub?: string
+  continueAction?: string
+}
+
+/** 三個點選單從哪裡呼出（座標是 iframe 內的；宿主自己換算）。 */
+export type MessageMenuAnchor =
+  | { kind: 'point'; x: number; y: number }
+  | { kind: 'anchor'; rect: { left: number; top: number; width: number; height: number } }
 
 export interface SandboxError {
   code: string
@@ -85,13 +135,15 @@ export type HostToShell =
   | { type: 'hello'; config: SandboxHelloConfig }
   | { type: 'messages'; messages: SandboxMessage[] }
   | { type: 'message.new'; message: SandboxMessage }
-  | { type: 'message.stream'; id: string; content: string }
-  | { type: 'message.done'; id: string; content: string; serverId: string | null }
+  | { type: 'message.stream'; id: string; content: string; view?: MessageView }
+  | { type: 'message.done'; id: string; content: string; serverId: string | null; view?: MessageView }
   | { type: 'message.remove'; id: string }
   | { type: 'generation'; busy: boolean }
   | { type: 'input'; value: string }
   | { type: 'reply'; reqId: number; ok: boolean; value?: unknown; error?: SandboxError }
-  | { type: 'theme'; theme: SandboxTheme }
+  | { type: 'theme'; theme: SandboxTheme; vars?: Record<string, string> }
+  /** 訊息的呈現資料變了（可重生成、上下文用量…），正文沒變。 */
+  | { type: 'message.view'; id: string; view: MessageView }
   | { type: 'viewport'; height: number }
   | { type: 'conversation.switch' }
   | { type: 'back' }
@@ -110,6 +162,10 @@ export type ShellToHost =
   | { type: 'input'; value: string }
   | { type: 'action'; name: ShellAction }
   | { type: 'stage'; state: StageState }
+  /** 訊息上的互動要交給宿主做：三個點選單（anchor 是 iframe 內座標）、動作列的鍵、開場白左右切換。 */
+  | { type: 'message.ui'; id: string; kind: 'menu'; anchor: MessageMenuAnchor | null }
+  | { type: 'message.ui'; id: string; kind: 'action'; key: string }
+  | { type: 'message.ui'; id: string; kind: 'swipe'; delta: number }
   | { type: 'composer'; visible: boolean }
   | { type: 'back-handled'; handled: boolean }
   | { type: 'debug'; level: 'log' | 'warn' | 'error'; args: unknown[] }

@@ -167,6 +167,12 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   取捨（2026-09-14 站台管理者裁決）：三種做法——整頁跳到卡片自己的網址（殼要自己拿憑證，隔離反而破功，平台功能全要重做）、
   MMD 式整個聊天頁都在殼裡（平台輸入區得在殼裡再做一套並長期同步）、殼只管訊息區（現行）。選第三種：一套平台 UI、
   隔離相同、作者要的訊息區／狀態欄／舞台都在殼裡；代價是作者無法用樣式改造輸入區與頁首。
+  **殼裡的訊息區就是標準播放器的訊息區**（2026-09-14 第二輪）：殼載入 `canvas-message.vue`／`canvas-stage.vue`
+  與整份 `canvas.css`（同一個 `@layer lt-base`），每則訊息的 HTML 由宿主用一般卡的渲染管線算好（`hud.read()` 的
+  `view`，含名字、頭像、可重生成、上下文用量、思考過程…）送進殼；三個點選單、動作列、開場白切換由殼發 `message.ui`
+  交宿主執行（選單開在宿主那一層，座標加上 iframe 位移）。一般卡與沙箱卡的訊息區長得一模一樣，作者對標準結構
+  （`.mes`、`.mes_text`…）寫的美化兩邊都套得上；MMD 契約的 `data-chat` 節點名掛在同一批節點上（元件的 `chat` 屬性）。
+  宿主的 `--lt-canvas-*` 變數隨 hello 與 theme 推送進殼。正文裡的 `<script>` 照一般卡的信任模型在氣泡掛上後跑一次。
   舊頁路徑（規則引擎、author scope、HUD 橋）在沙箱模式下**不啟動**。
 - 殼在哪裡由 `installMoonStage({ sandbox: { shellUrl(roleId), origin(roleId), saves? } })` 決定
   （`src/host/sandbox-host.ts`）；沒給就用不透明 origin 載同源的 `/sandbox/index.html`

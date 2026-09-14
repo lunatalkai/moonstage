@@ -14,6 +14,10 @@ import { installMessageScope } from './scope'
 import { installCard, renderContent } from './rules'
 import { runAuthorScripts } from './author-scripts'
 import { createMessageList } from './render/message-list'
+import { createApp, h } from 'vue'
+import CanvasStage from '@/pages/canvas/components/canvas-stage.vue'
+// 標準播放器的樣式表整份帶進殼：訊息區的每一條規則跟一般卡同一份。頁首與輸入區的規則在殼裡沒有對應節點，不礙事。
+import '@/pages/canvas/canvas.css'
 import { buildShell, confirmDialog, setComposerVisible, setStage, setTheme, setViewportHeight, type ShellRefs } from './render/shell-dom'
 import { createDebugPanel } from './debug'
 import { shellStrings } from './strings'
@@ -55,6 +59,26 @@ export function createShell(options: CreateShellOptions): Shell {
   })
   // 宿主接管頁首與輸入區時，殼只畫訊息區：樣式看 data-chrome 藏掉自己的那兩塊（節點留著，作者的 sdk.input 仍有東西可讀）。
   refs.root.setAttribute('data-chrome', config.chrome === 'host' ? 'host' : 'shell')
+  // 殼的根同時是標準畫布的根（.canvas-root.chat）：canvas.css 的變數與訊息區規則才套得上。
+  refs.root.classList.add('canvas-root', 'chat', 'lt-format-mmd')
+  const applyThemeVars = (vars?: Record<string, string>) => {
+    if (!vars) return
+    for (const [k, v] of Object.entries(vars)) if (/^--lt-canvas-[\w-]+$/.test(k)) refs.root.style.setProperty(k, v)
+  }
+  applyThemeVars(config.themeVars)
+  // 訊息區的容器用標準的舞台元件（#scrollview／#chat／#msglistview 這些作者打得到的名字都在）。
+  const stageApp = createApp({ render: () => h(CanvasStage, { backgroundUrl: config.backgroundUrl || undefined }) })
+  stageApp.config.warnHandler = () => {}
+  stageApp.mount(refs.messages)
+  const scrollView = (refs.messages.querySelector('#scrollview') as HTMLElement) || refs.messages
+  const listHost = (refs.messages.querySelector('#msglistview') as HTMLElement) || refs.list
+  const listAnchor = listHost.querySelector('#chat-scroll-anchor')
+  // 氣泡插在捲底哨兵之前：哨兵永遠在最末端。
+  const listMount = doc.createElement('div')
+  listMount.setAttribute('data-chat', 'list')
+  if (listAnchor) listHost.insertBefore(listMount, listAnchor); else listHost.appendChild(listMount)
+  refs.list.remove()
+  refs.list = listMount
   if (config.viewportHeight) setViewportHeight(refs, config.viewportHeight)
 
   const scope = installMessageScope(doc)
@@ -144,7 +168,17 @@ export function createShell(options: CreateShellOptions): Shell {
     roleAvatar: config.role.avatarUrl,
     userName: config.user.nickname,
     userAvatar: config.user.avatarUrl,
-    onGrow: () => { refs.messages.scrollTop = refs.messages.scrollHeight },
+    labels: config.labels,
+    menuLabel: config.menuLabel,
+    onGrow: () => { scrollView.scrollTop = scrollView.scrollHeight },
+    // 三個點、動作列、開場白切換：殼只負責畫，做事的是宿主。
+    onUi: (id, ui) => transport.send({ type: 'message.ui', id, ...ui } as ShellToHost),
+    // 宿主的渲染管線保留正文裡的 <script>（跟一般卡同一套信任模型）：掛上後在那則的作用域裡跑一次。
+    runScripts: (bubble, codes) => {
+      for (const code of codes) {
+        try { scope.run(bubble, () => { (0, eval)(code) }) } catch (e) { debug.error(strings.scriptError, 'message', e) }
+      }
+    },
   })
 
   // ── 輸入區 ──
@@ -208,10 +242,13 @@ export function createShell(options: CreateShellOptions): Shell {
         list.add(message.message)
         return
       case 'message.stream':
-        list.stream(message.id, message.content)
+        list.stream(message.id, message.content, message.view)
         return
       case 'message.done':
-        list.done(message.id, message.content, message.serverId)
+        list.done(message.id, message.content, message.serverId, message.view)
+        return
+      case 'message.view':
+        list.setView(message.id, message.view)
         return
       case 'message.remove':
         list.remove(message.id)
@@ -235,6 +272,7 @@ export function createShell(options: CreateShellOptions): Shell {
       }
       case 'theme':
         setTheme(refs, message.theme)
+        applyThemeVars(message.vars)
         bus.emit('theme:change')
         return
       case 'viewport':
@@ -266,6 +304,7 @@ export function createShell(options: CreateShellOptions): Shell {
       for (const waiter of pending.values()) waiter.reject(new SdkError('HOST_DENIED', 'shell disposed'))
       pending.clear()
       scope.uninstall()
+      try { stageApp.unmount() } catch { /* 已經拆掉 */ }
       doc.removeEventListener('click', onGesture, true)
       doc.removeEventListener('keydown', onGesture, true)
       refs.root.remove()

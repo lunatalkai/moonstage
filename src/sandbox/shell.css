@@ -3,6 +3,8 @@
  * 平寫就能蓋過（同特異性、文件順序在後）。--rpx 兩檔：750 設計稿寬；≥961px 封頂成 375 寬的手機版。
  * 平台節點一律 z-index auto；舞台 content 2000／full 3000；殼自己的彈層 9000 起、除錯面板 40。
  */
+/* 整份放進 lt-base 層（跟 canvas.css 同一層）：作者的 <style> 不分層，永遠贏過這裡——跟一般卡同一個規矩。 */
+@layer lt-base {
 html, body { margin: 0; padding: 0; height: 100%; }
 #app { height: 100%; }
 
@@ -32,13 +34,16 @@ html, body { margin: 0; padding: 0; height: 100%; }
   flex-direction: column;
   height: 100%;
   min-height: var(--chat-viewport-height, 100%);
+  overflow: hidden;
+}
+/* 殼自己畫頁首與輸入區時（獨立殼）才用這套底色與字型；宿主接管時底色、字型跟標準畫布（.canvas-root）。 */
+[data-chat="root"][data-chrome="shell"] {
   background: var(--chat-bg);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   color: var(--chat-text);
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang TC", "Noto Sans TC", sans-serif;
-  overflow: hidden;
 }
 @media (min-width: 961px) { [data-chat="root"] { --rpx: calc(375px / 750); } }
 
@@ -58,46 +63,12 @@ html, body { margin: 0; padding: 0; height: 100%; }
 [data-chat="header-title"] span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-chat="header-actions"], [data-slot="header-extra"] { display: flex; align-items: center; gap: 8px; }
 
-[data-chat="messages"] { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* 訊息區裝的是標準舞台（.chat-scope-box 撐滿、.scroll-view 在裡面捲），所以這一層自己不捲、只給高度。 */
+[data-chat="messages"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 [data-chat="list"] { display: flex; flex-direction: column; }
 [data-chat="list-spacer"] { height: calc(24 * var(--rpx)); }
 
-[data-chat="message-frame"] { width: 100%; }
-[data-chat="message"] {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas: "avatar name" "avatar body" "avatar extra" "avatar actions";
-  column-gap: calc(16 * var(--rpx));
-  padding: calc(23 * var(--rpx)) calc(30 * var(--rpx));
-}
-[data-chat="message"][data-from="user"] {
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "name avatar" "body avatar" "extra avatar" "actions avatar";
-  text-align: right;
-}
-[data-chat="message-avatar"] { grid-area: avatar; width: calc(72 * var(--rpx)); height: calc(72 * var(--rpx)); border-radius: 50%; overflow: hidden; background: var(--chat-surface); }
-[data-chat="message-avatar"] img { width: 100%; height: 100%; object-fit: cover; display: block; }
-[data-chat="message-name"] { grid-area: name; font-size: 12px; color: var(--chat-text-muted); margin-bottom: 4px; }
-[data-chat="message-body"] {
-  grid-area: body;
-  max-width: 90%;
-  justify-self: start;
-  padding: calc(16 * var(--rpx)) calc(20 * var(--rpx));
-  border-radius: 12px 12px 12px 0;
-  background: var(--chat-bubble-ai-bg);
-  color: var(--chat-bubble-text);
-  white-space: pre-line;
-  word-break: break-word;
-  opacity: .9;
-  text-align: left;
-}
-[data-chat="message"][data-from="user"] [data-chat="message-body"] { justify-self: end; border-radius: 12px 12px 0 12px; background: var(--chat-bubble-user-bg); }
-[data-chat="message-body"][data-generating="1"] { color: var(--chat-text-muted); font-style: italic; }
-[data-chat="message-body"] img, [data-chat="message-body"] video { max-width: 100%; }
-[data-chat="message-body"] p { margin: 0; }
-[data-slot="message-extra"] { grid-area: extra; }
-[data-chat="message-actions"] { grid-area: actions; }
-
+/* 氣泡本身是標準訊息元件（canvas.css 的 .mes 一族），殼不再另寫一套訊息樣式。 */
 [data-slot="left"], [data-slot="right"] { position: absolute; top: 45px; bottom: 0; width: 0; }
 [data-slot="left"] { left: 0; }
 [data-slot="right"] { right: 0; }
@@ -136,3 +107,5 @@ html, body { margin: 0; padding: 0; height: 100%; }
 [data-chat="root"][data-chrome="host"] [data-chat="composer"] { display: none; }
 [data-chat="root"][data-chrome="host"] [data-slot="left"], [data-chat="root"][data-chrome="host"] [data-slot="right"] { top: 0; }
 [data-chat="root"][data-chrome="host"] [data-chat="author-stage"][data-stage="content"] { top: 0; }
+
+}

@@ -54,6 +54,8 @@ export interface HudHostMessage {
   /** 最新那一則正典 AI 回覆（只有它能重生成／改寫） */
   canonicalLatestAI: boolean
   canContinue?: boolean
+  /** 標準訊息元件的呈現資料（沙箱殼用：同一份 DOM 與樣式）。 */
+  view?: Record<string, unknown>
 }
 
 export interface HudHostState {

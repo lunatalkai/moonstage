@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest'
+import { nextTick } from 'vue'
 import { createShell, type Shell } from '../shell'
 import type { SandboxHelloConfig, ShellToHost } from '../protocol'
 
@@ -54,7 +55,7 @@ describe('殼：冷啟動與事件順序', () => {
     expect(s.refs.list.querySelector('[data-chat="message"]')!.hasAttribute('data-msg-id')).toBe(false)
   })
 
-  it('送出後：user new/mount、ai new/mount(pending 占位)、stream、done 一次且帶 serverId，再 mount', () => {
+  it('送出後：user new/mount、ai new/mount(pending 占位)、stream、done 一次且帶 serverId，再 mount', async () => {
     const s = boot(config({ card: { rules: [SCRIPT_RULE(`window.__ev = []; ['message:new','message:mount','message:stream','message:done'].forEach(function (ev) { sdk.on(ev, function (p) { window.__ev.push([ev, p.id, p.content, 'serverId' in p ? p.serverId : 'absent']); }); });`)], statusbar: '' } }))
     s.handle({ type: 'messages', messages: [] })
     const ev = (window as unknown as { __ev: unknown[] }).__ev
@@ -66,6 +67,8 @@ describe('殼：冷啟動與事件順序', () => {
     expect(body.textContent).toContain('正在回覆')
     s.handle({ type: 'message.stream', id: 'l2', content: '<content>你' })
     s.handle({ type: 'message.stream', id: 'l2', content: '<content>你好</content>' })
+    // 串流中的重繪走響應式（下一個 tick 才落到 DOM），氣泡節點不換
+    await nextTick()
     expect(body.getAttribute('data-generating')).toBeNull()
     expect(body.innerHTML).not.toContain('<content>')
     s.handle({ type: 'message.done', id: 'l2', content: '<content>你好</content>', serverId: '9527' })

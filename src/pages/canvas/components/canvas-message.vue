@@ -9,12 +9,16 @@
     :swipeid="message.swipes ? String(message.swipes.index) : '0'"
     data-lt="message"
     :data-lt-role="message.role"
+    :data-chat="chat ? 'message' : null"
+    :data-from="chat ? chat.from : null"
+    :data-state="chat ? chat.state : null"
+    :data-msg-id="chat && chat.msgId != null ? chat.msgId : null"
     @touchstart.passive="longPress.start"
     @touchmove.passive="longPress.move"
     @touchend="onTouchEnd"
     @touchcancel="longPress.cancel"
   >
-    <div class="mesAvatarWrapper">
+    <div class="mesAvatarWrapper" :data-chat="chat ? 'message-avatar' : null">
       <div class="avatar">
         <component :is="'uni-image'">
           <div :style="message.avatar ? { backgroundImage: 'url(' + message.avatar + ')' } : null"></div>
@@ -33,7 +37,7 @@
       .ch_name 本身的 class／子節點（.name_text／.timestamp）不變，酒館主題找
       得到的東西一個都沒少，只是換了外層排位。
     -->
-    <div class="ch_name">
+    <div class="ch_name" :data-chat="chat ? 'message-name' : null">
       <span class="name_text">{{ message.name }}</span>
       <span class="timestamp"></span>
     </div>
@@ -71,6 +75,8 @@
         :id="'q-' + message.mesid"
         data-lt="bubble"
         :data-lt-role="message.role"
+        :data-chat="chat ? 'message-body' : null"
+        :data-generating="chat && chat.generating ? '1' : null"
       >
         <!--
           等回覆時的準備軌跡（Agent 模式）。每一步都留著，不蓋掉上一步：做過的壓暗、
@@ -116,7 +122,7 @@
         名字不能換。酒館的三個點在這裡是「更多」，展開的是我們的浮層而不是
         .extraMesButtons（那一組留著給作者，畫面上收起）。
       -->
-      <div class="select-box mes_buttons ai-hover-toolbar" data-lt="message-actions">
+      <div class="select-box mes_buttons ai-hover-toolbar" data-lt="message-actions" :data-chat="chat ? 'message-actions' : null">
         <div
           v-if="message.latestAI && message.role === 'ai'"
           class="lt-msg-regen hover-pill"
@@ -250,9 +256,16 @@ const props = withDefaults(defineProps<{
   }
   labels?: { copy: string; edit: string; regenerate: string; reasoning: string; prepTrail: string; prev: string; next: string; interruptedNotice?: string; interruptedNoticeSub?: string; continueAction?: string }
   menuLabel?: string
+  /**
+   * 沙箱殼用：MMD 新版契約的節點名與屬性掛在同一批節點上（data-chat=message／message-avatar／
+   * message-name／message-body／message-actions，data-from、data-state、data-msg-id、data-generating）。
+   * 一般卡不給，什麼都不會多出來。
+   */
+  chat?: { from: string; state: string; msgId: string | null; generating: boolean } | null
 }>(), {
   labels: () => ({ copy: 'Copy', edit: 'Edit', regenerate: 'Regenerate', reasoning: 'Reasoning', prepTrail: 'Steps', prev: 'Previous', next: 'Next', interruptedNotice: '', interruptedNoticeSub: '', continueAction: 'Continue' }),
   menuLabel: 'More',
+  chat: null,
 })
 
 const emit = defineEmits<{

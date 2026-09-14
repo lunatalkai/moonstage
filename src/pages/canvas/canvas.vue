@@ -2294,6 +2294,39 @@ function backgroundLuminance(el: HTMLElement | null): number | null {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+// 宿主畫布的樣式變數（--lt-canvas-*）：站台會在 .canvas-root 上覆寫成自己的 token，殼在別的源上看不到
+// 那些樣式表，所以把算好的值送過去。變數名從載入的樣式表裡找（同源的才讀得到），值用計算樣式讀。
+function collectCanvasVars(): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof document === 'undefined') return out;
+  const root = (document.querySelector('.canvas-root') as HTMLElement | null) || document.documentElement;
+  const names = new Set<string>();
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules: CSSRuleList | null = null;
+      try { rules = sheet.cssRules; } catch { continue; }
+      if (!rules) continue;
+      for (const rule of Array.from(rules)) {
+        const style = (rule as CSSStyleRule).style;
+        if (!style) continue;
+        for (let i = 0; i < style.length; i++) { const n = style[i]; if (n.startsWith('--lt-canvas-')) names.add(n); }
+      }
+    }
+  } catch { /* 讀不到就少送幾個，殼用預設 */ }
+  const computed = getComputedStyle(root);
+  for (const n of names) { const v = computed.getPropertyValue(n).trim(); if (v) out[n] = v; }
+  return out;
+}
+
+function translateSandboxAnchor(anchor: any): any {
+  const frame = sandboxFrame.value;
+  if (!anchor || !frame) return anchor;
+  const r = frame.getBoundingClientRect();
+  if (anchor.kind === 'point') return { kind: 'point', x: anchor.x + r.left, y: anchor.y + r.top };
+  if (anchor.kind === 'anchor' && anchor.rect) return { kind: 'anchor', rect: { ...anchor.rect, left: anchor.rect.left + r.left, top: anchor.rect.top + r.top } };
+  return anchor;
+}
+
 // 玩家切深淺（站台改 html 上的屬性）時，殼要跟著換：盯著 html 的屬性，變了就推一次 theme。
 function observeSandboxTheme(host: SandboxHost) {
   if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
@@ -2302,7 +2335,7 @@ function observeSandboxTheme(host: SandboxHost) {
     const next = detectSandboxTheme();
     if (next === last) return;
     last = next;
-    host.postTheme(next);
+    host.postTheme(next, collectCanvasVars());
   });
   sandboxThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode', 'data-theme', 'data-color-scheme', 'class'] });
 }
@@ -2346,6 +2379,9 @@ function mountSandbox(asset: any) {
           composer: true,
           // 頁首與輸入區由宿主畫（跟一般卡同一套），殼只畫訊息區。
           chrome: 'host' as const,
+          labels: messageLabels.value,
+          menuLabel: t('canvas.actions.more'),
+          themeVars: collectCanvasVars(),
           backgroundUrl: String(playerBackgroundUrl.value || '') || undefined,
           // 殼的網址是固定的，作者要開除錯面板得從宿主頁的網址帶進去：?sdkDebug=1
           debug: /[?&]sdkDebug=1\b/.test(String(window.location.search || '')),
@@ -2358,6 +2394,13 @@ function mountSandbox(asset: any) {
         if (name === 'open-archives') { onPanelPick('archives'); }
       },
       onStage: (state) => { sandboxStage.value = state; },
+      // 殼裡標準訊息元件的互動：座標是 iframe 內的，加上 iframe 的位置就是宿主頁的座標，選單開在宿主這一層。
+      onMessageMenu: (hostId, anchor) => {
+        const found = itemOf(hostId); if (!found) return;
+        openMessageMenu(found.index, translateSandboxAnchor(anchor));
+      },
+      onMessageAction: (hostId, key) => { const found = itemOf(hostId); if (found) onMessageAction(key, found.index); },
+      onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
       onComposer: (visible) => { sandboxComposerHidden.value = !visible; },
       onBack: () => goBackToEntry(),
       onDebug: (level, args) => { (console as any)[level === 'log' ? 'info' : level]('[sandbox]', ...args); },
@@ -2573,6 +2616,8 @@ function buildHudHost(): HudHost {
             finished: !!item.chatFinish,
             canonicalLatestAI: isAI && !opening && !!item.chatFinish && isLatestCanonicalAIIndex(index),
             canContinue: isAI && canContinueFromIndex(index),
+            // 沙箱殼用：標準訊息元件的整份呈現資料（html 走同一個快取，不重算）。
+            view: sandboxCard.value ? messageProps(item, index, item.chatLoading ? '' : hudMessageHtml(item)) : undefined,
           };
         }),
         generation: generating ? (streamingId ? 'streaming' as const : 'starting' as const) : 'idle' as const,
@@ -8125,7 +8170,7 @@ const messageLabels = computed(() => ({
  * 刻意是函式而不是 computed：computed 會讓任何一則訊息變動都重算整份清單，
  * 串流期間每個 chunk 都要把幾百則歷史重跑一次規則引擎。
  */
-function messageProps(item: any, index: number) {
+function messageProps(item: any, index: number, htmlOverride?: string) {
   const isUser = item.type == 1
   const isSystemOnly = !!item.systemOnly
   const role = isSystemOnly ? 'system' : (isUser ? 'user' : 'ai')
@@ -8141,7 +8186,7 @@ function messageProps(item: any, index: number) {
   const loadingLabel = liveSteps
     ? t('chat.thinkingInProgress')
     : (unref(prepStepText) || t('chat.aiReplying'))
-  const html = item.chatLoading ? '' : renderMessage(item)
+  const html = htmlOverride != null ? htmlOverride : (item.chatLoading ? '' : renderMessage(item))
   return {
     mesid: index,
     prepSteps: liveSteps,
