@@ -218,9 +218,13 @@ export interface ContextBreakdownLabels {
   modDetailsLegacy: string
   /** 每個桶的名字，key 對 PromptBreakdownKey */
   items: Record<string, string>
-  sources: (n: number) => string
-  modsUsed: (n: number) => string
+  /** 也可以是帶 {n} 的字串樣板：沙箱殼收到的是 JSON，函式帶不過去 */
+  sources: ((n: number) => string) | string
+  modsUsed: ((n: number) => string) | string
 }
+
+// 文案可以是函式（頁面直接餵）或帶 {n} 的字串樣板（沙箱殼收到的是 JSON）。
+const fmtN = (label: ((n: number) => string) | string | undefined, n: number): string => (typeof label === 'function' ? label(n) : String(label ?? '').replace('{n}', String(n)))
 
 const props = withDefaults(defineProps<{
   report?: PromptBreakdownReport | null
@@ -276,7 +280,7 @@ const canExpandMod = computed(() => {
 
 const modStatusText = computed(() => {
   const item = activeItem.value
-  if (canExpandMod.value) return props.labels.modsUsed(item.details.length)
+  if (canExpandMod.value) return fmtN(props.labels.modsUsed, item.details.length)
   if (item && item.detailsUnavailableReason === 'legacy_snapshot') return props.labels.modDetailsLegacy
   return props.labels.modDetailsUnavailable
 })
@@ -291,7 +295,7 @@ function itemLabel(key: string) {
 
 function sourceLabel(item: PromptBreakdownItem) {
   if (!item || !item.available) return props.labels.unavailable
-  return props.labels.sources(item.sourceCount || 0)
+  return fmtN(props.labels.sources, item.sourceCount || 0)
 }
 
 function formatNumber(value: unknown) {

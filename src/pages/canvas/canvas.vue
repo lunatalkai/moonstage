@@ -41,7 +41,7 @@
         :src="sandboxUrl"
         :sandbox="sandboxAttr"
         allow="autoplay; fullscreen"
-        title="chat sandbox"
+        aria-label="chat sandbox"
       ></iframe>
     </div>
 
@@ -2447,7 +2447,8 @@ function buildPanelsState() {
       break;
     case 'context-breakdown':
       title = t('promptBreakdown.title');
-      props = { report: contextBreakdown.value.report, loading: contextBreakdown.value.loading, loadFailed: contextBreakdown.value.loadFailed, activeKey: contextBreakdown.value.activeKey, modDetailsExpanded: contextBreakdown.value.modDetailsExpanded, locale: String(locale.value), labels: contextBreakdownLabels.value };
+      // 兩個帶數字的文案是函式，JSON 帶不過去：改成帶 {n} 的字串樣板，元件那邊自己代入
+      props = { report: contextBreakdown.value.report, loading: contextBreakdown.value.loading, loadFailed: contextBreakdown.value.loadFailed, activeKey: contextBreakdown.value.activeKey, modDetailsExpanded: contextBreakdown.value.modDetailsExpanded, locale: String(locale.value), labels: { ...contextBreakdownLabels.value, sources: t('promptBreakdown.sources', { n: '{n}' }), modsUsed: t('promptBreakdown.modsUsed', { n: '{n}' }) } };
       break;
     case 'memory':
       title = memoryLabels.value.title;
