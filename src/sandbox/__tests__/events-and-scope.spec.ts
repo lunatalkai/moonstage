@@ -60,15 +60,14 @@ describe('訊息作用域：回呼內只看得到當前氣泡', () => {
     return { m1: document.getElementById('m1')!, m2: document.getElementById('m2')! }
   }
 
-  it('回呼外：氣泡內部查不到，平台節點查得到', () => {
+  it('回呼外：就是一般的文件——氣泡內部與平台節點都查得到（舊頁寫法的點火器靠這個撿引擎片段）', () => {
     twoBubbles()
     scope = installMessageScope(document)
-    expect(document.querySelector('.btn')).toBeNull()
-    expect(document.querySelectorAll('.btn').length).toBe(0)
-    expect(document.getElementById('b1')).toBeNull()
+    expect(document.querySelector('.btn')).not.toBeNull()
+    expect(document.querySelectorAll('.btn').length).toBe(2)
+    expect(document.getElementById('b1')).not.toBeNull()
     expect(document.querySelector('[data-chat="root"]')).not.toBeNull()
     expect(document.getElementById('hud')).not.toBeNull()
-    // Element 級查詢不受影響
     expect(document.body.querySelector('.btn')).not.toBeNull()
   })
 

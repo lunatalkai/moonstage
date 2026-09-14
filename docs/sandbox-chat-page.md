@@ -117,7 +117,8 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 - `ready` 只發一次、**不補發**；`message:mount`／`message:done` 對晚訂閱者補發（所有已掛氣泡）。
 - 載荷單一實參 `{id, role, content, serverId}`；`message:stream` 只有 `{id, role, content}`；
   `input:change` 是字串。
-- 回呼內 `document.querySelector` 只看得到**當前氣泡**的內容；回呼外看不到任何氣泡內容（`scope.ts`）。
+- 回呼內 `document.querySelector` 只看得到**當前氣泡**的內容；回呼外就是一般的文件（不藏氣泡內容——舊頁寫法的
+  `<img onerror>` 點火器靠整份文件撿引擎片段；MMD 新版契約只保證回呼內收窄）（`scope.ts`）。
 - 一則訊息只發一次 `message:done`，且帶定稿內容——原站會在串流前多發一次空內容的 `done`，
   那是它的 bug，作者已各自防禦；我們**不複製**，免得平台繼承它。
 

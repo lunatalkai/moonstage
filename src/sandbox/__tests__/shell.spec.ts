@@ -155,8 +155,8 @@ describe('殼：冷啟動與事件順序', () => {
     expect(mounted).toEqual(['h1@1', 'h2@2'])
     expect(done).toEqual(['h1', 'h2'])
     expect(ready).toBe(0)
-    // 回呼外看不到氣泡內容
-    expect(document.querySelector('.hello-btn')).toBeNull()
+    // 回呼外就是一般的文件：氣泡內容查得到（舊頁寫法的點火器靠這個）
+    expect(document.querySelector('.hello-btn')).not.toBeNull()
   })
 })
 

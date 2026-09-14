@@ -7,8 +7,9 @@
  *
  *   - 游標有值（在某則氣泡的回呼裡）：先在游標氣泡裡找；氣泡根自己也算（Element 的
  *     querySelector 不含自身）。找不到再退回整份文件，但別的氣泡內部的節點不給。
- *   - 游標為空（回呼外、非同步之後）：任何氣泡內部的節點都查不到；平台節點（root、
- *     功能欄、舞台…）照常可達。
+ *   - 游標為空（回呼外、非同步之後）：就是一般的文件，什麼都查得到。舊頁寫法的卡靠
+ *     `<img onerror>` 點火器從整份文件撿引擎片段（碧藍檔案那張的開局面板），藏起來它就啞了；
+ *     MMD 新版契約只保證「回呼內收窄」，回呼外不藏是相容兩種寫法的做法。
  *   - 使用者事件（click／input／change／keydown）的捕獲階段自動把游標設成事件所在的
  *     氣泡，所以 inline handler 與 addEventListener 的回呼裡也是收窄的。
  *
@@ -47,10 +48,10 @@ export function installMessageScope(doc: Document): MessageScope {
     return parent ? parent.closest(BODY_SELECTOR) : null
   }
   const allows = (node: Element | null): boolean => {
-    if (!node) return true
+    if (!node || !cursor) return true
     const body = bodyOf(node)
     if (!body) return true
-    return !!cursor && cursor.contains(body)
+    return cursor.contains(body)
   }
   const inCursor = (sel: string): Element | null => {
     if (!cursor) return null

@@ -12,7 +12,7 @@ import { createSdk, type Sdk, type SdkHost } from './sdk/create-sdk'
 import { SdkError, sdkErrorFromHost } from './sdk/errors'
 import { installMessageScope } from './scope'
 import { installCard, renderContent } from './rules'
-import { runAuthorScripts } from './author-scripts'
+import { runAuthorScripts, runInlineScript } from './author-scripts'
 import { createMessageList } from './render/message-list'
 import { createApp, h } from 'vue'
 import CanvasStage from '@/pages/canvas/components/canvas-stage.vue'
@@ -180,13 +180,16 @@ export function createShell(options: CreateShellOptions): Shell {
   refs.authorCss.textContent = card.styles.join('\n')
   const macros = { user: config.user.nickname || '', char: config.role.name || '' }
   const render = (content: string) => renderContent(content, card.rules, { macros, variants: config.variants || null, doc })
+  // 狀態欄先掛、腳本後跑：舊頁寫法的卡把引擎零件（隱藏的 span、樣式）放在狀態欄裡，腳本一跑就去找它們，
+  // 先跑腳本會找不到、功能少一半（碧藍檔案那張：導覽 13 步變 9 步、開場白裡的檔案面板不出來）。
+  // 舞台與訊息列容器也已經在上面掛好了，作者腳本啟動時看得到跟舊頁一樣的骨架。
+  if (refs.statusbar) refs.statusbar.innerHTML = config.card.statusbarHtml != null && config.card.statusbarHtml !== '' ? config.card.statusbarHtml : render(config.card.statusbar)
   runAuthorScripts(card.scripts, {
     doc,
     win,
     onError: (ruleName, error) => debug.error(strings.scriptError, ruleName, error),
     onExternalError: (ruleName, src) => debug.warn(strings.externalScriptFailed, ruleName, src),
   })
-  if (refs.statusbar) refs.statusbar.innerHTML = config.card.statusbarHtml != null && config.card.statusbarHtml !== '' ? config.card.statusbarHtml : render(config.card.statusbar)
   // 作者腳本「同一段只跑一次」：裝卡時規則裡的 <script> 已經跑過；正文裡出現同一段（規則套上去的）不再跑，
   // 不同段（例如模型輸出裡帶的）跑一次後也記住。跟 MMD 舊頁「同段去重」的行為一致。
   const ranScripts = new Set<string>(card.scripts.filter((sc) => sc.kind === 'inline').map((sc) => (sc as { code: string }).code))
@@ -194,7 +197,7 @@ export function createShell(options: CreateShellOptions): Shell {
     for (const code of codes) {
       if (ranScripts.has(code)) continue
       ranScripts.add(code)
-      try { scope.run(bubble, () => { (0, eval)(code) }) } catch (e) { debug.error(strings.scriptError, 'message', e) }
+      scope.run(bubble, () => runInlineScript(code, 'message', { doc, win, onError: (name, e) => debug.error(strings.scriptError, name, e), onExternalError: () => {} }))
     }
   }
   if (refs.statusbar && config.card.statusbarHtml) runMessageScripts(refs.statusbar, Array.from(String(config.card.statusbarHtml).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)).map((m) => m[1]))
