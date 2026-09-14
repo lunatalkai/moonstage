@@ -2346,6 +2346,12 @@ function buildChromeState() {
   };
 }
 
+// 用宿主的訊息 id 找列（殼那邊只認 id）。跟 HUD 橋裡的 itemOf 同一個判準，但那個是函式內的區域變數，這裡碰不到。
+function findTalkItem(messageId: string): { item: any; index: number } | null {
+  const i = talkList.value.findIndex((it: any) => String(it.id) === messageId);
+  return i >= 0 ? { item: talkList.value[i] as any, index: i } : null;
+}
+
 function translateSandboxAnchor(anchor: any): any {
   const frame = sandboxFrame.value;
   if (!anchor || !frame) return anchor;
@@ -2431,10 +2437,10 @@ function mountSandbox(asset: any) {
       onStage: (state) => { sandboxStage.value = state; },
       // 殼裡標準訊息元件的互動：座標是 iframe 內的，加上 iframe 的位置就是宿主頁的座標，選單開在宿主這一層。
       onMessageMenu: (hostId, anchor) => {
-        const found = itemOf(hostId); if (!found) return;
+        const found = findTalkItem(hostId); if (!found) return;
         openMessageMenu(found.index, translateSandboxAnchor(anchor));
       },
-      onMessageAction: (hostId, key) => { const found = itemOf(hostId); if (found) onMessageAction(key, found.index); },
+      onMessageAction: (hostId, key) => { const found = findTalkItem(hostId); if (found) onMessageAction(key, found.index); },
       onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
       // 殼裡標準頁首與輸入區的按鍵：跟這一頁自己的元件綁的是同一批函式。
       onUi: (event, key) => {
