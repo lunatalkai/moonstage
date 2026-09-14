@@ -196,7 +196,9 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   送出 user new → ai new(pending) → stream → done → generation false；淨化（data-*/aria/role/svg on*/iframe/form/中文尖括號）、
   save/cache/stage/input 能力、`?sdkDebug=1` 面板、CSP 擋外連，全部對上 §3–§4。抓到並修掉的：module script 在不透明源被 CORS 擋、
   傳統 script 未 defer、握手前 sync 沒追蹤到狀態、`ready` 早於歷史、暫時 id 換正式 id 被當成 remove+new、定稿訊息重複 mount。
-- [ ] P5b 正式站子網域驗證：等 DNS 萬用記錄（`* AAAA 100::` Proxied）生效後在 `c<roleId>.hearthroom.club` 跑同一套；收尾刪探針卡。
+- [x] P5b 正式站子網域驗證（2026-09-14）：DNS 萬用記錄（`* AAAA 100::` Proxied）已建；探針卡在 `c<roleId>.hearthroom.club`
+  跑完同一套（allow-same-origin、localStorage 可用、存檔落正式 D1、送出串流定稿），探針卡與存檔已刪。
+  站台管理者裁決沙箱網域先維持二級（`c<roleId>.hearthroom.club`）；改三級或獨立網域需付費憑證或另買網域，之後再議。
 
 ## 8. 測試
 
