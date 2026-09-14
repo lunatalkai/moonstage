@@ -283,7 +283,30 @@ function applyDisplayRules(text, rules, options) {
     current = next
   }
 
-  return { html: current, rollbacks: rollbacks }
+  return { html: neutralizeRelativeMediaSources(current), rollbacks: rollbacks }
+}
+
+const RELATIVE_MEDIA_SRC = /(<(?:img|source|video|audio|iframe|embed)\b[^>]*?\s(?:src|poster)\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi
+
+/**
+ * 相對路徑的媒體來源改成 `data:,`。
+ *
+ * 作者常用「壞圖片點火」啟動腳本：`<img src="x-sao-scene" onerror="…">`。src 是個相對路徑，
+ * 瀏覽器照樣拿它去要——對著聊天頁的網址解析成 /zh-Hans/play/x-sao-scene 之類，每則訊息
+ * 每次重畫都打一次站台，回來的是整份 HTML 殼。2026-09-14 在社群站量到一天幾萬次，全是這種。
+ * `data:,` 是空的 data URL：不發網路請求，但不是合法圖片，onerror 照樣觸發，點火語意不變。
+ * 只動相對路徑（含以 / 開頭的）：有協定的、//、data:、blob:、# 都原樣保留；卡片不會有
+ * 真的相對圖片，聊天頁的網址底下沒有任何它能指到的檔案。
+ */
+function neutralizeRelativeMediaSources(html) {
+  if (typeof html !== 'string' || html.indexOf('<') === -1) return html
+  return html.replace(RELATIVE_MEDIA_SRC, function (whole, head, dq, sq, bare) {
+    const value = dq != null ? dq : sq != null ? sq : bare
+    const v = String(value == null ? '' : value).trim()
+    if (v === '' || v.charAt(0) === '#' || v.indexOf('//') === 0 || /^[a-z][a-z0-9+.-]*:/i.test(v)) return whole
+    const quote = dq != null ? '"' : sq != null ? "'" : '"'
+    return head + quote + 'data:,' + quote
+  })
 }
 
 /**
@@ -321,6 +344,7 @@ function hasCrossLineRule(rules) {
 
 export {
   applyDisplayRules,
+  neutralizeRelativeMediaSources,
   classifyPattern,
   matchesEmptyString,
   hasCrossLineRule,

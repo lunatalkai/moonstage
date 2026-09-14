@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 
 import {
   applyDisplayRules,
+  neutralizeRelativeMediaSources,
   matchesEmptyString,
   hasCrossLineRule,
   DISPLAY_RULE_MIN_BUDGET,
@@ -165,5 +166,39 @@ describe('替換內容裡的 $n：只有真的捕獲組才展開', () => {
       { id: 'r', find: '/【(?<n>X)】/', replace: 'a$1b|$2|c', enabled: true },
     ])
     expect(out.html).toBe('aXb|$2|c')
+  })
+})
+
+describe('neutralizeRelativeMediaSources', () => {
+  it('相對路徑的 src 改成 data:,，onerror 與其他屬性原樣保留', () => {
+    const html = '<img class="owx-boot" src="__owx_boot__" onerror="boot(this)"><img src=\'x-sao-v153-scene\' onerror="go()"><img src=x onerror=go()>'
+    expect(neutralizeRelativeMediaSources(html)).toBe(
+      '<img class="owx-boot" src="data:," onerror="boot(this)"><img src=\'data:,\' onerror="go()"><img src="data:," onerror=go()>',
+    )
+  })
+
+  it('以 / 開頭的也算相對站台路徑；有協定、//、data:、blob:、# 的不動', () => {
+    const keep = [
+      '<img src="https://img.example/a.png">',
+      '<img src="http://img.example/a.png">',
+      '<img src="//img.example/a.png">',
+      '<img src="data:image/png;base64,AAAA">',
+      '<video poster="blob:https://x/1" src="blob:https://x/2"></video>',
+      '<img src="#anchor">',
+      '<img src="">',
+    ]
+    for (const html of keep) expect(neutralizeRelativeMediaSources(html)).toBe(html)
+    expect(neutralizeRelativeMediaSources('<img src="/play/x-sao">')).toBe('<img src="data:,">')
+    expect(neutralizeRelativeMediaSources('<video poster="p.jpg"><source src="clip.mp4"></video>')).toBe('<video poster="data:,"><source src="data:,"></video>')
+  })
+
+  it('不是媒體標籤的 src 不動；沒有標籤的文字直接回傳', () => {
+    expect(neutralizeRelativeMediaSources('<script src="engine.js"></script><a href="x">x</a>')).toBe('<script src="engine.js"></script><a href="x">x</a>')
+    expect(neutralizeRelativeMediaSources('plain text')).toBe('plain text')
+  })
+
+  it('applyDisplayRules 的輸出已經處理過：規則產出的點火圖片不會再打站台', () => {
+    const out = applyDisplayRules('<st>hi</st>', [{ id: 'r', find: '/<st>([\\s\\S]*?)<\\/st>/g', replace: '<div><img src="x-sao-v153-turn" onerror="fire()">$1</div>', enabled: true }])
+    expect(out.html).toBe('<div><img src="data:," onerror="fire()">hi</div>')
   })
 })
