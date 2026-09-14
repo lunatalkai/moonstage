@@ -152,6 +152,9 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
   `generation`／`input` 只在變化時送。殼的 `request` 對應 `hud.sendMessage`／`hud.openEdit`+`submitEdit`／
   `SandboxSavesStore`；`action` 對應既有面板開關；`back` 先問殼（舞台開著殼會關）再導頁。
   只認 `event.source === iframe.contentWindow` 且 origin 相符的訊息；握手逾時（10 秒）顯示提示。
+  殼那一側每 500ms 重喊 `ready-shell` 直到 `hello` 到（最多 10 秒），宿主對重複的 `ready-shell` 只回一次 `hello`。
+  子網域標籤一律小寫（瀏覽器與 `event.origin` 都是小寫）；宿主頁網址帶 `?sdkDebug=1` 時 `hello.config.debug`
+  為真，殼開除錯面板。
 - `canvas.vue`：`applyAuthorAsset` 看到 `pageMode === 'sandbox'` → 進沙箱模式：訊息列表與輸入區
   `v-show=false`，掛 `<iframe>`；既有面板（模型、人設、存檔、確認框）維持為宿主層彈層。
   舊頁路徑（規則引擎、author scope、HUD 橋）在沙箱模式下**不啟動**。
@@ -173,7 +176,7 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 ## 7. 階段與進度
 
 - [x] P0 伺服器：`pageMode` 接受 `sandbox`（正規化、往返測試、回包）。
-- [ ] P1 認得新版卡：Hearthroom 匯入／匯出 `chatVersion`、編輯器「聊天頁版本」；Moonstage 草稿
+- [x] P1 認得新版卡：Hearthroom 匯入／匯出 `chatVersion`、編輯器「聊天頁版本」；Moonstage 草稿
   `chatPage`；畫布看到 `sandbox` 先顯示「這張卡是新版沙箱寫的，播放器尚未支援」。
 - [x] P2 殼：`protocol.ts`、`sdk/`、`render/`、`rules.ts`、`sanitize.ts`、`scope.ts`、
   `vite.sandbox.config.ts`、邊界檢查；測試以本文 §3–§4 為契約（`npm run build:sandbox` → dist-sandbox/）。
@@ -181,7 +184,9 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 - [x] P3b Hearthroom 子網域路由 + 殼頁 CSP（`src/sandbox.ts`；DNS 萬用記錄由站台管理者加）。
 - [x] P4a `saves`（Hearthroom D1：`card_saves`，`/v1/me/cards/:roleId/saves`）、`message.edit`
   （`hud.openEdit` + `submitEdit`）、切存檔（`conversation.switch`）。
-- [ ] P4b 主題切換與視窗高度的即時推送（目前握手時給一次；殼自己量 visualViewport）；訊息列表虛擬化。
+- [ ] P4b 主題切換與視窗高度的即時推送（目前握手時給一次；殼自己量 visualViewport）；訊息列表虛擬化；
+  作者 HTML 裡的 `<a href>`：殼沒有 allow-popups，點了會把 iframe 自己導走、對話就死了——殼要攔下錨點點擊，
+  改送 `action: open-url` 讓宿主 `window.open`。
 - [ ] P5 真機驗證：拿一張真的新版卡在正式站跑，逐事件對照 §3；收尾刪探針卡。
 
 ## 8. 測試

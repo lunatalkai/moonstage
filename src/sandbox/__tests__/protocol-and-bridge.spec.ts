@@ -19,5 +19,7 @@ describe('協議信封', () => {
     expect(targetOriginFor('https://c1.hearthroom.club')).toBe('https://c1.hearthroom.club')
     expect(sandboxOriginFor('https://hearthroom.club', 320396)).toBe('https://c320396.hearthroom.club')
     expect(sandboxOriginFor('http://localhost:5173/', 'abc')).toBe('http://cabc.localhost:5173')
+    // 瀏覽器把主機名小寫；event.origin 也是小寫，這裡不小寫就對不上
+    expect(sandboxOriginFor('https://hearthroom.club', 'AbC-1')).toBe('https://cabc-1.hearthroom.club')
   })
 })

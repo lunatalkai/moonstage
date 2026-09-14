@@ -132,5 +132,6 @@ export function targetOriginFor(origin: string): string {
  */
 export function sandboxOriginFor(siteOrigin: string, roleId: string | number): string {
   const url = new URL(siteOrigin)
-  return `${url.protocol}//c${String(roleId)}.${url.host}`
+  // 主機名由瀏覽器統一小寫；postMessage 的 event.origin 也是小寫，這裡不先小寫就永遠對不上。
+  return `${url.protocol}//c${String(roleId).toLowerCase()}.${url.host}`
 }

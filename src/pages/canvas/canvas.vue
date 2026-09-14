@@ -2303,6 +2303,8 @@ function mountSandbox(asset: any) {
           variants: sandboxAsset?.variants || null,
           composer: true,
           backgroundUrl: String(playerBackgroundUrl.value || '') || undefined,
+          // 殼的網址是固定的，作者要開除錯面板得從宿主頁的網址帶進去：?sdkDebug=1
+          debug: /[?&]sdkDebug=1\b/.test(String(window.location.search || '')),
         };
       },
       onAction: (name) => {

@@ -51,8 +51,15 @@ export function bootSandbox(win: Window & typeof globalThis = window) {
   const vv = win.visualViewport
   if (vv) vv.addEventListener('resize', () => { if (shell) shell.handle({ type: 'viewport', height: vv.height }) })
 
+  // 握手：殼喊 ready-shell，宿主回 hello。殼可能比宿主的 load 監聽先跑完（快取命中時常見），
+  // 一喊就沒了會白白等到宿主逾時，所以每 500ms 重喊一次直到 hello 到，最多 10 秒。
   post({ type: 'ready-shell' })
   mount.setAttribute('data-sandbox', 'waiting-for-host')
+  const startedAt = Date.now()
+  const retry = win.setInterval(() => {
+    if (shell || Date.now() - startedAt > 10_000) { win.clearInterval(retry); return }
+    post({ type: 'ready-shell' })
+  }, 500)
 }
 
 if (typeof window !== 'undefined' && !(window as unknown as { __MS_SANDBOX_TEST__?: boolean }).__MS_SANDBOX_TEST__) {
