@@ -79,6 +79,21 @@ describe('author scope', () => {
       expect(scope.trackedNodeCount()).toBe(0)
     })
 
+    it('窗口內掛進 <head> 的同源樣式表與腳本是宿主的（打包器替下一頁動態載入），離場時不動；作者的外鏈照拆', () => {
+      scope = makeScope()
+      scope.run(() => {
+        const own = document.createElement('link'); own.rel = 'stylesheet'; own.href = '/assets/BoardPage-abc.css'; document.head.appendChild(own)
+        const ownScript = document.createElement('script'); ownScript.src = '/assets/chunk.js'; document.head.appendChild(ownScript)
+        const cdn = document.createElement('link'); cdn.rel = 'stylesheet'; cdn.href = 'https://cdn.example.com/theme.css'; document.head.appendChild(cdn)
+        const inline = document.createElement('script'); inline.textContent = 'window.__x = 1'; document.head.appendChild(inline)
+      })
+      scope.dispose()
+      expect(document.head.querySelector('link[href="/assets/BoardPage-abc.css"]')).not.toBeNull()
+      expect(document.head.querySelector('script[src="/assets/chunk.js"]')).not.toBeNull()
+      expect(document.head.querySelector('link[href="https://cdn.example.com/theme.css"]')).toBeNull()
+      expect(document.head.querySelectorAll('script:not([src])').length).toBe(0)
+    })
+
     it('adopt 的節點離場時一起拆', () => {
       scope = makeScope()
       const style = document.createElement('style')
