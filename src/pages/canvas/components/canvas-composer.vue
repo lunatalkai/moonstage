@@ -184,9 +184,10 @@
                     @keydown.enter.prevent="$emit('model')"
                   >
                     <span class="mind-type-score">{{ modelScore }}</span>
-                    <!-- 節點名照 MMD（作者的卡對 .icon-box .icon-battery 寫了外觀），
+                    <!-- 圖示是硬幣不是閃電：閃電讓作者把每輪費用讀成「電量在燒」而害怕（2026-09-15 社群回報）。
+                         節點名照 MMD（作者的卡對 .icon-box .icon-battery 寫了外觀），
                          裡面放一道閃電：那個數字講的是這一輪要花多少點。 -->
-                    <span class="icon-box"><span class="icon-battery" :title="labels.perTurn" :aria-label="labels.perTurn"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z" /></svg></span></span>
+                    <span class="icon-box"><span class="icon-battery" :title="labels.perTurn" :aria-label="labels.perTurn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.5" /></svg></span></span>
                   </div>
                 </div>
                 <div
@@ -229,9 +230,10 @@
                     @keydown.enter.prevent="$emit('model')"
                   >
                     <span class="mind-type-score">{{ modelScore }}</span>
-                    <!-- 節點名照 MMD（作者的卡對 .icon-box .icon-battery 寫了外觀），
+                    <!-- 圖示是硬幣不是閃電：閃電讓作者把每輪費用讀成「電量在燒」而害怕（2026-09-15 社群回報）。
+                         節點名照 MMD（作者的卡對 .icon-box .icon-battery 寫了外觀），
                          裡面放一道閃電：那個數字講的是這一輪要花多少點。 -->
-                    <span class="icon-box"><span class="icon-battery" :title="labels.perTurn" :aria-label="labels.perTurn"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z" /></svg></span></span>
+                    <span class="icon-box"><span class="icon-battery" :title="labels.perTurn" :aria-label="labels.perTurn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.5" /></svg></span></span>
                   </div>
                 </div>
                 <div class="chat-input-row-tail">
