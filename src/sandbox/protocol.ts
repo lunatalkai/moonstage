@@ -129,7 +129,11 @@ export interface MessageLabels {
  * 殼用同一套元件畫頁首與輸入區，作者對標準結構寫的美化才套得上；按鍵事件用 ui 訊息交回宿主做。
  */
 export interface ChromeState {
-  header: { roleName: string; avatar: string; modelName: string; badge: string; showModel: boolean; backLabel: string; modelLabel: string }
+  header: {
+    roleName: string; avatar: string; modelName: string; badge: string; showModel: boolean; backLabel: string; modelLabel: string
+    /** 宿主沒有上一頁可回時 false：返回鍵不畫（見 host/stage-host.ts 的 nav.canBack）。省略視同 true。 */
+    showBack?: boolean
+  }
   composer: {
     placeholder: string
     sendState: string

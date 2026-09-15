@@ -15,6 +15,7 @@
   >
     <CanvasHeader
       v-show="!sandboxCard"
+      :show-back="showBack"
       :role-name="convertPlainText(roleView.roleName || '', displayScript)"
       :avatar="cfImage(roleView.roleAvatar, 'avatarMedium')"
       :model-name="formData.selectModelName"
@@ -357,6 +358,8 @@ import { useStageHost } from '@/host/stage-host';
 // 那些元件而作者根本不知道它們存在。改用 uni 自己的提示與對話框。
 // 提示走 StageHost：uni-app 殼就是 uni.showToast，嵌進別的站台時由宿主決定長相。
 const stageHost = useStageHost();
+// 宿主說沒有上一頁（獨立的卡片 App）就不畫返回鍵；頁首與沙箱殼的頁首（chromeState）都用這個值
+const showBack = stageHost.nav.canBack ? stageHost.nav.canBack() !== false : true;
 const message = {
   error: (text: any) => stageHost.ui.toast(String(text || ''), 'error'),
   warning: (text: any) => stageHost.ui.toast(String(text || ''), 'warning'),
@@ -2329,6 +2332,7 @@ function buildChromeState() {
       modelName: String(formData.selectModelName || ''),
       badge: previewDraft.value ? t('openChat.preview.badge') : (trialCard.value ? t('openChat.trial.badge') : ''),
       showModel: !previewOnly.value,
+      showBack,
       backLabel: t('common.back'),
       modelLabel: t('chat.modelSelectAria'),
     },

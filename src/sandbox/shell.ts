@@ -309,6 +309,8 @@ export function createShell(options: CreateShellOptions): Shell {
     return false
   }
   refs.headerBack.addEventListener('click', () => { if (!handleBack()) transport.send({ type: 'action', name: 'back' }) })
+  // 陽春頁首（沒有標準元件時）也照宿主的意思藏返回鍵
+  if (chromeState.header?.showBack === false) refs.headerBack.hidden = true
 
   // ── 文件根節點狀態同步：作者腳本在 html／body 上記的 class 與 data-*，宿主那一層的面板要套作者樣式時用得到。 ──
   const dataOf = (el: Element): Record<string, string> => {

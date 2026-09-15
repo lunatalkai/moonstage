@@ -27,6 +27,11 @@ export interface StageHost {
     back(): void
     toEntry(): void
     toLogin(returnTo?: string): void
+    /**
+     * 有沒有上一頁可回。沒有（例如從主畫面圖示開進來、整個 App 就只有這一張卡）就不畫返回鍵——
+     * 畫了也只是死路。不實作視同 true。頁首與沙箱殼的頁首都看它。
+     */
+    canBack?(): boolean
   }
   locale: {
     get(): string

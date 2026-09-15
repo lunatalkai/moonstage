@@ -3,6 +3,7 @@
     <div id="top-bar" class="topTabbar" data-lt="header">
       <div class="header-box">
         <div
+          v-if="showBack"
           class="icon-back"
           data-lt="back"
           role="button"
@@ -72,7 +73,9 @@ withDefaults(defineProps<{
   badge?: string
   /** 純預覽沒有模型可換 */
   showModel?: boolean
-}>(), { badge: '', showModel: true })
+  /** 宿主沒有上一頁可回（獨立的卡片 App）就不畫返回鍵 */
+  showBack?: boolean
+}>(), { badge: '', showModel: true, showBack: true })
 
 defineEmits<{
   (e: 'back'): void
