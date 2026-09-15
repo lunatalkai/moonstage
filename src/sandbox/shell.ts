@@ -117,6 +117,24 @@ export function createShell(options: CreateShellOptions): Shell {
   doc.addEventListener('click', onGesture, true)
   doc.addEventListener('keydown', onGesture, true)
 
+  // ── 作者 HTML 裡的連結：殼沒有 allow-popups，照瀏覽器預設點下去會把 iframe 自己導走、對話就死了。
+  //    真正的頁面外連結（http／https）攔下來交給宿主開新分頁；同文件的 #錨點與 javascript: 不動。
+  //    走冒泡階段：作者自己在連結上綁的 handler 先跑，它 preventDefault 了就尊重它。 ──
+  const onLinkClick = (event: Event) => {
+    if (event.defaultPrevented) return
+    const target = event.target as Element | null
+    const anchor = target && typeof target.closest === 'function' ? (target.closest('a[href]') as HTMLAnchorElement | null) : null
+    if (!anchor) return
+    const raw = anchor.getAttribute('href') || ''
+    if (!raw || raw.startsWith('#') || /^\s*javascript:/i.test(raw)) return
+    let url: URL
+    try { url = new URL(raw, doc.baseURI) } catch { return }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return
+    event.preventDefault()
+    transport.send({ type: 'open-url', url: url.href })
+  }
+  doc.addEventListener('click', onLinkClick)
+
   let busy = false
   let composing = false
   let stageState: StageState = 'closed'
@@ -459,6 +477,7 @@ export function createShell(options: CreateShellOptions): Shell {
       if (headerResize) headerResize.disconnect()
       doc.removeEventListener('click', onGesture, true)
       doc.removeEventListener('keydown', onGesture, true)
+      doc.removeEventListener('click', onLinkClick)
       refs.root.remove()
       refs.authorCss.remove()
     },

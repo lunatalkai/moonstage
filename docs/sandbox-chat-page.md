@@ -77,6 +77,7 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 | `request` | `{ reqId, op, args }`，op ∈ `message.send`／`message.edit`／`save.set`／`save.remove`（`save.get`／`keys` 讀殼內預載的副本，不經宿主） |
 | `input` | `{ value }` 殼內輸入框變了（宿主鏡射，讓草稿跨頁保留） |
 | `action` | `{ name }`：`back`／`more`／`open-model`／`open-persona`／`open-archives`／`stop`／`regenerate` |
+| `open-url` | `{ url }` | 作者 HTML 裡的頁面外連結被點（殼已擋下導頁），宿主開新分頁 |
 | `stage` | `{ state: 'closed' \| 'content' \| 'full' }` 舞台狀態 |
 | `composer` | `{ visible }` 作者開關了底部輸入區 |
 | `back-handled` | `{ handled }` 回應宿主的 `back` |
@@ -217,9 +218,10 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 - [x] P3b Hearthroom 子網域路由 + 殼頁 CSP（`src/sandbox.ts`；DNS 萬用記錄由站台管理者加）。
 - [x] P4a `saves`（Hearthroom D1：`card_saves`，`/v1/me/cards/:roleId/saves`）、`message.edit`
   （`hud.openEdit` + `submitEdit`）、切存檔（`conversation.switch`）。
-- [ ] P4b 視窗高度的即時推送（主題已做）；訊息列表虛擬化；
-  作者 HTML 裡的 `<a href>`：殼沒有 allow-popups，點了會把 iframe 自己導走、對話就死了——殼要攔下錨點點擊，
-  改送 `action: open-url` 讓宿主 `window.open`。
+- [x] P4b 視窗高度的即時推送：hello 帶初值，宿主監聽 `resize`／`visualViewport` 變化後推 `viewport`（一幀合併、同值不重送）；
+  作者 HTML 裡的 `<a href>`：殼沒有 allow-popups，點了會把 iframe 自己導走——殼在冒泡階段攔下 http／https 連結，
+  送 `open-url` 給宿主 `window.open(noopener)`；`#錨點`、`javascript:` 與作者自己 preventDefault 的不動。
+- [ ] 訊息列表虛擬化（先全量渲染，長對話再做）。
 - [x] P5a 本機端到端（wrangler dev + 探針卡 + headless Chrome）：冷啟動 `greeting`/`h<id>` 各 new→mount→done、`ready` 最後；
   送出 user new → ai new(pending) → stream → done → generation false；淨化（data-*/aria/role/svg on*/iframe/form/中文尖括號）、
   save/cache/stage/input 能力、`?sdkDebug=1` 面板、CSP 擋外連，全部對上 §3–§4。抓到並修掉的：module script 在不透明源被 CORS 擋、

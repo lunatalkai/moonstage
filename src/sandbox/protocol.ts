@@ -223,6 +223,8 @@ export type ShellToHost =
   | { type: 'request'; reqId: number; op: RequestOp; args: unknown[] }
   | { type: 'input'; value: string }
   | { type: 'action'; name: ShellAction }
+  /** 作者 HTML 裡的頁面外連結被點了：殼沒有 allow-popups，交給宿主開新分頁（只會是 http／https）。 */
+  | { type: 'open-url'; url: string }
   | { type: 'stage'; state: StageState }
   /** 訊息上的互動要交給宿主做：三個點選單（anchor 是 iframe 內座標）、動作列的鍵、開場白左右切換。 */
   | { type: 'message.ui'; id: string; kind: 'menu'; anchor: MessageMenuAnchor | null }

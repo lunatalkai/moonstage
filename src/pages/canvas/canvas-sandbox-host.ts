@@ -34,6 +34,8 @@ export interface SandboxHostDeps {
   onAction?(name: ShellAction): void
   /** 殼沒處理的返回（舞台沒開）：宿主自己導頁。 */
   onBack?(): void
+  /** 作者 HTML 裡的頁面外連結被點了（殼已擋下導頁）。不給就由橋自己 window.open 開新分頁。 */
+  onOpenUrl?(url: string): void
   onDebug?(level: 'log' | 'warn' | 'error', args: unknown[]): void
   /** 殼的作者舞台開關（closed／content／full）：宿主接管頁首與輸入區時，full 要把它們藏起來、讓 iframe 蓋滿整頁。 */
   onStage?(state: StageState): void
@@ -275,6 +277,38 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     post({ type: 'input', value })
   }
 
+  // ── 視窗高度：手機鍵盤彈起時 iframe 本身不會縮，縮的是頂層頁的 visualViewport；殼靠這個值
+  //    （--chat-viewport-height）把版面收進看得見的那一段。hello 帶初值，之後變了就推：
+  //    一幀合併一次、同值不重送。沒有 visualViewport 的環境退回 innerHeight。 ──
+  const viewportHeight = (): number | undefined => {
+    const vv = (win as Window & { visualViewport?: VisualViewport | null }).visualViewport
+    const top = vv ? vv.offsetTop : 0
+    const bottom = vv ? vv.offsetTop + vv.height : win.innerHeight
+    let rect: { top: number; bottom: number; height: number } | null = null
+    try { rect = deps.iframe.getBoundingClientRect() } catch { rect = null }
+    const visible = rect && rect.height > 0 ? Math.min(rect.bottom, bottom) - Math.max(rect.top, top) : bottom - top
+    return Number.isFinite(visible) && visible > 0 ? Math.round(visible) : undefined
+  }
+  let lastViewport: number | undefined
+  let viewportFrame: number | null = null
+  const nextFrame = (cb: () => void): number =>
+    typeof win.requestAnimationFrame === 'function' ? win.requestAnimationFrame(cb) : (win.setTimeout(cb, 16) as unknown as number)
+  const pushViewport = () => {
+    if (destroyed || !helloSent || viewportFrame != null) return
+    viewportFrame = nextFrame(() => {
+      viewportFrame = null
+      if (destroyed) return
+      const h = viewportHeight()
+      if (h == null || h === lastViewport) return
+      lastViewport = h
+      post({ type: 'viewport', height: h })
+    })
+  }
+  const viewportTargets = (): EventTarget[] => {
+    const vv = (win as Window & { visualViewport?: VisualViewport | null }).visualViewport
+    return vv ? [win, vv] : [win]
+  }
+
   const sendHello = async () => {
     if (helloSent || destroyed) return
     helloSent = true
@@ -295,9 +329,10 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     const helloSnapshot = hud.read()
     const chrome = chromeOf(helloSnapshot)
     if (chrome) lastChromeKey = JSON.stringify(chrome)
+    lastViewport = base.viewportHeight ?? viewportHeight()
     post({
       type: 'hello',
-      config: { ...base, capabilities: { saves: savesOk, edit: true, send: true }, saves, chromeState: chrome ? (JSON.parse(lastChromeKey) as ChromeState) : undefined },
+      config: { ...base, viewportHeight: lastViewport, capabilities: { saves: savesOk, edit: true, send: true }, saves, chromeState: chrome ? (JSON.parse(lastChromeKey) as ChromeState) : undefined },
     })
     // 殼建好之後才有東西可畫：歷史一到就送全量訊息，殼跑完冷啟動再喊 ready。
     armColdStart()
@@ -392,6 +427,14 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       case 'action':
         handleAction(message.name)
         return
+      case 'open-url': {
+        // 只開 http／https：殼那邊已經濾過一次，這裡再守一次——訊息是跨源來的，不信任它。
+        const url = typeof message.url === 'string' ? message.url : ''
+        if (!/^https?:\/\//i.test(url)) return
+        if (deps.onOpenUrl) deps.onOpenUrl(url)
+        else { try { win.open(url, '_blank', 'noopener,noreferrer') } catch { /* 瀏覽器擋了彈窗就算了 */ } }
+        return
+      }
       case 'back-handled':
         if (backWaiter) { const w = backWaiter; backWaiter = null; w(!!message.handled) }
         return
@@ -432,6 +475,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   return {
     start() {
       win.addEventListener('message', onMessage)
+      for (const t of viewportTargets()) { t.addEventListener('resize', pushViewport); t.addEventListener('scroll', pushViewport) }
       const timeout = deps.handshakeTimeoutMs ?? 20_000
       if (deps.onHandshakeTimeout && timeout > 0) {
         handshakeTimer = setTimeout(() => { if (!helloSent && !destroyed) { handshakeTimedOut = true; deps.onHandshakeTimeout!() } }, timeout)
@@ -483,6 +527,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       if (helloSent) { try { post({ type: 'dispose' }) } catch { /* iframe 可能已經拆了 */ } }
       destroyed = true
       win.removeEventListener('message', onMessage)
+      for (const t of viewportTargets()) { t.removeEventListener('resize', pushViewport); t.removeEventListener('scroll', pushViewport) }
     },
   }
 }

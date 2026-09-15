@@ -353,3 +353,56 @@ describe('沙箱宿主橋', () => {
     vi.useRealTimers()
   })
 })
+
+// ── P4b 尾項：視窗高度即時推送、作者連結交給宿主開 ──
+describe('視窗高度與連結', () => {
+  let h: Harness
+  beforeEach(() => { h = harness() })
+  afterEach(() => { h.iframe.remove() })
+  const settle = () => new Promise((r) => setTimeout(r, 40))
+
+  async function handshake() {
+    const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    return host
+  }
+
+  it('hello 帶視窗高度；視窗變了就推 viewport，同值不重送；銷毀後不再推', async () => {
+    const host = await handshake()
+    const helloMsg = h.posted.find((m) => m.type === 'hello') as { config: { viewportHeight?: number } }
+    expect(helloMsg.config.viewportHeight).toBe(window.innerHeight)
+    window.dispatchEvent(new Event('resize'))
+    await settle()
+    // 高度沒變（jsdom 的 innerHeight 不動）：不重送
+    expect(h.posted.filter((m) => m.type === 'viewport')).toEqual([])
+    Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+    await settle()
+    expect(h.posted.filter((m) => m.type === 'viewport')).toEqual([{ ms: 1, type: 'viewport', height: 500 }])
+    host.destroy()
+    Object.defineProperty(window, 'innerHeight', { value: 400, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+    await settle()
+    expect(h.posted.filter((m) => m.type === 'viewport')).toHaveLength(1)
+    Object.defineProperty(window, 'innerHeight', { value: 768, configurable: true })
+  })
+
+  it('殼送來 open-url：http／https 由宿主開新分頁（noopener），其他協定丟掉', async () => {
+    const host = await handshake()
+    const opened: unknown[][] = []
+    const original = window.open
+    window.open = ((...args: unknown[]) => { opened.push(args); return null }) as typeof window.open
+    try {
+      h.fromShell({ type: 'open-url', url: 'https://example.com/a?b=1' })
+      h.fromShell({ type: 'open-url', url: 'javascript:alert(1)' })
+      h.fromShell({ type: 'open-url', url: 'data:text/html,hi' })
+      await flush()
+    } finally { window.open = original }
+    expect(opened).toEqual([['https://example.com/a?b=1', '_blank', 'noopener,noreferrer']])
+    host.destroy()
+  })
+})

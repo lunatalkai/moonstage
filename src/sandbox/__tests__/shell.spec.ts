@@ -295,3 +295,21 @@ describe('殼：功能欄、樣式、主題、輸入區、舞台與返回', () =
     expect(s.sdk.save.get('hp')).toBe(5)
   })
 })
+
+// ── 作者 HTML 裡的連結：殼沒有 allow-popups，點了會把 iframe 自己導走；攔下交給宿主開 ──
+describe('作者連結交給宿主開', () => {
+  it('http／https 連結：擋下導頁、送 open-url；#錨點與 javascript: 不動；作者自己 preventDefault 了就尊重', () => {
+    const s = boot(config())
+    const mount = document.getElementById('app')!
+    mount.insertAdjacentHTML('beforeend', '<a id="ext" href="https://example.com/x">外</a><a id="hash" href="#top">錨</a><a id="js" href="javascript:void(0)">js</a><a id="own" href="https://example.com/own">自己處理</a>')
+    const click = (id: string) => { const e = new MouseEvent('click', { bubbles: true, cancelable: true }); document.getElementById(id)!.dispatchEvent(e); return e.defaultPrevented }
+    expect(click('ext')).toBe(true)
+    expect(sent.filter((m) => m.type === 'open-url')).toEqual([{ type: 'open-url', url: 'https://example.com/x' }])
+    expect(click('hash')).toBe(false)
+    expect(click('js')).toBe(false)
+    document.getElementById('own')!.addEventListener('click', (e) => e.preventDefault())
+    click('own')
+    expect(sent.filter((m) => m.type === 'open-url')).toHaveLength(1)
+    s.dispose()
+  })
+})
