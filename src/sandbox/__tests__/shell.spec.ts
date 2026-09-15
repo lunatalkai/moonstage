@@ -331,13 +331,15 @@ describe('殼：載入更早的歷史', () => {
       const ev = (window as unknown as { __ev: string[] }).__ev
       ev.length = 0
       s.handle({ type: 'message.new', message: { id: 'l1', role: 'ai', content: '三', serverId: '3', state: 'done' }, before: 'h5' })
+      // 宿主對定稿的 AI 歷史接著補一次 done（跟即時訊息同一條路）：整段下來 l1 只能有一個 message:done
+      s.handle({ type: 'message.done', id: 'l1', content: '三', serverId: '3' })
       s.handle({ type: 'message.new', message: { id: 'l2', role: 'user', content: '四', serverId: null, state: 'done' }, before: 'h5' })
       const ids = Array.from(s.refs.list.querySelectorAll('[data-chat="message"]')).map((el) => el.closest('[data-chat="message-frame"]'))
       expect(ids.length).toBeGreaterThan(0)
       const frames = Array.from(s.refs.list.querySelectorAll('[data-chat="message-frame"]'))
       expect(frames).toHaveLength(4)
       // 沒有 IntersectionObserver（jsdom）＝不視窗化：插進來的也直接掛好
-      expect(ev).toEqual(['message:new:l1', 'message:mount:l1', 'message:done:l1', 'message:new:l2', 'message:mount:l2', 'message:done:l2'])
+      expect(ev).toEqual(['message:new:l1', 'message:mount:l1', 'message:done:l1', 'message:new:l2', 'message:mount:l2'])
       expect(frames[0].querySelector('[data-chat="message-body"]')!.textContent).toContain('三')
       expect(frames[2].querySelector('[data-chat="message-body"]')!.textContent).toContain('五')
       // 宿主說載完了、還有更多：過了節流窗才會再要

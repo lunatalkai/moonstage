@@ -117,7 +117,7 @@ describe('訊息列表視窗化', () => {
     expect(h.ml.mountedIds()).toEqual(['l1', 'l2'])
   })
 
-  it('insertBefore：插在指定那則之前（DOM 與 ids 同序）、先當空殼、發 new 與 done、不捲到底、捲動位置補償', () => {
+  it('insertBefore：插在指定那則之前（DOM 與 ids 同序）、先當空殼、只發 new（done 由宿主補一次）、不捲到底、捲動位置補償', () => {
     const h = harness()
     h.ml.reset(msgs(4))
     h.log.length = 0
@@ -128,8 +128,13 @@ describe('訊息列表視窗化', () => {
     h.ml.insertBefore({ id: 'p2', role: 'user', content: 'old2', serverId: null, state: 'done' }, 'h0')
     expect(h.ml.ids()).toEqual(['p1', 'p2', 'h0', 'h1', 'h2', 'h3'])
     expect(h.frames().map((f) => f.getAttribute('data-virtual') || '-')).toEqual(['1', '1', '-', '-', '-', '-'])
-    expect(h.log).toEqual(['new:p1', 'done:p1', 'new:p2', 'done:p2'])
+    expect(h.log).toEqual(['new:p1', 'new:p2'])
     expect(h.scroller.scrollTop).toBe(500 + 320)
+    // 宿主接著補 done：空殼也只發一次，不重建
+    h.log.length = 0
+    h.ml.done('p1', 'old1', '1')
+    expect(h.log).toEqual(['done:p1'])
+    expect(h.frameOf('p1').getAttribute('data-virtual')).toBe('1')
   })
 
   it('掛回畫面上方的空殼，長出來的高度補進 scrollTop；停在底部時維持在底部', async () => {

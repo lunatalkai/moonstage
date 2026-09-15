@@ -96,7 +96,7 @@ interface Entry {
 export interface MessageList {
   reset(messages: SandboxMessage[]): void
   add(message: SandboxMessage): void
-  /** 在某則之前插入（載入更早的歷史）：不捲到底，捲動位置補償成畫面不動。 */
+  /** 在某則之前插入（載入更早的歷史）：不捲到底，捲動位置補償成畫面不動；只發 new，done 由宿主補。 */
   insertBefore(message: SandboxMessage, beforeId: string): void
   stream(id: string, content: string, view?: MessageView): void
   done(id: string, content: string, serverId: string | null, view?: MessageView): void
@@ -346,6 +346,8 @@ export function createMessageList(deps: MessageListDeps): MessageList {
       entry.frame.style.height = `${estimate()}px`
       entry.frame.setAttribute('data-virtual', '1')
     } else {
+      // 觀察者還沒開口之前先當它在視窗附近：這段空窗期進來的 add／done 才不會把剛掛好的氣泡先拆再重建。
+      entry.near = true
       mountApp(entry, !opts.before)
       mount(entry)
     }
@@ -384,12 +386,13 @@ export function createMessageList(deps: MessageListDeps): MessageList {
       if (virtualize && deps.onGrow) deps.onGrow()
     },
     add: (m) => { add(m); reconcile() },
+    // 更早的歷史跟即時訊息走同一條路：這裡只發 new，定稿的 AI 由宿主接著補一次 done（冷啟動那包才由列表自己補）。
     insertBefore(m, beforeId) {
       const before = entries.get(String(beforeId))
-      if (!before) { add(m, { cold: true }); reconcile(); return }
+      if (!before) { add(m); reconcile(); return }
       const scroller = virtualize ? virtualize.scroller : null
       const heightBefore = scroller ? scroller.scrollHeight : 0
-      add(m, { cold: true, lazy: true, before })
+      add(m, { lazy: true, before })
       // 插在畫面上方：捲動位置跟著長出來的高度走，玩家看的那一則不動。
       if (scroller) scroller.scrollTop += scroller.scrollHeight - heightBefore
     },

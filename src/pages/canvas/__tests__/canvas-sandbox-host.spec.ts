@@ -426,9 +426,12 @@ describe('沙箱宿主橋：更早的歷史', () => {
     const histories = h.posted.filter((m) => m.type === 'history')
     expect(histories).toEqual([expect.objectContaining({ more: true, loading: false })])
 
+    h.posted.length = 0
     h.fromShell({ type: 'history', op: 'more' })
     expect(loadMore).toHaveBeenCalledTimes(1)
     expect(calls.length).toBe(0)
+    // 殼問了就回一次現況（宿主拒絕時狀態沒變也要回，殼才不會卡在「正在載」）
+    expect(h.posted).toEqual([expect.objectContaining({ type: 'history', more: true, loading: false })])
 
     // 宿主載到了：前面多了一頁（兩則），還有更多
     state.current = makeState({ messages: [msg({ id: '28', text: '二八' }), msg({ id: '29', role: 'user', text: '二九' }), msg({ id: '30', text: '三十' }), msg({ id: '31', role: 'user', text: '三一' })], history: { more: true, loading: false } })

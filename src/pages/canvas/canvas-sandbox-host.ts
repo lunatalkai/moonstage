@@ -450,6 +450,10 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
         return
       case 'history':
         if (message.op === 'more' && hud.loadMoreHistory) void hud.loadMoreHistory()
+        // 殼問了就一定回一次現況（宿主可能拒絕：沒有更多、正在載、節流中）：殼那邊是樂觀地先標成「正在載」，
+        // 沒有這一回它會等到下一次會話切換才再問。
+        lastHistoryKey = ''
+        syncHistory(hud.read())
         return
       case 'open-url': {
         // 只開 http／https：殼那邊已經濾過一次，這裡再守一次——訊息是跨源來的，不信任它。
