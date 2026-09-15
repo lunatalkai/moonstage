@@ -1,3 +1,6 @@
+// highlightText 現在也綁這兩支（圍欄保護與前端區塊標記），跟頁面裡一樣是真實函式。
+import { withFencesProtected } from '../../../common/markdown-fences'
+import { tagFrontendBlocks } from '../../../common/frontend-block'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
@@ -90,6 +93,7 @@ function buildHighlightText(chatVueSource: string) {
   const fnSource = extractHighlightTextSource(chatVueSource)
   const wrapped = `(function () {\n${fnSource}\nreturn highlightText;\n})()`
   const context = vm.createContext({
+    withFencesProtected, tagFrontendBlocks,
     isHeavyHtml,
     sanitizeHtml,
     getMarkdownIt,
@@ -125,6 +129,7 @@ function buildRenderMarkdown(chatVueSource: string) {
     nextTick: (_fn?: () => void) => {}, // 測試不驗證 script/style 副作用注入
     // 訊息腳本啟動（<script>／<style> 掛進 head）是 DOM 副作用，這裡不驗，給空殼。
     activateMessageScripts: (_item?: unknown, _html?: string) => {},
+    activateFrontendBlocks: () => {},
     activeAuthorAsset: { value: { rules: [], version: 0, crossLine: false } },
     console,
   })

@@ -14,6 +14,7 @@
  */
 
 import MarkdownIt from 'markdown-it';
+import { isFrontendDocument } from '@/common/frontend-block';
 
 let _md = null;
 function getMarkdownIt() {
@@ -95,6 +96,9 @@ function unwrapSingleHtmlFence(content) {
   const lang = (m[2] || '').toLowerCase();
   if (!FENCE_HTML_LANGS[lang]) return content;
   const inner = m[3];
+  // 整份 HTML 文件（有 <html>/<head>/<body>）不解包：那是前端區塊協議的範圍，要放進自己的 iframe，
+  // 拆開塞進氣泡會把它的 body 樣式套到頁面上。
+  if (isFrontendDocument(inner)) return content;
   const innerTrimmed = inner.replace(/^[\s\n]+/, '');
   if (!innerTrimmed.startsWith('<')) return content;
   const head = innerTrimmed.substring(0, 200);

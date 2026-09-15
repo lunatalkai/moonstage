@@ -109,3 +109,10 @@ html, body { margin: 0; padding: 0; height: 100%; }
 [data-chat="root"][data-chrome="host"] [data-chat="author-stage"][data-stage="content"] { top: 0; }
 
 }
+@layer lt-base {
+/* 前端區塊協議（common/frontend-block）：圍欄裝的整份 HTML 文件。定稿前是佔位框，定稿後 <pre> 收起、iframe 接手。 */
+pre.lt-frontend { position: relative; min-height: 2.5em; max-height: 2.5em; overflow: hidden; margin: 0.5em 0; border-radius: 12px; background: rgba(127, 127, 127, 0.12); }
+pre.lt-frontend > code { visibility: hidden; }
+pre.lt-frontend[data-lt-frontend] { display: none; }
+iframe.lt-frontend__frame { display: block; width: 100%; min-height: 1px; border: 0; background: transparent; color-scheme: normal; }
+}

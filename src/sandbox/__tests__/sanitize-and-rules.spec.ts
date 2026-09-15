@@ -83,7 +83,25 @@ describe('裝卡：樣式依格式政策落地', () => {
   })
 })
 
+describe('裝卡：圍欄裡的是字面文字', () => {
+  it('規則替換內容裡的圍欄裝著整份文件時，<style>／<script> 留在圍欄裡不抽（它們屬於那個區塊自己的 iframe）', () => {
+    const replace = '```\n<!DOCTYPE html>\n<html><head><style>body{display:flex}</style></head><body><script>init()</script></body></html>\n```'
+    const card = installCard([{ id: 1, name: 'letter', find: '<kaishi>', replace }], stylePolicyFor('tavern'))
+    expect(card.styles).toEqual([])
+    expect(card.scripts).toEqual([])
+    expect(card.rules[0].replace).toBe(replace)
+  })
+})
+
 describe('渲染管線', () => {
+  it('圍欄裝著整份 HTML 文件的區塊標成前端區塊，內容原樣留在 <pre> 裡等定稿後掛 iframe', () => {
+    const rules = [{ id: 1, find: '<kaishi>', replace: '```\n<!DOCTYPE html>\n<html><body><div class="letter">' }, { id: 2, find: '</jiesu>', replace: '</div></body></html>\n```' }]
+    const html = renderContent('<kaishi>\n親愛的\n</jiesu>', rules, opts)
+    expect(html).toContain('<pre class="lt-frontend">')
+    expect(html).toContain('&lt;!DOCTYPE html&gt;')
+    expect(html).not.toContain('<div class="letter">')
+  })
+
   it('巨集 → 規則 → Markdown（*x* 斜體、四空格不當程式碼塊）→ 引號上色 → 淨化', () => {
     const rules = [{ id: 1, find: '/體力/', replace: '<b class="hp">HP</b>' }]
     const html = renderContent('{{char}}對{{user}}說：“你好”\n    縮排四格\n*斜*體力<状态>x</状态>', rules, opts)

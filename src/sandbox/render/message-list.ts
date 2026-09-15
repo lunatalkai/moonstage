@@ -53,6 +53,8 @@ export interface MessageListDeps {
   onUi?: (id: string, ui: MessageUi) => void
   /** 正文裡的 <script>（宿主渲染管線保留它們）在氣泡掛上後跑一次。 */
   runScripts?: (bubble: HTMLElement, codes: string[]) => void
+  /** 定稿後替正文裡的前端區塊（圍欄裝的整份 HTML 文件）掛 iframe。 */
+  mountFrontend?: (bubble: HTMLElement) => void
 }
 
 interface EntryState {
@@ -112,16 +114,20 @@ export function createMessageList(deps: MessageListDeps): MessageList {
     return { view, chat: { from: m.role, state: m.state || 'done', msgId: m.serverId == null ? null : String(m.serverId), generating } }
   }
 
+  // 定稿後、同一份結果只做一次：前端區塊掛 iframe、正文腳本跑一次。串流中不做（內容每秒變幾十次）。
   const activate = (entry: Entry) => {
-    if (!deps.runScripts) return
+    if (!deps.runScripts && !deps.mountFrontend) return
     const html = String(entry.state.view.html || '')
     if (!html || entry.activatedHtml === html || entry.message.state !== 'done') return
     entry.activatedHtml = html
-    const codes: string[] = []
-    let m: RegExpExecArray | null
-    SCRIPT_RE.lastIndex = 0
-    while ((m = SCRIPT_RE.exec(html))) codes.push(m[1])
-    if (codes.length) deps.runScripts(entry.article, codes)
+    if (deps.mountFrontend) deps.mountFrontend(entry.body)
+    if (deps.runScripts) {
+      const codes: string[] = []
+      let m: RegExpExecArray | null
+      SCRIPT_RE.lastIndex = 0
+      while ((m = SCRIPT_RE.exec(html))) codes.push(m[1])
+      if (codes.length) deps.runScripts(entry.article, codes)
+    }
   }
 
   const mountApp = (entry: Entry) => {

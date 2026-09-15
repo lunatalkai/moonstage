@@ -14,6 +14,7 @@
  */
 import { type CardFormat, normalizeCardFormat } from './card-format'
 import { scopeCss } from './author-style-scope'
+import { withFencesProtected } from './markdown-fences'
 
 export interface AuthorStylePolicy {
   /** 每條選擇器前面要接的作用域；null＝原樣生效。 */
@@ -45,5 +46,6 @@ const STYLE_TAG = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi
 export function applyStylePolicyToHtml(html: string, policy: AuthorStylePolicy): string {
   const text = String(html == null ? '' : html)
   if (!policy.scope || text.indexOf('<style') < 0) return text
-  return text.replace(STYLE_TAG, (_whole, attrs: string, css: string) => `<style${attrs}>${scopeCss(css, policy.scope as string)}</style>`)
+  // 程式碼圍欄裡的 <style> 是字面文字（前端區塊協議會把整份文件放進自己的 iframe），不加前綴。
+  return withFencesProtected(text, (outside) => outside.replace(STYLE_TAG, (_whole, attrs: string, css: string) => `<style${attrs}>${scopeCss(css, policy.scope as string)}</style>`))
 }

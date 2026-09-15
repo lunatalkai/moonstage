@@ -75,6 +75,12 @@ describe('圍欄整段解包（AI 常見 fence-wrapped HTML 卡）', () => {
     expect(isHeavyHtml(wrapped)).toBe(false)
   })
 
+  test('unwrapSingleHtmlFence：圍欄裝著整份 HTML 文件時不解包——那是前端區塊協議的範圍，要放進自己的 iframe', () => {
+    const fenced = '```html\n<!DOCTYPE html>\n<html><head><style>body{display:flex}</style></head><body><div>x</div></body></html>\n```'
+    expect(unwrapSingleHtmlFence(fenced)).toBe(fenced)
+    expect(isHeavyHtml(fenced)).toBe(false)
+  })
+
   test('unwrapSingleHtmlFence：非圍欄內容原樣通過', () => {
     expect(unwrapSingleHtmlFence('純文字')).toBe('純文字')
     expect(unwrapSingleHtmlFence('<div>x</div>')).toBe('<div>x</div>')

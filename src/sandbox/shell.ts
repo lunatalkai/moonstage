@@ -13,6 +13,7 @@ import { SdkError, sdkErrorFromHost } from './sdk/errors'
 import { installMessageScope } from './scope'
 import { installCard, renderContent } from './rules'
 import { applyStylePolicyToHtml, stylePolicyFor } from '@/common/author-style-policy'
+import { mountFrontendBlocks } from '@/common/frontend-block'
 import { runAuthorScripts, runInlineScript } from './author-scripts'
 import { createMessageList } from './render/message-list'
 import { createPanels } from './render/panels'
@@ -188,7 +189,12 @@ export function createShell(options: CreateShellOptions): Shell {
   // 狀態欄先掛、腳本後跑：舊頁寫法的卡把引擎零件（隱藏的 span、樣式）放在狀態欄裡，腳本一跑就去找它們，
   // 先跑腳本會找不到、功能少一半（碧藍檔案那張：導覽 13 步變 9 步、開場白裡的檔案面板不出來）。
   // 舞台與訊息列容器也已經在上面掛好了，作者腳本啟動時看得到跟舊頁一樣的骨架。
-  if (refs.statusbar) refs.statusbar.innerHTML = config.card.statusbarHtml != null && config.card.statusbarHtml !== '' ? config.card.statusbarHtml : render(config.card.statusbar)
+  // 前端區塊協議：圍欄裝的整份 HTML 文件，定稿後各自掛成 iframe（跟酒館助手的渲染器同一套慣例）。
+  const mountFrontend = (root: HTMLElement) => { mountFrontendBlocks(root, { charAvatar: config.role.avatarUrl, userAvatar: config.user.avatarUrl, doc }) }
+  if (refs.statusbar) {
+    refs.statusbar.innerHTML = config.card.statusbarHtml != null && config.card.statusbarHtml !== '' ? config.card.statusbarHtml : render(config.card.statusbar)
+    mountFrontend(refs.statusbar)
+  }
   runAuthorScripts(card.scripts, {
     doc,
     win,
@@ -228,6 +234,7 @@ export function createShell(options: CreateShellOptions): Shell {
     },
     // 宿主的渲染管線保留正文裡的 <script>（跟一般卡同一套信任模型）：掛上後在那則的作用域裡跑一次。
     runScripts: runMessageScripts,
+    mountFrontend,
   })
 
   // ── 輸入區 ──

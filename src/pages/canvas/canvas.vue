@@ -411,6 +411,8 @@ import CanvasComposer from './components/canvas-composer.vue'
 import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules, resolvePlayerName } from './canvas-rule-engine'
 import { scopeCardHtml, normalizeCardFormat, type CardFormat } from './canvas-style-scope'
+import { withFencesProtected } from '@/common/markdown-fences'
+import { tagFrontendBlocks, mountFrontendBlocks } from '@/common/frontend-block'
 import { detectAuthorOwnedRegions } from './canvas-author-regions'
 import { resolveStageBackground, resolveStageLandscapeBackground } from './canvas-background'
 import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
@@ -3489,7 +3491,9 @@ const highlightText = (content, type, cacheKey) => {
   // HTML void element：規範上沒有結束標籤，掃描器遇到帶 display:none 的這類標籤
   // 不能去找配對的 </tagName>（永遠找不到）。
   const VOID_TAG_NAMES = new Set(['img', 'br', 'hr', 'input', 'source', 'track', 'wbr', 'area', 'base', 'col', 'embed', 'link', 'meta']);
-  processedContent = ((html) => {
+  // 程式碼圍欄裡的東西是字面文字（前端區塊協議：整份 HTML 文件放進自己的 iframe），
+  // 這裡的 stash 不進去——進去了，圍欄裡的 <style> 會變成一個還原不回來的佔位符。
+  processedContent = withFencesProtected(processedContent, (html) => {
     let out = '';
     let i = 0;
     const n = html.length;
@@ -3556,7 +3560,7 @@ const highlightText = (content, type, cacheKey) => {
       i = endPos;
     }
     return out;
-  })(processedContent);
+  });
 
   /*
      重 HTML 也過 markdown-it。
@@ -3734,6 +3738,8 @@ const highlightText = (content, type, cacheKey) => {
 
   // MD 路徑包一層 .rich-md wrapper，讓 markdown 美化 CSS 只作用於 MD 輸出
   // heavy HTML（作者手寫卡片）保留原樣，不被 markdown 樣式污染
+  // 圍欄裝著整份 HTML 文件的區塊標起來；定稿後掛成各自的 iframe（前端區塊協議，兩個聊天頁同一套）。
+  result = tagFrontendBlocks(result);
   return heavy ? result : `<div class="rich-md">${result}</div>`;
 };
 
@@ -3912,6 +3918,30 @@ function formatThinkingSize(value: string) {
   只在訊息完成後跑，而且同一則同一份結果只跑一次：規則版本一換（作者在預覽裡改檔）
   結果就變，那時候該重跑；單純重畫不該重跑，否則同一段腳本會塞進 head 幾十次。
 */
+/*
+  前端區塊協議：圍欄裝著整份 HTML 文件的區塊，定稿後掛成各自的 iframe（酒館助手渲染器的慣例，
+  作者的 body 樣式只影響那個區塊自己的視窗）。只在定稿後掛、同一份結果只掛一次，跟腳本啟動同一個節奏。
+  沙箱卡由殼自己掛。
+*/
+const activatedFrontendBlocks = new WeakMap<object, string>();
+function activateFrontendBlocks(item: any, html: string) {
+  if (!item || !item.chatFinish) return;
+  if (sandboxCard.value) return;
+  if (!html || html.indexOf('lt-frontend') < 0) return;
+  if (activatedFrontendBlocks.get(item) === html) return;
+  activatedFrontendBlocks.set(item, html);
+  nextTick(() => {
+    const messageEl = document.querySelector(`#msg-${item.id} .content`);
+    if (!messageEl) return;
+    const info: any = unref(userInfo) || {};
+    const view: any = roleView.value || {};
+    mountFrontendBlocks(messageEl, {
+      charAvatar: view.roleAvatar ? String(cfImage(view.roleAvatar, 'avatarMedium') || '') : '',
+      userAvatar: String(info.avatar || ''),
+    });
+  });
+}
+
 const activatedMessageScripts = new WeakMap<object, string>();
 function activateMessageScripts(item: any, html: string) {
   if (!item || !item.chatFinish) return;
@@ -3987,6 +4017,7 @@ const renderMarkdown = (item) => {
   const cacheKey = (!item.chatFinish && item.id != null) ? (item.id + ':' + item.type + ':' + activeAuthorAsset.value.version) : null;
   const cleanContent = highlightText(processedContent, item.type, cacheKey);
   activateMessageScripts(item, cleanContent);
+  activateFrontendBlocks(item, cleanContent);
   return cleanContent;
 
 };

@@ -42,6 +42,10 @@ describe('套用到訊息 HTML', () => {
     expect(applyStylePolicyToHtml('<style data-a="1">a{}</style>' + html, stylePolicyFor('tavern')))
       .toBe('<style data-a="1">.mes_text a{}</style><p>x</p><style>.mes_text p{color:red}</style>')
   })
+  it('程式碼圍欄裡的 <style> 是字面文字，不加前綴（那是要放進自己 iframe 的前端文件）', () => {
+    const text = '```\n<!DOCTYPE html><style>body{display:flex}</style>\n```\n<style>p{}</style>'
+    expect(applyStylePolicyToHtml(text, stylePolicyFor('tavern'))).toBe('```\n<!DOCTYPE html><style>body{display:flex}</style>\n```\n<style>.mes_text p{}</style>')
+  })
   it('MMD：連掃描都不做，原字串回來', () => {
     expect(applyStylePolicyToHtml(html, stylePolicyFor('mmd'))).toBe(html)
   })

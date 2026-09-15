@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- 第二道閘。殼自己不發請求（connect-src 'self' 只是給打包器的 module preload）；作者的外鏈腳本走 https:。
+<!-- 第二道閘。殼自己不發請求（connect-src 'self' 只是給打包器的 module preload）；作者的外鏈腳本與樣式走 https:。
+     frame-src 放行同源／srcdoc／blob：前端區塊協議把圍欄裡的整份 HTML 文件掛成各自的 iframe（作者的 <iframe> 標籤仍被淨化層剝掉）。
      正式站由 Worker 用回應標頭再送一次同樣的 CSP，這裡的 meta 是本機開發與預覽的保底。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self'; worker-src 'self'; frame-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self'; worker-src 'self'; frame-src 'self' about: blob:; form-action 'none'; base-uri 'none'; object-src 'none'">
 <title>chat sandbox</title>
 <script type="module" src="./main.ts"></script>
 </head>

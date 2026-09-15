@@ -14,6 +14,8 @@ import { applyDisplayRules } from '@/utils/display-rule-engine.js'
 import type { SandboxRule } from './protocol'
 import { sanitizeAuthorHtml, stripUnknownTags } from './sanitize'
 import { applyStylePolicy, type AuthorStylePolicy } from '@/common/author-style-policy'
+import { withFencesProtected } from '@/common/markdown-fences'
+import { tagFrontendBlocks } from '@/common/frontend-block'
 
 export interface InstalledCard {
   /** 替換內容已抽掉 style/script 的規則，給渲染用。 */
@@ -39,19 +41,21 @@ export function installCard(rules: SandboxRule[], policy: AuthorStylePolicy): In
   for (const rule of Array.isArray(rules) ? rules : []) {
     if (!rule || rule.enabled === false) { if (rule) stripped.push(rule); continue }
     const ruleName = String(rule.name || rule.id || '')
-    let replace = String(rule.replace == null ? '' : rule.replace)
-    replace = replace.replace(STYLE_RE, (_m, css: string) => { styles.push(applyStylePolicy(css, policy)); return '' })
-    replace = replace.replace(SCRIPT_RE, (_m, attrs: string, code: string) => {
-      const src = SRC_RE.exec(attrs || '')
-      const url = src ? (src[1] || src[2] || src[3] || '') : ''
-      if (url) {
-        // 只認 https；http 直接跳過（不跑、不報錯，除錯面板留一行由呼叫端處理）。
-        if (/^https:\/\//i.test(url)) scripts.push({ kind: 'external', src: url, ruleName })
-      } else if (code.trim()) {
-        scripts.push({ kind: 'inline', code, ruleName })
-      }
-      return ''
-    })
+    // 程式碼圍欄裡的 <style>／<script> 是字面文字：那是一整份要放進自己 iframe 的前端文件（前端區塊協議），
+    // 抽出來當全頁樣式會把整個聊天頁弄壞、文件本身也少了樣式。
+    const replace = withFencesProtected(String(rule.replace == null ? '' : rule.replace), (outside) => outside
+      .replace(STYLE_RE, (_m, css: string) => { styles.push(applyStylePolicy(css, policy)); return '' })
+      .replace(SCRIPT_RE, (_m, attrs: string, code: string) => {
+        const src = SRC_RE.exec(attrs || '')
+        const url = src ? (src[1] || src[2] || src[3] || '') : ''
+        if (url) {
+          // 只認 https；http 直接跳過（不跑、不報錯，除錯面板留一行由呼叫端處理）。
+          if (/^https:\/\//i.test(url)) scripts.push({ kind: 'external', src: url, ruleName })
+        } else if (code.trim()) {
+          scripts.push({ kind: 'inline', code, ruleName })
+        }
+        return ''
+      }))
     stripped.push({ ...rule, replace })
   }
   return { rules: stripped, styles, scripts }
@@ -112,5 +116,6 @@ export function renderContent(content: string, rules: SandboxRule[], options: Re
   const holder = doc.createElement('div')
   holder.innerHTML = clean
   colorDialogueQuotes(holder)
-  return holder.innerHTML
+  // 圍欄裡裝著整份 HTML 文件的區塊標起來，定稿後由殼掛成各自的 iframe（前端區塊協議）。
+  return tagFrontendBlocks(holder.innerHTML)
 }
