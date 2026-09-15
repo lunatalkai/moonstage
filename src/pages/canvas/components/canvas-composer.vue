@@ -124,6 +124,11 @@
                 隱藏的送出代理。卡片腳本抓的是 `.send-msg .btn-icon` 的第一顆然後原生點擊它，
                 MMD 也是這樣做的（display:none、寬高 0）；酒館腳本點的是 #send_but。
                 它必須是 .send-msg 底下 DOM 順序上第一顆 .btn-icon。
+
+                新一代的 HUD 腳本（void v6）找法不同：先找「可見的」.chat-send-proxy（兩邊都藏著，
+                永遠找不到），退而找 #chat-input-scope 裡 src 含 ico_send／send 的 img，取它最近的
+                按鈕祖先，要求可見且唯一。所以兩顆真正的主鍵 .lt-send 各放一顆 0×0 的 img 標記
+                （見 SEND_MARK_SRC），腳本找到後點的是 .lt-send 本身。
               -->
               <div
                 id="send_but"
@@ -207,6 +212,7 @@
                     @keydown.enter.prevent="onPrimary"
                     @keydown.space.prevent="onPrimary"
                   >
+                    <img class="lt-send-mark" :src="SEND_MARK_SRC" alt="" aria-hidden="true" draggable="false">
                     <div class="btn-icon-img"><CanvasSendIcon :state="sendState" /></div>
                   </div>
                 </div>
@@ -240,6 +246,7 @@
                     @keydown.enter.prevent="onPrimary"
                     @keydown.space.prevent="onPrimary"
                   >
+                    <img class="lt-send-mark" :src="SEND_MARK_SRC" alt="" aria-hidden="true" draggable="false">
                     <div class="btn-icon-img"><CanvasSendIcon :state="sendState" /></div>
                   </div>
                 </div>
@@ -304,6 +311,21 @@ import { attachDragScroll } from '../canvas-drag-scroll'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import CanvasTextarea from './canvas-textarea'
 import CanvasSendIcon from './canvas-send-icon.vue'
+
+/*
+  送出鍵上的圖片標記（給卡片腳本找的，畫面上 0×0）。
+
+  MMD 的送出鍵是 `uni-image.btn-icon > img[src="…/ico_send_dark.png"]`；新一代 HUD 腳本
+  （void v6）就是靠 `#chat-input-scope img[src*="ico_send"], img[src*="send"]` 找到可見的
+  送出鍵再原生點擊（我們的送出代理 .chat-send-proxy 在兩邊都是藏著的，它先找可見的代理、
+  找不到才走這條）。我們的圖示是 inline SVG，沒有 img，腳本會報「没有找到 MMD 原生输入框或
+  发送代理」（2026-09-15 罪惡王冠卡的作者回報）。
+
+  用 utf8 的 data URL 而不是匯入的資源檔：Vite 會把小於 assetsInlineLimit 的資源內嵌成
+  base64 的 data URL，建出來的 src 就不含 send 字樣，標記在正式站會靜默失效。
+  畫的是跟 CanvasSendIcon 同一顆箭頭，只是沒人看得到。
+*/
+const SEND_MARK_SRC = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' data-icon='ico_send'><path d='M12 19V5M5 12L12 5L19 12' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>"
 import { leaveTopLayer, raiseToTopLayer } from '../canvas-top-layer'
 
 const props = withDefaults(defineProps<{

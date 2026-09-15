@@ -210,6 +210,7 @@ export const CANVAS_SELECTOR_CONTRACT: CanvasSelectorEntry[] = [
   { selector: '.more-options-scope .btn-icon', region: 'composer', origin: 'mmd', why: '卡片改它的 hover 旋轉' },
   { selector: '.more-options-scope .btn-icon div', region: 'composer', origin: 'mmd', why: 'MMD 的 .btn-icon 是 uni-image > div；卡片對 .btn-icon div 寫 filter（日夜反色），要落在同一層才跟 MMD 一樣' },
   { selector: '.chat-input-scope .btn-icon div', region: 'composer', origin: 'mmd', why: '送出鍵的圖示盒，同上' },
+  { selector: '#chat-input-scope .lt-send img[src*="ico_send"]', region: 'composer', origin: 'mmd', why: 'MMD 的送出鍵是 uni-image.btn-icon > img[src*=ico_send]；新一代 HUD 腳本（void v6）先找可見的 .chat-send-proxy（兩邊都藏著）、再找 img[src*=ico_send] 的最近按鈕祖先，要求可見且唯一。我們的圖示是 inline SVG，補這顆 0×0 的 img 標記讓它找得到 .lt-send' },
   { selector: '#options_button', region: 'composer', origin: 'st', why: '酒館更多選項鍵' },
 
   // ── 訊息選單／編輯 ──────────────────────────────────────────────────

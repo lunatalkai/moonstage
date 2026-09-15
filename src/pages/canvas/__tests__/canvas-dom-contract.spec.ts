@@ -714,3 +714,22 @@ describe('畫布契約：訊息頭像＋名字併成一排，氣泡另起一排�
     wrapper.unmount()
   })
 })
+
+// 新一代 HUD 腳本（void v6）找送出鍵：可見的 .chat-send-proxy → #chat-input-scope 裡 img[src*=ico_send]
+// 最近的按鈕祖先，可見且唯一。代理在 MMD 與這裡都是藏著的，所以 img 標記才是它真正找到的東西。
+describe('送出鍵帶 img[src*=ico_send] 標記，讓 HUD 腳本找得到 .lt-send', () => {
+  it('兩顆主鍵各一顆標記，最近的按鈕祖先就是 .lt-send', () => {
+    const wrapper = mount(CanvasComposer, {
+      props: { value: '', placeholder: '說點什麼', sendState: 'send', generating: false },
+    })
+    const marks = [...wrapper.element.querySelectorAll('#chat-input-scope img[src*="ico_send"], #chat-input-scope img[src*="send"]')]
+    expect(marks.length).toBe(2)
+    for (const img of marks) {
+      const button = img.closest('button, uni-button, [role="button"], .btn-icon, uni-image') as HTMLElement | null
+      expect(button?.classList.contains('lt-send')).toBe(true)
+      expect(img.getAttribute('aria-hidden')).toBe('true')
+    }
+    // 藏著的代理不帶標記：腳本要找到的是可見的主鍵，不是代理
+    expect(wrapper.element.querySelector('#send_but img')).toBeNull()
+  })
+})

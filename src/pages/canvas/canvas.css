@@ -1474,6 +1474,15 @@
     height: 16px;
   }
 
+  /* 給卡片腳本找的圖片標記（canvas-composer.vue 的 SEND_MARK_SRC）：不佔位、不吃事件。 */
+  .lt-send .lt-send-mark {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .lt-send.is-send-disabled {
     opacity: 0.4;
     cursor: default;
