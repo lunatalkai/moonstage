@@ -105,6 +105,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   let backWaiter: ((handled: boolean) => void) | null = null
   let handshakeTimer: ReturnType<typeof setTimeout> | null = null
 
+  let lastHistoryKey = ''
   const post = (message: HostToShell) => {
     const target = iframe.contentWindow
     if (!target || destroyed) return
@@ -159,6 +160,8 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     awaitingColdStart = false
     if (coldStartTimer) { clearTimeout(coldStartTimer); coldStartTimer = null }
     tracked.clear()
+    // 殼切會話時把「還有更早的歷史」歸零；這裡也歸零，下一次 sync 一定重送一次，兩本長對話互切才不會卡在「不再要」。
+    lastHistoryKey = ''
     const list = visible(snapshot)
     lastOrder = list.map((m) => m.id)
     const messages = list.map((m, index) => {
@@ -256,7 +259,6 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     post({ type: 'generation', busy })
   }
 
-  let lastHistoryKey = ''
   const syncHistory = (snapshot: HudHostState) => {
     if (!snapshot.history) return
     const state = { more: !!snapshot.history.more, loading: !!snapshot.history.loading }

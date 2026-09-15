@@ -445,5 +445,13 @@ describe('沙箱宿主橋：更早的歷史', () => {
     h.posted.length = 0
     host.sync()
     expect(h.posted).toEqual([expect.objectContaining({ type: 'history', more: false, loading: false })])
+
+    // 切到另一本一樣「沒有更早」的對話：殼那邊切會話時已歸零，宿主冷啟動後必須再送一次 history，不能靠「沒變就不送」
+    state.current = makeState({ messages: [msg({ id: '50', text: '五十' })], history: { more: false, loading: false } })
+    host.conversationSwitched()
+    h.posted.length = 0
+    host.sync()
+    host.sync()
+    expect(h.posted.filter((m) => m.type === 'history')).toEqual([expect.objectContaining({ more: false, loading: false })])
   })
 })

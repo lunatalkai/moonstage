@@ -115,6 +115,31 @@
     return { wallMs: Math.round(performance.now() - t0), longTaskMs: Math.round(busy) }
   }
 
+  /** 更早的歷史：假宿主說「還有」，殼捲到頂附近會來要；回 30 則 message.new + before，量畫面有沒有動。 */
+  const historyRound = async () => {
+    const sv = scroller()
+    const firstId = idoc().querySelectorAll('[data-chat="message-frame"]').length ? (window.__bench.firstId || 'h0') : 'h0'
+    const framesBefore = count('[data-chat="message-frame"]')
+    sv.scrollTop = 0
+    await raf()
+    const asked = nextFromShell('history')
+    post({ type: 'history', more: true, loading: false })
+    const req = await asked
+    const top0 = sv.scrollTop, height0 = sv.scrollHeight
+    // 捲到中間再插（補償才看得出來）
+    sv.scrollTop = 1000
+    await raf()
+    const topMid = sv.scrollTop
+    const older = []
+    for (let i = 0; i < 30; i++) older.push({ id: `p${Date.now()}-${i}`, role: i % 2 ? 'user' : 'ai', content: i % 2 ? `更早的第 ${i} 句` : bodyOf(i), serverId: i % 2 ? null : String(i), state: 'done' })
+    for (const m of older) post({ type: 'message.new', message: m, before: firstId })
+    post({ type: 'history', more: false, loading: false })
+    await raf(); await raf()
+    window.__bench.firstId = older[0].id
+    const grew = sv.scrollHeight - height0
+    return { asked: req && req.op, framesAdded: count('[data-chat="message-frame"]') - framesBefore, virtualNow: count('[data-virtual]'), scrollGrew: grew, scrollTopBefore: topMid, scrollTopAfter: sv.scrollTop, stayedPut: Math.abs((sv.scrollTop - topMid) - grew) <= 2, firstFrameIsNew: idoc().querySelector('[data-chat="message-frame"]') === idoc().querySelectorAll('[data-chat="message-frame"]')[0] && idoc().querySelectorAll('[data-chat="message-frame"]')[0].hasAttribute('data-virtual') }
+  }
+
   async function run() {
     logEl.textContent = ''
     log(`n=${N} format=${FORMAT} ua=${navigator.userAgent.split(') ')[0]})`)
@@ -134,11 +159,12 @@
     const appendMs = []
     for (let i = 1; i <= 5; i++) appendMs.push(await appendRound(i))
     const after = await snapshot('after-append')
-    const result = { n: N, format: FORMAT, coldMs, before, loaded, sweeps: [sweep1, sweep2, sweep3], appendMs, after, fromShell: fromShell.length }
+    const history = await historyRound()
+    const result = { n: N, format: FORMAT, coldMs, before, loaded, sweeps: [sweep1, sweep2, sweep3], appendMs, after, history, fromShell: fromShell.length }
     log(JSON.stringify(result, null, 2))
     return result
   }
 
-  window.__bench = { run, post, messages, hello, snapshot, sweep, appendRound, fromShell }
+  window.__bench = { run, post, messages, hello, snapshot, sweep, appendRound, historyRound, fromShell }
   log('ready: await __bench.run()')
 })()
