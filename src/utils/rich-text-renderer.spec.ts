@@ -77,8 +77,12 @@ describe('圍欄整段解包（AI 常見 fence-wrapped HTML 卡）', () => {
 
   test('unwrapSingleHtmlFence：圍欄裝著整份 HTML 文件時不解包——那是前端區塊協議的範圍，要放進自己的 iframe', () => {
     const fenced = '```html\n<!DOCTYPE html>\n<html><head><style>body{display:flex}</style></head><body><div>x</div></body></html>\n```'
-    expect(unwrapSingleHtmlFence(fenced)).toBe(fenced)
-    expect(isHeavyHtml(fenced)).toBe(false)
+    expect(unwrapSingleHtmlFence(fenced, { keepDocuments: true })).toBe(fenced)
+    expect(isHeavyHtml(fenced, { keepDocuments: true })).toBe(false)
+    // 沒指定（MMD／本站 HTML 卡）照舊拆開直接畫，元件庫與 SDK 都在氣泡那一層
+    expect(unwrapSingleHtmlFence(fenced)).toContain('<!DOCTYPE html>')
+    expect(unwrapSingleHtmlFence(fenced)).not.toContain('```')
+    expect(isHeavyHtml(fenced)).toBe(true)
   })
 
   test('unwrapSingleHtmlFence：非圍欄內容原樣通過', () => {

@@ -96,10 +96,12 @@ describe('裝卡：圍欄裡的是字面文字', () => {
 describe('渲染管線', () => {
   it('圍欄裝著整份 HTML 文件的區塊標成前端區塊，內容原樣留在 <pre> 裡等定稿後掛 iframe', () => {
     const rules = [{ id: 1, find: '<kaishi>', replace: '```\n<!DOCTYPE html>\n<html><body><div class="letter">' }, { id: 2, find: '</jiesu>', replace: '</div></body></html>\n```' }]
-    const html = renderContent('<kaishi>\n親愛的\n</jiesu>', rules, opts)
+    const html = renderContent('<kaishi>\n親愛的\n</jiesu>', rules, { ...opts, fencedDocument: 'iframe' })
     expect(html).toContain('<pre class="lt-frontend">')
     expect(html).toContain('&lt;!DOCTYPE html&gt;')
     expect(html).not.toContain('<div class="letter">')
+    // 政策沒說要掛 iframe（MMD）：不標，留成一般程式碼區塊
+    expect(renderContent('<kaishi>\n親愛的\n</jiesu>', rules, opts)).not.toContain('lt-frontend')
   })
 
   it('巨集 → 規則 → Markdown（*x* 斜體、四空格不當程式碼塊）→ 引號上色 → 淨化', () => {

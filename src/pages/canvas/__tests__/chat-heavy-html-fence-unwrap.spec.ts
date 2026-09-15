@@ -1,6 +1,7 @@
 // highlightText 現在也綁這兩支（圍欄保護與前端區塊標記），跟頁面裡一樣是真實函式。
 import { withFencesProtected } from '../../../common/markdown-fences'
 import { tagFrontendBlocks } from '../../../common/frontend-block'
+import { stylePolicyFor } from '../../../common/author-style-policy'
 import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
@@ -62,7 +63,7 @@ function buildHighlightText(): (content: string, type?: number, cacheKey?: strin
   const fnSource = extractHighlightTextSource()
   const wrapped = `(function () {\n${fnSource}\nreturn highlightText;\n})()`
   const context = vm.createContext({
-    withFencesProtected, tagFrontendBlocks,
+    withFencesProtected, tagFrontendBlocks, stylePolicyFor,
     isHeavyHtml,
     sanitizeHtml,
     getMarkdownIt,

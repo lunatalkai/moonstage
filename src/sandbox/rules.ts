@@ -70,6 +70,8 @@ export interface RenderOptions {
   macros: RenderMacros
   variants?: Record<string, string> | null
   doc?: Document
+  /** 圍欄裡的整份 HTML 文件怎麼畫（格式政策的 fencedDocument）；沒給＝inline，原樣留成程式碼區塊。 */
+  fencedDocument?: 'iframe' | 'inline'
 }
 
 const md = new MarkdownIt({ html: true, breaks: true, linkify: false, typographer: false })
@@ -116,6 +118,6 @@ export function renderContent(content: string, rules: SandboxRule[], options: Re
   const holder = doc.createElement('div')
   holder.innerHTML = clean
   colorDialogueQuotes(holder)
-  // 圍欄裡裝著整份 HTML 文件的區塊標起來，定稿後由殼掛成各自的 iframe（前端區塊協議）。
-  return tagFrontendBlocks(holder.innerHTML)
+  // 圍欄裡裝著整份 HTML 文件的區塊標起來，定稿後由殼掛成各自的 iframe（前端區塊協議）——只在格式政策這麼說時。
+  return options.fencedDocument === 'iframe' ? tagFrontendBlocks(holder.innerHTML) : holder.innerHTML
 }

@@ -1,6 +1,7 @@
 // highlightText 現在也綁這兩支（圍欄保護與前端區塊標記），跟頁面裡一樣是真實函式。
 import { withFencesProtected } from '../../../common/markdown-fences'
 import { tagFrontendBlocks } from '../../../common/frontend-block'
+import { stylePolicyFor } from '../../../common/author-style-policy'
 /**
  * owner 2026-09-06 截圖：AI 回覆以 <思維鏈> 開頭，畫面上不但有字面的 <思維鏈>，括號
  * 斜體的 span 屬性還被對白上色當成引號包掉，露出 `"color: #C4B4A3;…">` 這串字。
@@ -45,7 +46,7 @@ function extractBraced(source: string, anchor: string): string {
 function buildHighlightText(format: 'mmd' | 'tavern', rules: any[] = []) {
   const fnSource = extractBraced(fs.readFileSync(CANVAS_VUE, 'utf8'), 'const highlightText = (content, type, cacheKey) => {')
   const context = vm.createContext({
-    withFencesProtected, tagFrontendBlocks,
+    withFencesProtected, tagFrontendBlocks, stylePolicyFor,
     isHeavyHtml, sanitizeHtml, getMarkdownIt, renderTaskLists, dedentHtmlBlockLines,
     findStableBoundary, getStreamCacheEntry, setStreamCacheEntry, unwrapSingleHtmlFence,
     applyTavernRules, scopeCardHtml,

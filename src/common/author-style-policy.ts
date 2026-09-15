@@ -7,8 +7,10 @@
  * ── 表 ──
  * - tavern：原平台會替訊息裡的 <style> 逐字接上訊息層前綴（`.mes_text `），作者寫
  *   `p{}`、`.title{}` 是安全的，寫 `body{}` 則從來沒生效過。這裡照做，卡在兩邊長得一樣。
+ *   圍欄裡的整份 HTML 文件掛成各自的 iframe（酒館助手的渲染器慣例）。
  * - mmd：沒有這層改寫，卡片的 <style> 原樣生效——作者就是靠它換掉整頁的背景與輸入框。
- *   加前綴等於把那張卡的美化整套關掉。
+ *   加前綴等於把那張卡的美化整套關掉。圍欄裡的整份文件拆開直接畫進氣泡（既有行為，
+ *   卡片元件庫與 SDK 都在氣泡那一層，放進 iframe 會斷掉）。
  *
  * 格式不明時當 MMD（見 card-format）：猜錯的代價不對稱，猜成酒館會讓能用的卡變成不能用。
  */
@@ -19,14 +21,20 @@ import { withFencesProtected } from './markdown-fences'
 export interface AuthorStylePolicy {
   /** 每條選擇器前面要接的作用域；null＝原樣生效。 */
   scope: string | null
+  /**
+   * 程式碼圍欄裡裝著整份 HTML 文件時怎麼畫（common/frontend-block）：
+   * - iframe：各自掛成獨立的 iframe——酒館助手的慣例，作者的 body 樣式只影響那個區塊自己的視窗。
+   * - inline：拆掉圍欄直接畫進氣泡——MMD／本站 HTML 卡的既有行為，卡片元件庫（hc-*）與 SDK 都在氣泡這一層。
+   */
+  fencedDocument: 'iframe' | 'inline'
 }
 
 /** 訊息層前綴。酒館用 `.mes_text `，我們兩個聊天頁的氣泡都掛著這個 class。 */
 export const MESSAGE_SCOPE = '.mes_text'
 
 const POLICIES: Record<CardFormat, AuthorStylePolicy> = {
-  tavern: { scope: MESSAGE_SCOPE },
-  mmd: { scope: null },
+  tavern: { scope: MESSAGE_SCOPE, fencedDocument: 'iframe' },
+  mmd: { scope: null, fencedDocument: 'inline' },
 }
 
 /** 接受原始字串（伺服器欄位）或已正規化的格式；不認得的當 MMD。 */

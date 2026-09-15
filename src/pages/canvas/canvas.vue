@@ -413,6 +413,7 @@ import { applyTavernRules, resolvePlayerName } from './canvas-rule-engine'
 import { scopeCardHtml, normalizeCardFormat, type CardFormat } from './canvas-style-scope'
 import { withFencesProtected } from '@/common/markdown-fences'
 import { tagFrontendBlocks, mountFrontendBlocks } from '@/common/frontend-block'
+import { stylePolicyFor } from '@/common/author-style-policy'
 import { detectAuthorOwnedRegions } from './canvas-author-regions'
 import { resolveStageBackground, resolveStageLandscapeBackground } from './canvas-background'
 import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
@@ -3455,11 +3456,13 @@ const highlightText = (content, type, cacheKey) => {
   // rich-text-renderer.js 的 renderRichText()，這裡是 chat.vue 自己
   // 重複實作的分支，未同步）。
   // 此邏輯與 rich-text-renderer.js renderRichText() 存在重複，改動須同步。
-  processedContent = unwrapSingleHtmlFence(processedContent);
+  // 圍欄裡的整份 HTML 文件：格式政策說要掛 iframe 的（酒館）留在圍欄裡等定稿後掛；其餘照舊拆開畫進氣泡。
+  const fenceOptions = { keepDocuments: stylePolicyFor(cardFormat.value).fencedDocument === 'iframe' };
+  processedContent = unwrapSingleHtmlFence(processedContent, fenceOptions);
   // heavy 判定要吃「未 stash」的原始內容——下面的隱藏資料 stash 會把 display:none
   // 區塊整段換成 \x05N\x06 佔位符，若判定排在 stash 之後，剛好整則訊息以隱藏資料
   // span 開頭（沒有敘事文字在前）會被誤判成非 heavy，形同繞過了本來要保護的 heavy 分支。
-  const heavy = isHeavyHtml(processedContent);
+  const heavy = isHeavyHtml(processedContent, fenceOptions);
 
   // ── 隱藏機讀資料 span 保護：先於 markdown / 換行轉換整段 stash ──
   //
@@ -3739,7 +3742,7 @@ const highlightText = (content, type, cacheKey) => {
   // MD 路徑包一層 .rich-md wrapper，讓 markdown 美化 CSS 只作用於 MD 輸出
   // heavy HTML（作者手寫卡片）保留原樣，不被 markdown 樣式污染
   // 圍欄裝著整份 HTML 文件的區塊標起來；定稿後掛成各自的 iframe（前端區塊協議，兩個聊天頁同一套）。
-  result = tagFrontendBlocks(result);
+  if (fenceOptions.keepDocuments) result = tagFrontendBlocks(result);
   return heavy ? result : `<div class="rich-md">${result}</div>`;
 };
 

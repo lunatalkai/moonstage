@@ -86,7 +86,7 @@ function dedentHtmlBlockLines(content) {
 const SINGLE_FENCE_RE = /^(`{3,}|~{3,})[ \t]*([a-zA-Z0-9_-]*)[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*\1[ \t]*$/;
 const FENCE_HTML_LANGS = { '': true, html: true, xml: true };
 
-function unwrapSingleHtmlFence(content) {
+function unwrapSingleHtmlFence(content, options) {
   if (!content) return content;
   const trimmed = content.trim();
   const first = trimmed.charAt(0);
@@ -96,9 +96,9 @@ function unwrapSingleHtmlFence(content) {
   const lang = (m[2] || '').toLowerCase();
   if (!FENCE_HTML_LANGS[lang]) return content;
   const inner = m[3];
-  // 整份 HTML 文件（有 <html>/<head>/<body>）不解包：那是前端區塊協議的範圍，要放進自己的 iframe，
-  // 拆開塞進氣泡會把它的 body 樣式套到頁面上。
-  if (isFrontendDocument(inner)) return content;
+  // 圍欄裝著整份 HTML 文件（有 <html>/<head>/<body>）而格式政策要把它掛成 iframe 時不解包
+  // （前端區塊協議，author-style-policy 的 fencedDocument）；沒指定就照舊拆開畫進氣泡。
+  if (options && options.keepDocuments && isFrontendDocument(inner)) return content;
   const innerTrimmed = inner.replace(/^[\s\n]+/, '');
   if (!innerTrimmed.startsWith('<')) return content;
   const head = innerTrimmed.substring(0, 200);
@@ -106,7 +106,7 @@ function unwrapSingleHtmlFence(content) {
   return inner;
 }
 
-function isHeavyHtml(content) {
+function isHeavyHtml(content, options) {
   if (!content) return false;
   // Heuristic：content 必須以 HTML tag 開頭才算 heavy（允許前置少量 whitespace）。
   //   - 作者手寫卡片：典型 `<div ...>` / `<hc-xxx ...>` 開頭 → heavy ✓
@@ -114,7 +114,7 @@ function isHeavyHtml(content) {
   //   - 罕見 case：作者在 HTML 前加說明文字 → 走 MD 路徑（tag 會被 escape）。
   //     作者只要把 HTML 放第一行即可。
   //   - 整段訊息剛好是單一個 html/xml 圍欄包住 HTML 卡 → unwrapSingleHtmlFence 先解包再判斷。
-  const unwrapped = unwrapSingleHtmlFence(content);
+  const unwrapped = unwrapSingleHtmlFence(content, options);
   const trimmed = unwrapped.replace(/^[\s\n]+/, '');
   if (!trimmed.startsWith('<')) return false;
   const head = trimmed.substring(0, 200);

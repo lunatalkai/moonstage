@@ -10,14 +10,14 @@ const PAGE_LEVEL_CSS = 'body{display:flex;justify-content:center;background:#fff
 
 describe('政策表', () => {
   it('酒館 → 訊息層前綴；MMD → 原樣；沒宣告／不認得 → 當 MMD', () => {
-    expect(stylePolicyFor('tavern')).toEqual({ scope: MESSAGE_SCOPE })
-    expect(stylePolicyFor('mmd')).toEqual({ scope: null })
-    expect(stylePolicyFor(undefined)).toEqual({ scope: null })
-    expect(stylePolicyFor('')).toEqual({ scope: null })
-    expect(stylePolicyFor('whatever')).toEqual({ scope: null })
+    expect(stylePolicyFor('tavern')).toEqual({ scope: MESSAGE_SCOPE, fencedDocument: 'iframe' })
+    expect(stylePolicyFor('mmd')).toEqual({ scope: null, fencedDocument: 'inline' })
+    expect(stylePolicyFor(undefined)).toEqual({ scope: null, fencedDocument: 'inline' })
+    expect(stylePolicyFor('')).toEqual({ scope: null, fencedDocument: 'inline' })
+    expect(stylePolicyFor('whatever')).toEqual({ scope: null, fencedDocument: 'inline' })
   })
   it('伺服器欄位的別名也走同一張表', () => {
-    expect(stylePolicyFor(' SillyTavern ')).toEqual({ scope: MESSAGE_SCOPE })
+    expect(stylePolicyFor(' SillyTavern ')).toEqual({ scope: MESSAGE_SCOPE, fencedDocument: 'iframe' })
   })
 })
 
