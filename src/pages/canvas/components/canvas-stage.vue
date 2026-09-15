@@ -3,7 +3,7 @@
     id="bg1"
     class="chat-scope-box"
     data-lt="page"
-    :style="backgroundUrl ? { backgroundImage: 'url(' + backgroundUrl + ')' } : null"
+    :style="stageStyle"
   >
     <div
       id="scrollview"
@@ -31,12 +31,20 @@
 <script setup lang="ts">
 /*
  舞台＝背景層 + 捲動層 + 訊息列容器。
-       背景由卡片 CSS 決定（`.chat-scope-box{background-image:…}`），平台只寫預設值，
-       所以這裡的 background-image 走 inline style 的「沒設就不寫」而不是 CSS 寫死。
+       背景分直、橫兩張（橫式選填）。元件只寫兩個 CSS 變數，由 canvas.css 依螢幕方向
+       選一張畫；不 inline 寫 background-image，作者的卡片 CSS 蓋 `.chat-scope-box`
+       時才不必跟 inline 樣式比特異性。沒設就不寫，讓卡片 CSS 的預設值有效。
 */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
-defineProps<{ backgroundUrl?: string }>()
+const props = defineProps<{ backgroundUrl?: string; backgroundLandscapeUrl?: string }>()
+
+const stageStyle = computed(() => {
+  const style: Record<string, string> = {}
+  if (props.backgroundUrl) style['--lt-bg-portrait'] = 'url(' + props.backgroundUrl + ')'
+  if (props.backgroundLandscapeUrl) style['--lt-bg-landscape'] = 'url(' + props.backgroundLandscapeUrl + ')'
+  return Object.keys(style).length ? style : null
+})
 defineEmits<{ (e: 'scroll', ev: Event): void }>()
 
 const scrollEl = ref<HTMLElement | null>(null)

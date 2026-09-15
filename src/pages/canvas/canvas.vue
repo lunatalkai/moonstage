@@ -412,7 +412,7 @@ import CanvasMessageMenu from './components/canvas-message-menu.vue'
 import { applyTavernRules, resolvePlayerName } from './canvas-rule-engine'
 import { scopeCardHtml, normalizeCardFormat, type CardFormat } from './canvas-style-scope'
 import { detectAuthorOwnedRegions } from './canvas-author-regions'
-import { resolveStageBackground } from './canvas-background'
+import { resolveStageBackground, resolveStageLandscapeBackground } from './canvas-background'
 import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
@@ -1459,12 +1459,16 @@ const roleView = computed(() => {
 // 舞台背景照 MMD 的兩級回退：玩家設過的 → 卡片的背景圖 → 卡片的形象圖。
 // 為什麼不是「只認玩家設過的」，以及「不要背景」為什麼要一個哨兵值，
 // 見 canvas-background.ts 的說明。
-const playerBackgroundUrl = computed(() => resolveStageBackground({
+const stageBackgroundInput = computed(() => ({
   playerChoice: formData.backgroundUrl,
   backgroundOff: formData.backgroundOff === true,
   roleBackground: (roleView.value as any).roleBackground,
   roleAvatar: (roleView.value as any).roleAvatar,
+  roleBackgroundLandscape: (roleView.value as any).roleBackgroundLandscape,
 }));
+const playerBackgroundUrl = computed(() => resolveStageBackground(stageBackgroundInput.value));
+// 橫向螢幕用的那張（卡片選填）；空的話舞台 CSS 退回直圖。
+const playerBackgroundLandscapeUrl = computed(() => resolveStageLandscapeBackground(stageBackgroundInput.value));
 
 onLoad((options) => {
   //监听页面加载

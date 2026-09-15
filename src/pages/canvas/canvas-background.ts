@@ -30,6 +30,8 @@ export interface StageBackgroundInput {
   roleBackground?: string | null
   /** 卡片的形象圖，MMD 的第二級回退 */
   roleAvatar?: string | null
+  /** 卡片自帶的橫式背景圖（選填，2026-09-15）：橫向螢幕優先用它 */
+  roleBackgroundLandscape?: string | null
 }
 
 const clean = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
@@ -39,4 +41,16 @@ export function resolveStageBackground(input: StageBackgroundInput): string {
   const choice = clean(input && input.playerChoice)
   if (choice) return choice
   return clean(input && input.roleBackground) || clean(input && input.roleAvatar) || ''
+}
+
+/**
+ * 橫向螢幕用的那張。玩家自選背景只有一張，兩個方向共用；卡片沒有橫圖就回空，
+ * 由舞台 CSS 退回直圖（`var(--lt-bg-landscape, var(--lt-bg-portrait))`）。
+ * 這裡刻意不再退到形象圖：直圖那條已經退過了，橫圖再退一次只會把同一張圖拿來裁兩種樣子。
+ */
+export function resolveStageLandscapeBackground(input: StageBackgroundInput): string {
+  if (input && input.backgroundOff === true) return ''
+  const choice = clean(input && input.playerChoice)
+  if (choice) return choice
+  return clean(input && input.roleBackgroundLandscape)
 }

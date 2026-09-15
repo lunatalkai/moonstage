@@ -424,16 +424,24 @@
     flex: 1 1 auto;
     min-height: 0;
     /*
-      裁切方式照 MMD：對方綁的是 `url(…) center center / auto 100%`，簡寫沒指定
-      repeat，所以 repeat 留在初始值——寬螢幕上那張圖橫向鋪滿（owner 的 MMD 截圖
-      裡角色圖重複三次就是這個）。
+      背景分直、橫兩張，元件只寫 --lt-bg-portrait / --lt-bg-landscape 兩個變數，
+      這裡依螢幕方向選一張。cover 貼滿裁邊：創作者照安全區慣例把重要元素放中央
+      75%×75%，9:21～21:9 的螢幕都只裁到邊緣。
 
-      我們原本是 cover + no-repeat：貼滿並裁掉兩側，同一張卡兩邊看到的構圖不一樣，
-      而卡片的美化是照對方那個構圖調的。
+      之前照 MMD 用「貼合高度 + 橫向平鋪」對齊對方的構圖，代價是寬螢幕上同一張圖
+      橫向重複三次（owner 2026-09-15 截圖），穿幫比構圖差異更傷沉浸；作者若要對方
+      那種構圖，卡片 CSS 直接蓋 .chat-scope-box 即可，不再跟 inline 樣式比特異性。
     */
-    background-size: auto 100%;
+    background-image: var(--lt-bg-portrait);
+    background-size: cover;
     background-position: center center;
-    background-repeat: repeat;
+    background-repeat: no-repeat;
+  }
+
+  @media (orientation: landscape) {
+    .chat-scope-box {
+      background-image: var(--lt-bg-landscape, var(--lt-bg-portrait));
+    }
   }
 
   .scroll-view {

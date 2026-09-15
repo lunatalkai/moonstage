@@ -72,3 +72,34 @@ describe('backgroundOff 有登記進偏好讀取', () => {
     expect(defaults.slice(0, defaults.indexOf('}'))).not.toMatch(/backgroundOff:\s*true/)
   })
 })
+
+/**
+ * 橫式背景（選填，2026-09-15）：直橫兩張各自解析，玩家自選那張兩個方向共用，
+ * 關掉背景兩張全關。橫圖沒有就回空，由 CSS 退回直圖——這裡不做二級回退，
+ * 否則「玩家設過直圖偏好」會被卡片橫圖蓋掉。
+ */
+import { resolveStageLandscapeBackground } from '../canvas-background'
+
+describe('resolveStageLandscapeBackground', () => {
+  const ROLE_L = { ...ROLE, roleBackgroundLandscape: 'https://cdn/bg-l.jpg' }
+
+  it('玩家選過就用玩家的（兩個方向共用同一張）', () => {
+    expect(resolveStageLandscapeBackground({ playerChoice: 'https://cdn/mine.jpg', ...ROLE_L })).toBe('https://cdn/mine.jpg')
+  })
+
+  it('玩家沒設過退到卡片的橫式背景', () => {
+    expect(resolveStageLandscapeBackground({ playerChoice: '', ...ROLE_L })).toBe('https://cdn/bg-l.jpg')
+  })
+
+  it('卡片沒有橫圖就回空，交給 CSS 退回直圖，不退到形象圖', () => {
+    expect(resolveStageLandscapeBackground({ playerChoice: '', ...ROLE })).toBe('')
+  })
+
+  it('關掉背景兩張全關', () => {
+    expect(resolveStageLandscapeBackground({ playerChoice: '', backgroundOff: true, ...ROLE_L })).toBe('')
+  })
+
+  it('缺欄位不炸', () => {
+    expect(resolveStageLandscapeBackground({} as any)).toBe('')
+  })
+})
