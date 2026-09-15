@@ -44,6 +44,8 @@
  * - 宿主替作者做的事（透過 luna 意圖 API 送出、提示、改背景）在 suspend 裡跑，不記帳。
  */
 
+import { isHostResourceNode } from '@/common/host-resource'
+
 const TIMER_METHODS = [
   { set: 'setTimeout', clear: 'clearTimeout' },
   { set: 'setInterval', clear: 'clearInterval' },
@@ -100,35 +102,11 @@ function handlerKeys(target) {
  * @param {(el: Element) => boolean} [options.isAuthorRoot]  這個節點是不是作者容器（inline handler 歸因用）
  * @param {(node: Node) => boolean} [options.isOwnNode]      宿主自己在窗口內放的節點，不記帳（例如容器本身）
  */
-/**
- * 宿主自己的資源節點：同源的 <link>／<script>（打包器替下一頁動態掛進 <head> 的樣式表與模組），
- * 以及開發伺服器注入的 <style>。作者的程式碼不可能產出同源的資源（它的外鏈全在別的網域），
- * 所以這些永遠是宿主的，不論它們掛進來的那一刻窗口開不開。
- *
- * 由來（2026-09-15 社群站）：從卡片按返回回到榜單，榜單頁的樣式表被當成作者的節點一起拆掉、
- * 整頁變成無樣式；打包器記得「這份樣式表已經載過」不會再掛，要整頁重新整理才救得回來。
- * 窗口是靠時序判的（同一個任務裡誰先誰後），路由切換剛好落在窗口裡的機率不低。
- */
-function isHostResourceNode(node, doc) {
-  if (!node || node.nodeType !== 1) return false
-  const tag = String(node.tagName || '').toUpperCase()
-  if (tag === 'STYLE') return node.hasAttribute('data-vite-dev-id')
-  if (tag !== 'LINK' && tag !== 'SCRIPT') return false
-  const url = tag === 'LINK' ? node.getAttribute('href') : node.getAttribute('src')
-  if (!url) return false
-  const base = doc && doc.location ? doc.location.href : ''
-  if (!base) return false
-  try {
-    return new URL(url, base).origin === new URL(base).origin
-  } catch (e) {
-    return false
-  }
-}
-
 function createAuthorScope(options) {
   const config = options || {}
   const doc = config.doc
   const win = config.win || (doc && doc.defaultView) || null
+  // 宿主的同源資源（打包器動態掛的樣式表與模組）永遠不是作者的，不看時序。
   const isHostResource = function (node) { return isHostResourceNode(node, doc) }
   const isAuthorRoot = typeof config.isAuthorRoot === 'function' ? config.isAuthorRoot : function () { return false }
   const isOwnNode = typeof config.isOwnNode === 'function' ? config.isOwnNode : function () { return false }

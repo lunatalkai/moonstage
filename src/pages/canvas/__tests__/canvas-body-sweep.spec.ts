@@ -44,6 +44,19 @@ describe('sweepForeignNodes', () => {
     expect(devStyle.isConnected).toBe(true)
   })
 
+  it('打包器替下一頁動態掛進 <head> 的同源樣式表與模組是宿主的，不掃；卡片塞的外鏈樣式與 <style> 照掃', () => {
+    const snapshot = captureBodySnapshot(document)
+    const own = document.createElement('link'); own.rel = 'stylesheet'; own.href = '/assets/BoardPage-abc.css'; document.head.appendChild(own)
+    const ownScript = document.createElement('script'); ownScript.src = '/assets/chunk.js'; document.head.appendChild(ownScript)
+    const cdn = document.createElement('link'); cdn.rel = 'stylesheet'; cdn.href = 'https://cdn.example.com/theme.css'; document.head.appendChild(cdn)
+    const style = document.createElement('style'); style.textContent = 'body{background:red}'; document.head.appendChild(style)
+    sweepForeignNodes(document, snapshot)
+    expect(document.head.contains(own)).toBe(true)
+    expect(document.head.contains(ownScript)).toBe(true)
+    expect(document.head.contains(cdn)).toBe(false)
+    expect(document.head.contains(style)).toBe(false)
+  })
+
   it('沒有快照就什麼都不做', () => {
     const foreign = document.createElement('div'); document.body.appendChild(foreign)
     expect(sweepForeignNodes(document, null).removed).toBe(0)
