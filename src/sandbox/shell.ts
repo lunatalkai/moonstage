@@ -18,6 +18,7 @@ import { createPanels } from './render/panels'
 import { createApp, h } from 'vue'
 import CanvasStage from '@/pages/canvas/components/canvas-stage.vue'
 import CanvasHeader from '@/pages/canvas/components/canvas-header.vue'
+import { chromeTopColor } from '@/pages/canvas/canvas-chrome-tone'
 import CanvasComposer from '@/pages/canvas/components/canvas-composer.vue'
 import { reactive, ref } from 'vue'
 // 標準播放器的樣式表整份帶進殼：訊息區的每一條規則跟一般卡同一份。頁首與輸入區的規則在殼裡沒有對應節點，不礙事。
@@ -326,18 +327,29 @@ export function createShell(options: CreateShellOptions): Shell {
     docStateKey = key
     transport.send({ type: 'docstate', ...state })
   }
+  // 頁首實際看到的底色：宿主拿去塗系統狀態列。作者的樣式多半在 html／body 換 class 或直接改頁首的
+  // style，所以跟文件狀態走同一個節流；主題訊息與規則套完也會再量一次。
+  let chromeColorSent: string | null | undefined
+  const postChromeColor = () => {
+    const color = chromeTopColor(refs.root, refs.header)
+    if (color === chromeColorSent) return
+    chromeColorSent = color
+    transport.send({ type: 'chrome-color', color })
+  }
   let docStateQueued = false
   const queueDocState = () => {
     if (docStateQueued) return
     docStateQueued = true
-    win.setTimeout(() => { docStateQueued = false; postDocState() }, 50)
+    win.setTimeout(() => { docStateQueued = false; postDocState(); postChromeColor() }, 50)
   }
   const docObserver = typeof MutationObserver === 'function' ? new MutationObserver(queueDocState) : null
   if (docObserver) {
     docObserver.observe(doc.documentElement, { attributes: true })
     docObserver.observe(doc.body, { attributes: true })
+    docObserver.observe(refs.header, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] })
   }
   postDocState()
+  postChromeColor()
 
   let readySent = false
   const coldStart = (messages: SandboxMessage[]) => {
@@ -399,6 +411,7 @@ export function createShell(options: CreateShellOptions): Shell {
         setTheme(refs, message.theme)
         applyThemeVars(message.vars)
         bus.emit('theme:change')
+        queueDocState()
         return
       case 'viewport':
         setViewportHeight(refs, message.height)

@@ -17,6 +17,11 @@ export interface StageHost {
     toast(text: string, kind?: ToastKind): void
     confirm(options: { title?: string; content: string; confirmText?: string; cancelText?: string }): Promise<boolean>
     loading(on: boolean): void
+    /**
+     * 對話頁頂欄目前的實際底色（rgb(...)），給宿主塗到系統狀態列（theme-color）；作者換了配色會再叫一次。
+     * null＝離開對話頁，宿主把狀態列還原成自己的顏色。不實作就不塗。
+     */
+    themeColor?(color: string | null): void
   }
   storage: {
     get(key: string): string | null
@@ -55,6 +60,9 @@ function uniGlobal(): UniLike | null {
 }
 
 /** 純瀏覽器實作。宿主通常只覆寫 ui／nav；storage、events、clipboard 直接可用。 */
+/** browserHost 第一次塗狀態列前記下頁面原本的 theme-color，離開對話頁時還原。 */
+let themeColorDefault: string | null = null
+
 export function browserHost(overrides: Partial<StageHost> = {}): StageHost {
   const listeners = new Map<string, Set<(p: any) => void>>()
   const base: StageHost = {
@@ -62,6 +70,13 @@ export function browserHost(overrides: Partial<StageHost> = {}): StageHost {
       toast: (text) => { if (text) console.info('[stage] ' + text) },
       confirm: async (o) => (typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(o.content) : false),
       loading: () => {},
+      themeColor: (color) => {
+        if (typeof document === 'undefined') return
+        const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+        if (!meta) return
+        if (themeColorDefault === null) themeColorDefault = meta.content
+        meta.content = color ?? themeColorDefault
+      },
     },
     storage: {
       get: (key) => { try { return typeof localStorage === 'undefined' ? null : localStorage.getItem(key) } catch { return null } },

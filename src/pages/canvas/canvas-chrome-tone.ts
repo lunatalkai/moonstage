@@ -73,6 +73,17 @@ export function effectiveBackground(el: Element, fallback: RGBA = DEFAULT_PAGE_B
   return acc
 }
 
+/**
+ * 頂欄實際看到的底色，給宿主塗到系統狀態列（theme-color）——狀態列跟頁首同色，
+ * 手機上看起來就是一整片，而不是頂著一條站台底色。沒有頂欄（還沒掛）就 null。
+ */
+export function chromeTopColor(scope: ParentNode | null | undefined = typeof document === 'undefined' ? null : document, fallbackEl?: Element | null): string | null {
+  const el = (scope && scope.querySelector('.topTabbar')) || fallbackEl || null
+  if (!el) return null
+  const c = effectiveBackground(el)
+  return `rgb(${c.r}, ${c.g}, ${c.b})`
+}
+
 /** 量所有殼，把色調寫在 data-lt-tone 上。沒有那個節點就略過。 */
 export function syncChromeTone(scope: ParentNode | null | undefined = typeof document === 'undefined' ? null : document): void {
   if (!scope) return

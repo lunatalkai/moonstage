@@ -286,6 +286,20 @@ describe('沙箱宿主橋', () => {
     host.destroy()
   })
 
+  it('殼裡頁首的底色轉給宿主：chrome-color → onChromeColor', async () => {
+    const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const got: unknown[] = []
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello, onChromeColor: (c) => got.push(c) })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    h.fromShell({ type: 'chrome-color', color: 'rgb(232, 241, 251)' })
+    h.fromShell({ type: 'chrome-color', color: null })
+    expect(got).toEqual(['rgb(232, 241, 251)', null])
+    host.destroy()
+  })
+
   it('殼文件根節點狀態轉給宿主：docstate → onDocState', async () => {
     const state = { current: makeState({ messages: [msg({ id: '10', text: '你好', opening: true })] }) }
     const { hud } = fakeHud(state)

@@ -428,7 +428,7 @@ import { captureBodySnapshot, restoreBodySnapshot, sweepForeignNodes } from './c
 import CanvasPopup from './components/canvas-popup.vue'
 import CanvasModelPanel from './components/canvas-model-panel.vue'
 import { computeCardThemeVars, CARD_THEME_VAR_NAMES } from './canvas-card-theme'
-import { syncChromeTone } from './canvas-chrome-tone'
+import { chromeTopColor, syncChromeTone } from './canvas-chrome-tone'
 import CanvasConfirm from './components/canvas-confirm.vue'
 import CanvasModify from './components/canvas-modify.vue'
 import CanvasConversationList from './components/canvas-conversation-list.vue'
@@ -2649,6 +2649,7 @@ function mountSandbox(asset: any) {
       onMessageSwipe: (_hostId, delta) => { onGreetingSwipe(delta); },
       onPanelUi: (panelName, event, args) => onSandboxPanelUi(panelName, event, args),
       onDocState: (state) => { sandboxDocState.value = state; if (sandboxSkinOn.value) applySandboxSkin(); },
+      onChromeColor: (color) => { stageHost.ui.themeColor?.(color); },
       // 殼裡標準頁首與輸入區的按鍵：跟這一頁自己的元件綁的是同一批函式。
       onUi: (event, key) => {
         switch (event) {
@@ -3213,6 +3214,8 @@ function syncCardTheme() {
   }
   // 頂欄與彈層的底色被作者漆成亮色時，字要跟著變深（canvas-chrome-tone.ts）
   syncChromeTone(document)
+  // 系統狀態列跟頂欄同色。沙箱卡的頂欄在殼裡，由殼回報（onChromeColor）
+  if (!sandboxCard.value) stageHost.ui.themeColor?.(chromeTopColor(document))
 }
 
 function scheduleCardThemeSync() {
@@ -10395,6 +10398,7 @@ function restoreDocumentOnLeave() {
 // 最後的兜底掃除：作者範圍記不到的路徑（Promise、Observer 回呼）塞進 body／html／head 的節點，
 // 等 Vue 把子元件都卸完再掃，Teleport 出去的彈層才不會被我們先動手。
 onUnmounted(() => {
+  stageHost.ui.themeColor?.(null);
   destroySandboxHost();
   const swept = sweepForeignNodes(typeof document !== 'undefined' ? document : null, enterBodySnapshot)
   if (swept.removed > 0) console.info('[canvas] 離開對話頁時清掉卡片殘留節點', swept)

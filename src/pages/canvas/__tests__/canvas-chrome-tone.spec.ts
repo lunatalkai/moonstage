@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   blendOver,
+  chromeTopColor,
   effectiveBackground,
   parseComputedColor,
   syncChromeTone,
@@ -64,5 +65,16 @@ describe('量實際看到的底色並標在節點上', () => {
     ;(body.querySelector('.topTabbar') as HTMLElement).style.backgroundColor = 'rgb(248, 245, 240)'
     syncChromeTone(document)
     expect(body.querySelector('.topTabbar')!.getAttribute('data-lt-tone')).toBe('light')
+  })
+})
+
+describe('頂欄底色給系統狀態列', () => {
+  it('有頂欄就回它實際看到的顏色；沒有就退到給的節點；都沒有就 null', () => {
+    document.body.innerHTML = '<div id="page" style="background: rgb(10, 20, 30)"><div class="topTabbar" style="background: rgba(255, 255, 255, 0.5)"></div></div>'
+    expect(chromeTopColor(document)).toBe('rgb(133, 138, 143)')
+    document.body.innerHTML = '<header id="h" style="background: rgb(1, 2, 3)"></header>'
+    expect(chromeTopColor(document, document.getElementById('h'))).toBe('rgb(1, 2, 3)')
+    document.body.innerHTML = ''
+    expect(chromeTopColor(document)).toBeNull()
   })
 })

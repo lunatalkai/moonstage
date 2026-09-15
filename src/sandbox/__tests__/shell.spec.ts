@@ -115,6 +115,25 @@ describe('殼：冷啟動與事件順序', () => {
     expect(t.refs.root.getAttribute('data-chrome')).toBe('shell')
   })
 
+  it('殼一掛好就回報頁首底色；作者換了 html 的 class 之後再量一次', async () => {
+    const header = { roleName: '露娜', avatar: '', modelName: 'M', badge: '', showModel: true, backLabel: '返回', modelLabel: '模型' }
+    const composer = { placeholder: '', sendState: 'send', generating: false, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [], modelScore: '', assistBusy: false, assistCost: '', labels: { stop: '停止', more: '更多', send: '送出', paste: '貼上', clear: '清除', model: '模型', assist: '幫答', perTurn: '每輪' } }
+    const s = boot(config({ chromeState: { header, composer }, card: { rules: [], statusbar: '' } }))
+    const first = sent.filter((m) => m.type === 'chrome-color')
+    expect(first).toHaveLength(1)
+    expect(first[0]).toMatchObject({ type: 'chrome-color', color: expect.stringMatching(/^rgb\(\d+, \d+, \d+\)$/) })
+    const style = document.createElement('style')
+    style.textContent = 'html.ba-day .topTabbar { background: rgb(200, 220, 240) !important }'
+    document.head.appendChild(style)
+    document.documentElement.classList.add('ba-day')
+    await new Promise((r) => setTimeout(r, 80))
+    const after = sent.filter((m) => m.type === 'chrome-color')
+    expect(after[after.length - 1]).toEqual({ type: 'chrome-color', color: 'rgb(200, 220, 240)' })
+    s.dispose()
+    document.documentElement.classList.remove('ba-day')
+    style.remove()
+  })
+
   it('宿主說沒有上一頁（獨立的卡片 App）：標準頁首不畫返回鍵；陽春頁首的返回鍵也藏起來', () => {
     const header = { roleName: '露娜', avatar: '', modelName: 'M', badge: '', showModel: true, backLabel: '返回', modelLabel: '模型' }
     const composer = { placeholder: '', sendState: 'send', generating: false, enterSends: true, shortcuts: [], moreOpen: false, moreItems: [], modelScore: '', assistBusy: false, assistCost: '', labels: { stop: '停止', more: '更多', send: '送出', paste: '貼上', clear: '清除', model: '模型', assist: '幫答', perTurn: '每輪' } }

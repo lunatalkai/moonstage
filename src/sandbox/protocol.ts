@@ -233,6 +233,8 @@ export type ShellToHost =
    * 宿主那一層還留著的面板（模型設定）要套作者樣式時得知道這些。變了就送。
    */
   | { type: 'docstate'; html: { className: string; data: Record<string, string> }; body: { className: string; data: Record<string, string> } }
+  /** 殼裡頁首目前的實際底色（rgb(...)），宿主拿去塗系統狀態列；作者換配色就再送。沒有頁首時 null。 */
+  | { type: 'chrome-color'; color: string | null }
   /** 面板（panel＝sheet 名）、訊息選單（panel＝'menu'）、彈層外框（panel＝'popup'）上的事件與參數。 */
   | { type: 'panel.ui'; panel: string; event: string; args: unknown[] }
   | { type: 'composer'; visible: boolean }
