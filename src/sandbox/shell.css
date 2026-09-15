@@ -114,5 +114,8 @@ html, body { margin: 0; padding: 0; height: 100%; }
 pre.lt-frontend { position: relative; min-height: 2.5em; max-height: 2.5em; overflow: hidden; margin: 0.5em 0; border-radius: 12px; background: rgba(127, 127, 127, 0.12); }
 pre.lt-frontend > code { visibility: hidden; }
 pre.lt-frontend[data-lt-frontend] { display: none; }
+/* 氣泡是 shrink-to-fit 的（跟著文字寬）；iframe 沒有內在寬度，在裡面 width:100% 會退成 300px，
+   信紙就被擠成一條細長柱。裝著前端區塊的氣泡改成撐滿可用寬度（仍受氣泡的 max-width 約束）。 */
+.mes_text:has(pre.lt-frontend) { width: 100%; }
 iframe.lt-frontend__frame { display: block; width: 100%; min-height: 1px; border: 0; background: transparent; color-scheme: normal; }
 }
