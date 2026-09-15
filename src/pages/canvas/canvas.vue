@@ -1357,6 +1357,7 @@ onMounted(() => {
   // 哨兵要等 DOM 掛上才觀察得到；早於首則訊息渲染也沒關係，
   // 內容一撐高就會通知（見 setupScrollAnchorObserver）。
   nextTick(() => setupScrollAnchorObserver());
+  nextTick(() => observeThemeColor());
 
   // 載入 HTML Card Web Components（hc-btn, hc-bar, hc-stat, hc-tag, hc-collapse 等）
   import('@/common/html-card-components.js').catch(err => {
@@ -3214,8 +3215,36 @@ function syncCardTheme() {
   }
   // 頂欄與彈層的底色被作者漆成亮色時，字要跟著變深（canvas-chrome-tone.ts）
   syncChromeTone(document)
-  // 系統狀態列跟頂欄同色。沙箱卡的頂欄在殼裡，由殼回報（onChromeColor）
-  if (!sandboxCard.value) stageHost.ui.themeColor?.(chromeTopColor(document))
+  syncThemeColor()
+}
+
+// 系統狀態列跟頂欄同色（host.ui.themeColor）。不掛在卡片主題的同步底下：那條只在有作者主題的卡才跑，
+// 這裡每張卡都要。沙箱卡的頂欄在殼裡，由殼回報（onChromeColor），這裡不量。
+let themeColorLast: string | null | undefined
+let themeColorObserver: MutationObserver | null = null
+let themeColorRaf = 0
+function syncThemeColor() {
+  if (typeof document === 'undefined' || !stageHost.ui.themeColor || sandboxCard.value) return
+  const color = chromeTopColor(document)
+  if (color === themeColorLast) return
+  themeColorLast = color
+  stageHost.ui.themeColor(color)
+}
+function scheduleThemeColorSync() {
+  if (typeof window === 'undefined') return
+  if (themeColorRaf) cancelAnimationFrame(themeColorRaf)
+  themeColorRaf = requestAnimationFrame(() => { themeColorRaf = 0; syncThemeColor() })
+}
+function observeThemeColor() {
+  if (typeof MutationObserver === 'undefined' || typeof document === 'undefined') return
+  themeColorObserver = new MutationObserver(scheduleThemeColorSync)
+  // 作者換配色：html／body 換 class 或 data-*、插入 <style>、直接改頂欄的 class／style
+  themeColorObserver.observe(document.documentElement, { attributes: true })
+  if (document.body) themeColorObserver.observe(document.body, { attributes: true })
+  if (document.head) themeColorObserver.observe(document.head, { childList: true })
+  const top = document.querySelector('.topTabbar')
+  if (top) themeColorObserver.observe(top, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] })
+  syncThemeColor()
 }
 
 function scheduleCardThemeSync() {
@@ -10398,6 +10427,9 @@ function restoreDocumentOnLeave() {
 // 最後的兜底掃除：作者範圍記不到的路徑（Promise、Observer 回呼）塞進 body／html／head 的節點，
 // 等 Vue 把子元件都卸完再掃，Teleport 出去的彈層才不會被我們先動手。
 onUnmounted(() => {
+  if (themeColorObserver) { themeColorObserver.disconnect(); themeColorObserver = null; }
+  if (themeColorRaf) { cancelAnimationFrame(themeColorRaf); themeColorRaf = 0; }
+  themeColorLast = undefined;
   stageHost.ui.themeColor?.(null);
   destroySandboxHost();
   const swept = sweepForeignNodes(typeof document !== 'undefined' ? document : null, enterBodySnapshot)
