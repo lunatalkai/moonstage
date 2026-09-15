@@ -56,9 +56,30 @@ export function toneForBackground(c: RGBA): ChromeTone {
   return relativeLuminance(c) > 0.5 ? 'light' : 'dark'
 }
 
+/** 漸層背景的第一個色標：作者的頂欄常是 linear-gradient，background-color 是透明的，顏色在這裡。 */
+const GRADIENT_COLOR = /(rgba?\([^)]*\)|color\(srgb[^)]*\)|#[0-9a-f]{3,8}\b|transparent)/i
+export function firstGradientColor(backgroundImage: string | null | undefined): RGBA | null {
+  const v = String(backgroundImage || '')
+  if (!/gradient\(/i.test(v)) return null
+  const m = v.match(GRADIENT_COLOR)
+  return m ? parseComputedColor(m[1]) : null
+}
+
+/** 一層的底：background-color 疊上漸層的第一個色標（漸層畫在底色之上）。都沒有就 null。 */
+function layerBackground(view: Window, el: Element, pseudo?: string): RGBA | null {
+  const cs = view.getComputedStyle(el, pseudo)
+  // 偽元素沒有 content 就不存在（jsdom 對偽元素回的是元素本身的樣式，content 也會是 normal，一樣略過）
+  if (pseudo && (!cs.content || cs.content === 'none' || cs.content === 'normal')) return null
+  const bg = parseComputedColor(cs.backgroundColor)
+  const grad = firstGradientColor(cs.backgroundImage)
+  let acc: RGBA | null = bg && bg.a > 0 ? bg : null
+  if (grad && grad.a > 0) acc = acc ? blendOver(grad, acc) : grad
+  return acc
+}
+
 /**
- * 這個節點實際看到的底色：從最外層往內，每一層的底色照 alpha 疊上去。
- * 全透明就是頁面預設底。
+ * 這個節點實際看到的底色：從最外層往內，每一層的底色照 alpha 疊上去（含漸層的第一個色標）；
+ * 節點自己的 ::before／::after 有底的話也疊上去（作者常拿偽元素當頂欄的底）。全透明就是頁面預設底。
  */
 export function effectiveBackground(el: Element, fallback: RGBA = DEFAULT_PAGE_BG): RGBA {
   const chain: Element[] = []
@@ -67,8 +88,12 @@ export function effectiveBackground(el: Element, fallback: RGBA = DEFAULT_PAGE_B
   const view = el.ownerDocument?.defaultView
   if (!view) return acc
   for (let i = chain.length - 1; i >= 0; i -= 1) {
-    const bg = parseComputedColor(view.getComputedStyle(chain[i]).backgroundColor)
-    if (bg && bg.a > 0) acc = blendOver(bg, acc)
+    const layer = layerBackground(view, chain[i])
+    if (layer) acc = blendOver(layer, acc)
+  }
+  for (const pseudo of ['::before', '::after']) {
+    const layer = layerBackground(view, el, pseudo)
+    if (layer) acc = blendOver(layer, acc)
   }
   return acc
 }

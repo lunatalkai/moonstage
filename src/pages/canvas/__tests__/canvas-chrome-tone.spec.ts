@@ -9,6 +9,7 @@ import {
   blendOver,
   chromeTopColor,
   effectiveBackground,
+  firstGradientColor,
   parseComputedColor,
   syncChromeTone,
   toneForBackground,
@@ -76,5 +77,17 @@ describe('頂欄底色給系統狀態列', () => {
     expect(chromeTopColor(document, document.getElementById('h'))).toBe('rgb(1, 2, 3)')
     document.body.innerHTML = ''
     expect(chromeTopColor(document)).toBeNull()
+  })
+})
+
+describe('漸層頂欄', () => {
+  it('background-color 透明但有漸層：拿第一個色標', () => {
+    expect(firstGradientColor('linear-gradient(rgb(139, 195, 74), rgb(104, 159, 56))')).toEqual({ r: 139, g: 195, b: 74, a: 1 })
+    expect(firstGradientColor('linear-gradient(180deg, #8bc34a 0%, #689f38 100%)')).toEqual({ r: 139, g: 195, b: 74, a: 1 })
+    expect(firstGradientColor('url("x.png")')).toBeNull()
+    expect(firstGradientColor('none')).toBeNull()
+    document.body.innerHTML = '<div style="background: rgb(255, 255, 255)"><div class="topTabbar" style="background-image: linear-gradient(rgb(139, 195, 74), rgb(104, 159, 56))"></div></div>'
+    expect(chromeTopColor(document)).toBe('rgb(139, 195, 74)')
+    expect(toneForBackground(effectiveBackground(document.querySelector('.topTabbar')!))).toBe('dark')
   })
 })
