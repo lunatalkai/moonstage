@@ -10,7 +10,7 @@
   -->
   <div
     class="canvas-root chat"
-    :class="{ 'is-touch': isTouchDevice, 'lt-format-mmd': cardFormat === 'mmd' }"
+    :class="{ 'is-touch': isTouchDevice, 'lt-format-mmd': cardFormat === 'mmd', 'lt-theme-dark': themeLocked }"
     :data-lt-author-owns="authorOwnedRegions || null"
   >
     <CanvasHeader
@@ -2283,6 +2283,8 @@ let sandboxAsset: any = null;
 // 殼的深淺要跟宿主頁一致。宿主怎麼標主題沒有統一規格：站台可能放 data-mode（實際生效的深淺）、
 // data-theme（可能是配色名，不一定是 light/dark）、class；都沒有就量畫布真正的底色——那才是玩家看到的。
 function detectSandboxTheme(): 'dark' | 'light' {
+  // 格式政策鎖暗色的卡（MMD）：殼跟畫布一樣不看宿主的深淺。
+  if (stylePolicyFor(cardFormat.value).theme === 'dark') return 'dark';
   if (typeof document === 'undefined') return 'dark';
   const root = document.documentElement;
   const explicit = [root.getAttribute('data-mode'), root.getAttribute('data-color-scheme'), root.getAttribute('data-theme')]
@@ -8323,6 +8325,8 @@ const enterBodySnapshot = captureBodySnapshot(typeof document !== 'undefined' ? 
 
 // 這張卡從哪個平台來。決定它的 <style> 要不要加訊息層前綴（見 canvas-style-scope）。
 const cardFormat = ref<CardFormat>('mmd')
+// 畫布鎖定暗色（格式政策的 theme）：class 掛在畫布根上，canvas-theme-vars.css 的暗色預設在那裡再宣告一次。
+const themeLocked = computed(() => stylePolicyFor(cardFormat.value).theme === 'dark');
 
 // ── 開場白 ─────────────────────────────────────────────────────────────
 const greeting = reactive({ list: [] as string[], index: 0 })

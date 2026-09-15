@@ -10,7 +10,7 @@
  *   圍欄裡的整份 HTML 文件掛成各自的 iframe（酒館助手的渲染器慣例）。
  * - mmd：沒有這層改寫，卡片的 <style> 原樣生效——作者就是靠它換掉整頁的背景與輸入框。
  *   加前綴等於把那張卡的美化整套關掉。圍欄裡的整份文件拆開直接畫進氣泡（既有行為，
- *   卡片元件庫與 SDK 都在氣泡那一層，放進 iframe 會斷掉）。
+ *   卡片元件庫與 SDK 都在氣泡那一層，放進 iframe 會斷掉）。畫布鎖定暗色：MMD 只有暗色。
  *
  * 格式不明時當 MMD（見 card-format）：猜錯的代價不對稱，猜成酒館會讓能用的卡變成不能用。
  */
@@ -27,14 +27,21 @@ export interface AuthorStylePolicy {
    * - inline：拆掉圍欄直接畫進氣泡——MMD／本站 HTML 卡的既有行為，卡片元件庫（hc-*）與 SDK 都在氣泡這一層。
    */
   fencedDocument: 'iframe' | 'inline'
+  /**
+   * 畫布的深淺：
+   * - dark：鎖定暗色——MMD 的聊天頁只有暗色，作者畫深色背景時理所當然把正文留給平台的白字；
+   *   跟著宿主切成亮色，正文就變黑字壓在他的深色底上（2026-09-15 社群回報：有人白字有人黑字）。
+   * - host：跟著宿主的深淺走——酒館的卡不假設主題，宿主是什麼紙就用什麼紙。
+   */
+  theme: 'dark' | 'host'
 }
 
 /** 訊息層前綴。酒館用 `.mes_text `，我們兩個聊天頁的氣泡都掛著這個 class。 */
 export const MESSAGE_SCOPE = '.mes_text'
 
 const POLICIES: Record<CardFormat, AuthorStylePolicy> = {
-  tavern: { scope: MESSAGE_SCOPE, fencedDocument: 'iframe' },
-  mmd: { scope: null, fencedDocument: 'inline' },
+  tavern: { scope: MESSAGE_SCOPE, fencedDocument: 'iframe', theme: 'host' },
+  mmd: { scope: null, fencedDocument: 'inline', theme: 'dark' },
 }
 
 /** 接受原始字串（伺服器欄位）或已正規化的格式；不認得的當 MMD。 */

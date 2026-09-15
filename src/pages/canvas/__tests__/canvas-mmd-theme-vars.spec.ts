@@ -79,3 +79,10 @@ describe('圖示槽的尺寸只在作者接管面板時才換成 MMD 的', () =>
     expect(plain.slice(0, plain.indexOf('}'))).toMatch(/width:\s*20px/)
   })
 })
+
+// 格式政策鎖暗色的卡：同一套暗色預設也宣告在 .canvas-root.lt-theme-dark 上，宿主寫在祖先的深淺對映在這棵子樹裡讓位。
+describe('鎖暗色的畫布根再宣告一次暗色預設', () => {
+  it('第一個變數區塊同時掛在 :root 與 .canvas-root.lt-theme-dark 上', () => {
+    expect(css).toMatch(/:root,\s*\.canvas-root\.lt-theme-dark\s*\{[\s\S]*?--lt-canvas-bg:/)
+  })
+})
