@@ -39,6 +39,22 @@ describe('author asset mount', () => {
       })
     })
 
+    // 容器是錨點不是畫布：MMD 的容器停在畫面外，資產裡排版流內的元素天生看不見；
+    // 我們原本貼滿視窗，一個 height:100vh 的示範區塊就從左上角鋪滿整頁蓋住介面。
+    // 0×0 + overflow:hidden 裁掉流內與 absolute 的子孫；fixed 的子孫 containing block
+    // 是視窗，不受影響。不得用 clip-path／transform（會把 fixed 一起弄壞）。
+    VALID_LAYERS.forEach((layer) => {
+      it(`${layer} 容器是 0×0 並裁切：流內內容不畫、fixed 的才畫`, () => {
+        const el = makeRuntime('desktop').mount({ mountLayer: layer, html: '<div style="height:100vh">示範</div>' })
+        expect(el.style.position).toBe('fixed')
+        expect(el.style.width).toBe('0px')
+        expect(el.style.height).toBe('0px')
+        expect(el.style.overflow).toBe('hidden')
+        expect(el.style.transform).toBe('')
+        expect(el.style.clipPath || '').toBe('')
+      })
+    })
+
     it('cover 的層級兩端不同（兩端 chrome 實作不同）', () => {
       const d = makeRuntime('desktop').mount({ mountLayer: 'cover', html: '' })
       expect(d.style.zIndex).toBe('1000')
@@ -371,35 +387,32 @@ describe('author asset mount', () => {
   // 需要「只蓋對話欄那一塊」的作者改讀 --lt-chat-col-* 變數自己組座標（opt-in，
   // 見上面「對話欄幾何變數」），不影響沒讀這組變數的卡。
   describe('容器作為 fixed 的定位基準', () => {
-    it('under / over 恆為滿視窗，不因對話欄量測而挪動或帶 transform', () => {
+    // 容器是 0×0 的錨點，不挪到對話欄、不帶 transform：作者的 fixed 直接解析到視窗。
+    it('under / over 不因對話欄量測而挪動或帶 transform', () => {
       const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
       rt.setColumnMetrics({ left: 273, top: 77, width: 830, height: 684 }, 1440, 900)
       const el = rt.mount({ mountLayer: 'over', html: '' })
       expect(el.style.transform).toBe('')
       expect(el.style.left).toBe('0px')
-      expect(el.style.right).toBe('0px')
       expect(el.style.top).toBe('0px')
-      expect(el.style.bottom).toBe('0px')
-      expect(el.style.width).toBe('')
-      expect(el.style.height).toBe('')
+      expect(el.style.right).toBe('')
+      expect(el.style.bottom).toBe('')
     })
 
-    it('cover 同樣滿視窗且不帶 transform（語意就是蓋掉整個 App）', () => {
+    it('cover 同樣不帶 transform（語意是作者的 fixed 蓋掉整個 App，不是容器本身）', () => {
       const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
       rt.setColumnMetrics({ left: 273, top: 77, width: 830, height: 684 }, 1440, 900)
       const el = rt.mount({ mountLayer: 'cover', html: '' })
       expect(el.style.transform).toBe('')
       expect(el.style.left).toBe('0px')
-      expect(el.style.right).toBe('0px')
       expect(el.style.top).toBe('0px')
-      expect(el.style.bottom).toBe('0px')
     })
 
-    it('尚未量測時 under/over 一樣是滿視窗', () => {
+    it('尚未量測時 under/over 一樣停在視窗左上角', () => {
       const rt = createAuthorAssetRuntime({ doc: document, layerZIndex: LAYER_Z_INDEX.desktop })
       const el = rt.mount({ mountLayer: 'over', html: '' })
       expect(el.style.left).toBe('0px')
-      expect(el.style.right).toBe('0px')
+      expect(el.style.top).toBe('0px')
     })
 
     it('視窗改變後重新量測：容器幾何不動，只有 --lt-chat-col-* 變數更新', () => {
@@ -467,8 +480,8 @@ describe('作者掛進來的東西預設可點', () => {
 })
 
 describe('掛載內容最外層的裸文字不畫', () => {
-  // 容器貼滿視窗、作者的東西靠 position: fixed 自己定位；沒有包在元素裡的文字
-  // 只會落在視窗左上角壓住頁首。全站 42 份資產跑過一遍：會出現的裸文字全是
+  // 作者的東西靠 position: fixed 自己定位；沒有包在元素裡的文字本來就不該畫
+  //（容器現在也會裁掉流內內容）。全站 42 份資產跑過一遍：會出現的裸文字全是
   // 沒被任何規則吃掉的觸發詞（《播1》、[圖片集02]、<全局美化>）或作者複製貼上
   // 留下的殘渣（="let m=…">），沒有一份是要給玩家看的。
   it('去掉最外層的文字節點，元素與元素裡的文字原樣保留', () => {

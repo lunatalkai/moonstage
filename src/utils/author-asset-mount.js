@@ -177,8 +177,9 @@ function createAuthorAssetRuntime(options) {
   /**
    * 掛載內容最外層的裸文字不畫。
    *
-   * 容器貼滿視窗、作者的東西靠 position: fixed 自己定位（見 applyContainerBox 的說明），
-   * 沒有包在任何元素裡的文字只會落在視窗左上角、壓在頁首上。實際會出現在那裡的
+   * 作者的東西靠 position: fixed 自己定位（見 applyContainerBox 的說明），沒有包在
+   * 任何元素裡的文字本來就不該畫；容器現在會把流內內容裁掉，這裡多拿掉一層是
+   * 讓它連 DOM 都不留（文字節點也不會被作者腳本 querySelector 到）。實際會出現的
    * 只有兩種東西：沒被任何規則吃掉的觸發詞（《播1》、[圖片集02]、<全局美化>），
    * 以及作者複製貼上留下的殘渣（例如一段掉出標籤外的 ="let m=…">）——2026-09-11
    * 全站 42 份資產跑過一遍，沒有一份的裸文字是要給玩家看的。只動最外層：元素裡
@@ -262,7 +263,7 @@ function createAuthorAssetRuntime(options) {
   /**
    * 把對話欄的位置發給作者，寫成容器上的 CSS 變數。
    *
-   * 畫布沒有側欄，容器本身永遠貼滿視窗（見 applyContainerBox）；這組變數服務的是
+   * 畫布沒有側欄，作者的 fixed 元素直接解析到視窗（見 applyContainerBox）；這組變數服務的是
    * 另一種需求——作者想讓某個裝飾元素只蓋住對話欄那一塊、不要滿版時，可以自己
    * 選擇性地寫 `right: var(--lt-chat-col-right)` 而不是 `right: 0`。這是 opt-in：
    * 不讀這組變數的卡完全不受影響。
@@ -300,9 +301,21 @@ function createAuthorAssetRuntime(options) {
   }
 
   /**
-   * 容器永遠貼滿視窗——under / over / cover 三層都一樣，不再依層級或對話欄量測
-   * 分岔。作者只能寫 position: fixed，而 fixed 是相對「containing block」的：
-   * 沒有 transform / contain / filter 之類屬性的祖先時，那就是視窗。
+   * 容器是錨點，不是畫布：只有作者寫了 position: fixed 的東西才會被看見。
+   *
+   * 容器本身是 0×0 並裁切（overflow: hidden）。overflow 只裁「containing block 在
+   * 容器裡」的子孫——排版流內的、position: absolute 的都會被裁掉；fixed 的子孫的
+   * containing block 是視窗（前提是祖先沒有 transform / contain / filter /
+   * perspective），不受這層裁切影響，照樣落在螢幕上。**不能**改用 clip-path（連
+   * fixed 一起裁）或 transform 系（把容器變成 fixed 的 containing block，整批卡壞）。
+   *
+   * 為什麼要裁：MMD 的容器是 1px、停在畫面外 y≈-99999 的殼，作者資產裡排版流內的
+   * 元素在那邊天生看不見；作者也就不會去清。這裡原本讓容器貼滿視窗（inset: 0），
+   * 同一份資產裡一個 display:flex; height:100vh 的假聊天示範區塊就從左上角鋪滿整頁，
+   * 把整個介面蓋住（2026-09-15 owner 截圖，罪惡王冠卡的「游玩助手」示範區）。
+   * 對齊 MMD 的語義：流內內容不畫，fixed 才畫。
+   *
+   * 三層（under / over / cover）一樣，不依層級或對話欄量測分岔。
    *
    * 舊版曾經把 under/over 容器本身挪到對話欄的位置、疊上 transform，讓它成為
    * fixed 子孫的 containing block——這樣作者的 CSS 不用改一個字，`right: 0`
@@ -319,11 +332,12 @@ function createAuthorAssetRuntime(options) {
    */
   function applyContainerBox(el) {
     el.style.left = '0'
-    el.style.right = '0'
     el.style.top = '0'
-    el.style.bottom = '0'
-    el.style.width = ''
-    el.style.height = ''
+    el.style.right = ''
+    el.style.bottom = ''
+    el.style.width = '0'
+    el.style.height = '0'
+    el.style.overflow = 'hidden'
     el.style.transform = ''
   }
 

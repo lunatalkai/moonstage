@@ -3133,7 +3133,7 @@ function noteAuthorGestureAndRewrite(state) {
 // dispose 會讓作者的腳本在返回時重跑一次。
 //
 // 量對話欄，把位置寫成容器上的 --lt-chat-col-* 變數。author-asset-mount.js 的
-// under/over/cover 容器本身永遠貼滿視窗（position:fixed 直接解析到視窗，不再挪到
+// under/over/cover 容器是 0×0 的錨點，作者的 position:fixed 直接解析到視窗（不再挪到
 // 對話欄位置、也不再靠 transform 建立 containing block——那是三欄式聊天頁的舊行為，
 // 畫布沒有側欄不需要它，見該檔 applyContainerBox 的說明）。這組變數只服務「作者
 // 自己想選擇性地只蓋住對話欄那一塊」的情境（`right: var(--lt-chat-col-right)`），
