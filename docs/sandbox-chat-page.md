@@ -55,7 +55,7 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 |---|---|---|
 | `hello` | `config`：主題、語系、巨集（`{{user}}`／`{{char}}` 的值）、卡（`rules`、`statusbar`、`pageMode`）、能力旗標（`saves`、`edit`）、視窗高度 | 殼送 `ready-shell` 後一次 |
 | `messages` | 全量訊息列表 `[{id, role, content, serverId}]` | 開場、切存檔、重載 |
-| `message.new` | 一則新氣泡 `{id, role, content, serverId}` | 玩家送出、AI 開始回 |
+| `message.new` | 一則新氣泡 `{id, role, content, serverId}`；可帶 `before`（插在那個 id 之前，不捲到底、畫面不動） | 玩家送出、AI 開始回；載入更早的歷史（整頁帶 `before`） |
 | `message.stream` | `{id, content}` 累積內容 | 串流中 |
 | `message.done` | `{id, content, serverId}` | 該則定稿 |
 | `message.remove` | `{id}` | 刪除／重跑覆蓋 |
@@ -64,6 +64,7 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 | `reply` | `{ reqId, ok, value?, error? }` | 回應殼發出的請求（send／edit／saves） |
 | `theme` | `{ theme: 'dark' \| 'light' }` | 使用者切主題 |
 | `viewport` | `{ height }` | 視窗變動（鍵盤彈出） |
+| `history` | `{ more, loading }` 更早的歷史還有沒有、正在載嗎 | 狀態變了就送；殼捲到頂附近且 `more` 才會要 |
 | `conversation.switch` | — | 切存檔：殼清氣泡、關舞台、清補發記錄，之後宿主再送 `messages` |
 | `back` | — | 宿主的返回：舞台開著殼先關舞台並回 `back-handled: true`；否則回 false 由宿主導頁 |
 | `dispose` | — | 離開頁面 |
@@ -77,7 +78,8 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
 | `request` | `{ reqId, op, args }`，op ∈ `message.send`／`message.edit`／`save.set`／`save.remove`（`save.get`／`keys` 讀殼內預載的副本，不經宿主） |
 | `input` | `{ value }` 殼內輸入框變了（宿主鏡射，讓草稿跨頁保留） |
 | `action` | `{ name }`：`back`／`more`／`open-model`／`open-persona`／`open-archives`／`stop`／`regenerate` |
-| `open-url` | `{ url }` | 作者 HTML 裡的頁面外連結被點（殼已擋下導頁），宿主開新分頁 |
+| `open-url` | `{ url }` 作者 HTML 裡的頁面外連結被點（殼已擋下導頁），宿主開新分頁 |
+| `history` | `{ op: 'more' }` 玩家捲到頂附近，請宿主載下一頁更早的歷史（800ms 節流；宿主用 `message.new` + `before` 插進來） |
 | `stage` | `{ state: 'closed' \| 'content' \| 'full' }` 舞台狀態 |
 | `composer` | `{ visible }` 作者開關了底部輸入區 |
 | `back-handled` | `{ handled }` 回應宿主的 `back` |
@@ -122,6 +124,12 @@ Hearthroom        匯入／匯出認 chatVersion；編輯器「聊天頁版本�
   `<img onerror>` 點火器靠整份文件撿引擎片段；MMD 新版契約只保證回呼內收窄）（`scope.ts`）。
 - 一則訊息只發一次 `message:done`，且帶定稿內容——原站會在串流前多發一次空內容的 `done`，
   那是它的 bug，作者已各自防禦；我們**不複製**，免得平台繼承它。
+- **視窗化（跟原站一致）**：氣泡捲出視窗附近（兩個螢幕高以外）就被**銷毀**，發 `message:unmount`；捲回來**重建**，
+  再發一次 `message:mount`（補發記錄換成新的；`done` 的補發記錄留著——定稿只發一次）。串流中的與最末兩則永遠掛著。
+  冷啟動只同步掛最末幾則（撐滿三個螢幕高），其餘先是等高空殼：每一則都發 `message:new` 與 `message:done`，
+  但 `message:mount` 只有真的掛著的才發、`ready` 之後捲到才補。作者長期面板要放舞台，不能掛在氣泡裡（原站同）。
+- **更早的歷史**：捲到頂附近殼向宿主要下一頁，整頁以 `message.new` + `before` 插在最前面（先當空殼），
+  捲動位置由殼補償、畫面不動；插進來的每則發 `message:new` 與 `message:done`。
 
 ## 4. 渲染契約
 
@@ -203,7 +211,7 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 非手勢 `message.send` 的授權提示、淨化清單、Markdown 行為、CSP 形狀。
 
 明確不做：串流前的空內容 `message:done`（原站 bug）；原站的 `<abc_vars>` 狀態變數子系統（契約未公布，
-等有公開契約再接）；訊息列表虛擬化（先全量渲染，長對話再做）。生成中的 `message.send` 回 `BUSY`——
+等有公開契約再接）。生成中的 `message.send` 回 `BUSY`——
 照官方契約，不照原站實際的「先問授權」（作者的程式碼是對著契約寫的）。
 
 ## 7. 階段與進度
@@ -221,7 +229,11 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 - [x] P4b 視窗高度的即時推送：hello 帶初值，宿主監聽 `resize`／`visualViewport` 變化後推 `viewport`（一幀合併、同值不重送）；
   作者 HTML 裡的 `<a href>`：殼沒有 allow-popups，點了會把 iframe 自己導走——殼在冒泡階段攔下 http／https 連結，
   送 `open-url` 給宿主 `window.open(noopener)`；`#錨點`、`javascript:` 與作者自己 preventDefault 的不動。
-- [ ] 訊息列表虛擬化（先全量渲染，長對話再做）。
+- [x] 訊息列表視窗化與更早的歷史（2026-09-16）：`render/message-list.ts` 只掛視窗附近的氣泡（IntersectionObserver，
+  兩個螢幕高的邊距；重建有 10ms 預算、離視窗最近的先），其餘是等高空殼；捲到頂附近向宿主要下一頁（沙箱模式以前
+  **完全載不到更早的歷史**——觸發在宿主頁那個隱藏的捲動容器上）。合成基準 `bench/sandbox-list/`（300 則、三種正文輪流，
+  Chrome 4 倍 CPU 節流模擬手機）：冷啟動 11.2s → 0.7s、DOM 節點 27,386 → 877、酒館格式同時存活的前端區塊 iframe 50 → 1–2；
+  代價是快速滑動時每幀要重建跨過的氣泡（120px/幀 p50 29ms、p95 68ms；全量掛著時 12／44ms），跟原站同一種取捨。
 - [x] P5a 本機端到端（wrangler dev + 探針卡 + headless Chrome）：冷啟動 `greeting`/`h<id>` 各 new→mount→done、`ready` 最後；
   送出 user new → ai new(pending) → stream → done → generation false；淨化（data-*/aria/role/svg on*/iframe/form/中文尖括號）、
   save/cache/stage/input 能力、`?sdkDebug=1` 面板、CSP 擋外連，全部對上 §3–§4。抓到並修掉的：module script 在不透明源被 CORS 擋、
@@ -234,6 +246,10 @@ z-index：平台節點一律 `auto`；舞台 content 2000、full 3000；平台�
 
 - `src/sandbox/__tests__/`：事件順序（冷啟動、送出、串流、晚訂閱）、`sdk` 能力表與錯誤碼、
   `save` key 規則、訊息作用域、淨化清單、規則抽 style/script、協議握手 origin 釘死。
+- `src/sandbox/__tests__/message-list-window.spec.ts`：視窗化（冷啟動只掛末端、捲回重建與前端區塊重掛、捲出銷毀與補發記錄、
+  釘住串流中與末端、`insertBefore` 的順序與捲動補償、掛回畫面上方的高度補償、貼底維持）。
 - `src/pages/canvas/__tests__/canvas-sandbox-host.spec.ts`：HudBridge 事件 → 協議訊息、
-  `request` → HudHost 動作、origin 不符的訊息被丟掉。
+  `request` → HudHost 動作、origin 不符的訊息被丟掉、更早的歷史整頁 `before` 插入不 remove、`history` 狀態變了才送。
+- `bench/sandbox-list/`（不是測試、不進 build）：假宿主餵 N 則合成訊息量冷啟動、DOM 節點、堆積、捲動幀時間；
+  `npm run build:sandbox && python3 -m http.server 4173` → `/bench/sandbox-list/?n=300&format=mmd`，主控台 `await __bench.run()`。
 - Hearthroom：匯入 `chatVersion` → `pageMode`、匯出還原、Worker 子網域路由與 CSP 標頭、saves API。

@@ -192,7 +192,8 @@ export interface SandboxError {
 export type HostToShell =
   | { type: 'hello'; config: SandboxHelloConfig }
   | { type: 'messages'; messages: SandboxMessage[] }
-  | { type: 'message.new'; message: SandboxMessage }
+  /** 一則新氣泡。`before`＝插在那個 id 之前（載入更早的歷史，殼不捲到底、畫面不動）；沒給就接在最後。 */
+  | { type: 'message.new'; message: SandboxMessage; before?: string }
   | { type: 'message.stream'; id: string; content: string; view?: MessageView }
   | { type: 'message.done'; id: string; content: string; serverId: string | null; view?: MessageView }
   | { type: 'message.remove'; id: string }
@@ -207,6 +208,8 @@ export type HostToShell =
   /** 訊息的呈現資料變了（可重生成、上下文用量…），正文沒變。 */
   | { type: 'message.view'; id: string; view: MessageView }
   | { type: 'viewport'; height: number }
+  /** 更早的歷史：還有沒有（more）、正在載（loading）。殼捲到頂附近且 more 才會要（history）。 */
+  | { type: 'history'; more: boolean; loading: boolean }
   | { type: 'conversation.switch' }
   | { type: 'back' }
   | { type: 'dispose' }
@@ -225,6 +228,8 @@ export type ShellToHost =
   | { type: 'action'; name: ShellAction }
   /** 作者 HTML 裡的頁面外連結被點了：殼沒有 allow-popups，交給宿主開新分頁（只會是 http／https）。 */
   | { type: 'open-url'; url: string }
+  /** 玩家捲到頂附近：請宿主載下一頁更早的歷史（宿主用 message.new + before 插進來）。 */
+  | { type: 'history'; op: 'more' }
   | { type: 'stage'; state: StageState }
   /** 訊息上的互動要交給宿主做：三個點選單（anchor 是 iframe 內座標）、動作列的鍵、開場白左右切換。 */
   | { type: 'message.ui'; id: string; kind: 'menu'; anchor: MessageMenuAnchor | null }

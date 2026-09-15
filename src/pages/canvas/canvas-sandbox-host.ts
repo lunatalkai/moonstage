@@ -197,15 +197,23 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       tracked.delete(hostId)
       post({ type: 'message.remove', id: t.shellId })
     }
-    for (const m of list) {
+    // 新訊息插在哪：它後面第一則殼已經認得的（載入更早的歷史會整頁出現在最前面）；後面沒有＝接在最後。
+    const nextKnown: Array<string | null> = new Array(list.length)
+    for (let i = list.length - 1, next: string | null = null; i >= 0; i--) {
+      nextKnown[i] = next
+      const t = tracked.get(list[i].id)
+      if (t) next = t.shellId
+    }
+    list.forEach((m, index) => {
       const t = tracked.get(m.id)
       const finished = finishedOf(m)
       if (!t) {
         const shellId = `l${++liveSeq}`
         tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished, viewKey: viewKeyOf(m) })
-        post({ type: 'message.new', message: toShell(m, shellId) })
+        const before = nextKnown[index]
+        post(before ? { type: 'message.new', message: toShell(m, shellId), before } : { type: 'message.new', message: toShell(m, shellId) })
         if (finished && roleOf(m) === 'ai' && m.text) post({ type: 'message.done', id: shellId, content: m.text, serverId: m.id })
-        continue
+        return
       }
       if (t.finished) {
         // 已定稿的內容變了（改寫）：換一顆新氣泡，done 只發一次的契約才守得住。
@@ -213,31 +221,32 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
           post({ type: 'message.remove', id: t.shellId })
           const shellId = `l${++liveSeq}`
           tracked.set(m.id, { shellId, role: roleOf(m), content: m.text, finished, viewKey: viewKeyOf(m) })
-          post({ type: 'message.new', message: toShell(m, shellId) })
+          const before = nextKnown[index]
+          post(before ? { type: 'message.new', message: toShell(m, shellId), before } : { type: 'message.new', message: toShell(m, shellId) })
           if (roleOf(m) === 'ai') post({ type: 'message.done', id: shellId, content: m.text, serverId: m.id, view: viewOf(m) })
-          continue
+          return
         }
         // 正文沒變、呈現資料變了（可重生成的鍵亮起、上下文用量、思考過程…）：只換呈現。
         const key = viewKeyOf(m)
         if (key !== t.viewKey) { t.viewKey = key; if (m.view) post({ type: 'message.view', id: t.shellId, view: m.view as MessageView }) }
-        continue
+        return
       }
       if (finished) {
         t.finished = true
         t.content = m.text
         t.viewKey = viewKeyOf(m)
         post({ type: 'message.done', id: t.shellId, content: m.text, serverId: roleOf(m) === 'ai' ? m.id : null, view: viewOf(m) })
-        continue
+        return
       }
       if (t.content !== m.text) {
         t.content = m.text
         t.viewKey = viewKeyOf(m)
         post({ type: 'message.stream', id: t.shellId, content: m.text, view: viewOf(m) })
-        continue
+        return
       }
       const key = viewKeyOf(m)
       if (key !== t.viewKey) { t.viewKey = key; if (m.view) post({ type: 'message.view', id: t.shellId, view: m.view as MessageView }) }
-    }
+    })
   }
 
   const syncGeneration = (snapshot: HudHostState = hud.read()) => {
@@ -245,6 +254,16 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
     if (busy === lastBusy) return
     lastBusy = busy
     post({ type: 'generation', busy })
+  }
+
+  let lastHistoryKey = ''
+  const syncHistory = (snapshot: HudHostState) => {
+    if (!snapshot.history) return
+    const state = { more: !!snapshot.history.more, loading: !!snapshot.history.loading }
+    const key = `${state.more}:${state.loading}`
+    if (key === lastHistoryKey) return
+    lastHistoryKey = key
+    post({ type: 'history', ...state })
   }
 
   let lastChromeKey = ''
@@ -427,6 +446,9 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       case 'action':
         handleAction(message.name)
         return
+      case 'history':
+        if (message.op === 'more' && hud.loadMoreHistory) void hud.loadMoreHistory()
+        return
       case 'open-url': {
         // 只開 http／https：殼那邊已經濾過一次，這裡再守一次——訊息是跨源來的，不信任它。
         const url = typeof message.url === 'string' ? message.url : ''
@@ -501,6 +523,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
       syncInput(snapshot)
       syncChrome(snapshot)
       syncPanels(snapshot)
+      syncHistory(snapshot)
     },
     conversationSwitched() {
       if (!helloSent || destroyed) return

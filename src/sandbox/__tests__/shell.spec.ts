@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { createShell, type Shell } from '../shell'
 import type { SandboxHelloConfig, ShellToHost } from '../protocol'
@@ -311,5 +311,58 @@ describe('作者連結交給宿主開', () => {
     click('own')
     expect(sent.filter((m) => m.type === 'open-url')).toHaveLength(1)
     s.dispose()
+  })
+})
+
+describe('殼：載入更早的歷史', () => {
+  it('宿主說還有更早的歷史、殼停在頂端 → 送 history more；800ms 內不重送；宿主用 message.new + before 插進來（不捲到底、放在指定那則之前）', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-16T00:00:00Z'))
+      const s = boot(config({ card: { rules: [SCRIPT_RULE(`window.__ev = []; ['message:new','message:mount','message:done'].forEach(function (ev) { sdk.on(ev, function (p) { window.__ev.push(ev + ':' + p.id); }); });`)], statusbar: '' } }))
+      s.handle({ type: 'messages', messages: [{ id: 'h5', role: 'ai', content: '五', serverId: '5' }, { id: 'h6', role: 'user', content: '六', serverId: null }] })
+      sent = []
+      // jsdom 的 scrollTop 恆為 0 ＝停在頂端：一收到「還有」就要
+      s.handle({ type: 'history', more: true, loading: false })
+      expect(sent).toEqual([{ type: 'history', op: 'more' }])
+      // 宿主還在載：再捲也不重送
+      s.refs.messages.querySelector('#scrollview')!.dispatchEvent(new Event('scroll'))
+      expect(sent).toHaveLength(1)
+      const ev = (window as unknown as { __ev: string[] }).__ev
+      ev.length = 0
+      s.handle({ type: 'message.new', message: { id: 'l1', role: 'ai', content: '三', serverId: '3', state: 'done' }, before: 'h5' })
+      s.handle({ type: 'message.new', message: { id: 'l2', role: 'user', content: '四', serverId: null, state: 'done' }, before: 'h5' })
+      const ids = Array.from(s.refs.list.querySelectorAll('[data-chat="message"]')).map((el) => el.closest('[data-chat="message-frame"]'))
+      expect(ids.length).toBeGreaterThan(0)
+      const frames = Array.from(s.refs.list.querySelectorAll('[data-chat="message-frame"]'))
+      expect(frames).toHaveLength(4)
+      // 沒有 IntersectionObserver（jsdom）＝不視窗化：插進來的也直接掛好
+      expect(ev).toEqual(['message:new:l1', 'message:mount:l1', 'message:done:l1', 'message:new:l2', 'message:mount:l2', 'message:done:l2'])
+      expect(frames[0].querySelector('[data-chat="message-body"]')!.textContent).toContain('三')
+      expect(frames[2].querySelector('[data-chat="message-body"]')!.textContent).toContain('五')
+      // 宿主說載完了、還有更多：過了節流窗才會再要
+      s.handle({ type: 'history', more: true, loading: false })
+      expect(sent).toHaveLength(1)
+      vi.setSystemTime(new Date('2026-09-16T00:00:01Z'))
+      s.handle({ type: 'history', more: true, loading: false })
+      expect(sent).toHaveLength(2)
+      // 沒有更多：不再要
+      vi.setSystemTime(new Date('2026-09-16T00:00:03Z'))
+      s.handle({ type: 'history', more: false, loading: false })
+      s.refs.messages.querySelector('#scrollview')!.dispatchEvent(new Event('scroll'))
+      expect(sent).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('切會話後歷史狀態歸零：沒收到新的 history 之前捲到頂不會要', () => {
+    const s = boot(config())
+    s.handle({ type: 'messages', messages: [] })
+    s.handle({ type: 'history', more: true, loading: true })
+    s.handle({ type: 'conversation.switch' })
+    sent = []
+    s.refs.messages.querySelector('#scrollview')!.dispatchEvent(new Event('scroll'))
+    expect(sent.filter((m) => m.type === 'history')).toEqual([])
   })
 })

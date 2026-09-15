@@ -66,6 +66,10 @@ html, body { margin: 0; padding: 0; height: 100%; }
 /* 訊息區裝的是標準舞台（.chat-scope-box 撐滿、.scroll-view 在裡面捲），所以這一層自己不捲、只給高度。 */
 [data-chat="messages"] { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 [data-chat="list"] { display: flex; flex-direction: column; }
+/* 視窗化與載入更早的歷史都由列表自己補償捲動位置（Safari 沒有捲動錨定），瀏覽器的錨定關掉才不會補兩次。 */
+[data-chat="messages"] .scroll-view { overflow-anchor: none; }
+/* 視窗化拆掉的氣泡：等高空殼撐住位置。 */
+[data-chat="message-frame"][data-virtual] { contain: strict; }
 [data-chat="list-spacer"] { height: calc(24 * var(--rpx)); }
 
 /* 氣泡本身是標準訊息元件（canvas.css 的 .mes 一族），殼不再另寫一套訊息樣式。 */

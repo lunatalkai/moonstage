@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sandbox list bench</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 13px/1.4 system-ui, sans-serif; }
+  #wrap { display: flex; height: 100%; }
+  #frame { flex: 0 0 420px; height: 100%; border: 0; background: #000; }
+  #log { flex: 1; padding: 12px; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <iframe id="frame" src="../../dist-sandbox/index.html" sandbox="allow-scripts allow-same-origin"></iframe>
+  <div id="log"></div>
+</div>
+<script src="./bench.js"></script>
+</body>
+</html>

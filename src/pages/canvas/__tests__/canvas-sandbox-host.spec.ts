@@ -406,3 +406,44 @@ describe('視窗高度與連結', () => {
     host.destroy()
   })
 })
+
+describe('沙箱宿主橋：更早的歷史', () => {
+  let h: Harness
+  beforeEach(() => { h = harness() })
+  afterEach(() => { h.iframe.remove() })
+
+  it('整頁更早的歷史出現在最前面：每則 message.new 帶 before＝它後面第一則殼認得的 id，舊的不 remove；history 狀態變了才送；殼要下一頁就叫 hud.loadMoreHistory', async () => {
+    const state = { current: makeState({ messages: [msg({ id: '30', text: '三十' }), msg({ id: '31', role: 'user', text: '三一' })], history: { more: true, loading: false } }) }
+    const { hud, calls } = fakeHud(state)
+    const loadMore = vi.fn(() => true)
+    ;(hud as unknown as { loadMoreHistory: () => boolean }).loadMoreHistory = loadMore
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    host.sync()
+    host.sync()
+    const histories = h.posted.filter((m) => m.type === 'history')
+    expect(histories).toEqual([expect.objectContaining({ more: true, loading: false })])
+
+    h.fromShell({ type: 'history', op: 'more' })
+    expect(loadMore).toHaveBeenCalledTimes(1)
+    expect(calls.length).toBe(0)
+
+    // 宿主載到了：前面多了一頁（兩則），還有更多
+    state.current = makeState({ messages: [msg({ id: '28', text: '二八' }), msg({ id: '29', role: 'user', text: '二九' }), msg({ id: '30', text: '三十' }), msg({ id: '31', role: 'user', text: '三一' })], history: { more: true, loading: false } })
+    h.posted.length = 0
+    host.sync()
+    const types = h.posted.map((m) => m.type)
+    expect(types).not.toContain('message.remove')
+    const news = h.posted.filter((m) => m.type === 'message.new') as Array<{ message: { id: string; content: string }; before?: string }>
+    expect(news.map((m) => [m.message.content, m.before])).toEqual([['二八', 'h30'], ['二九', 'h30']])
+    // 定稿的 AI 歷史還補一個 done
+    expect(h.posted.filter((m) => m.type === 'message.done').map((m) => m.id)).toEqual([news[0].message.id])
+    // 沒有更早的了
+    state.current = { ...state.current, history: { more: false, loading: false } }
+    h.posted.length = 0
+    host.sync()
+    expect(h.posted).toEqual([expect.objectContaining({ type: 'history', more: false, loading: false })])
+  })
+})

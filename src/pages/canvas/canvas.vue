@@ -2874,6 +2874,8 @@ function buildHudHost(): HudHost {
       return {
         chrome: sandboxCard.value ? buildChromeState() : undefined,
         panels: sandboxCard.value ? buildPanelsState() : undefined,
+        // 沙箱殼用：更早的歷史還有沒有（殼捲到頂附近會來要下一頁；一般卡是隱藏的捲動容器自己觸發）。
+        history: sandboxCard.value ? { more: !!ajax.value.hasNextPage, loading: !ajax.value.flag } : undefined,
         character: {
           id: String(unref(roleId) || '') || null,
           name: convertPlainText(view.roleName || '', displayScript),
@@ -2945,6 +2947,14 @@ function buildHudHost(): HudHost {
     },
     sendMessage: (text) => { content.value = text; onCanvasSend(); return true; },
     setInputText: (text) => { content.value = text; return true; },
+    // 沙箱殼捲到頂附近：跟一般卡的捲動處理同一條路（翻頁 + getHistoryMsg），守同樣的開關與節流。
+    loadMoreHistory: () => {
+      if (!ajax.value.hasNextPage || !ajax.value.flag || loadMoreThrottleTimer) return false;
+      loadMoreThrottleTimer = setTimeout(() => { loadMoreThrottleTimer = null; }, LOAD_MORE_THROTTLE_DELAY);
+      ajax.value.page++;
+      getHistoryMsg();
+      return true;
+    },
     exit: () => { goBackToEntry(); return true; },
     copyMessage: (id) => { const found = itemOf(id); if (!found) return false; copyText(null, found.item.content, t('canvas.copied')); return true; },
     stopGeneration: () => { onCanvasStop(); return true; },

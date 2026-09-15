@@ -231,6 +231,23 @@ export function createShell(options: CreateShellOptions): Shell {
   }
   if (refs.statusbar && config.card.statusbarHtml) runMessageScripts(refs.statusbar, Array.from(String(config.card.statusbarHtml).matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)).map((m) => m[1]))
 
+  // 視窗化：一個觀察者盯所有外框，離視窗兩個螢幕高以內算「附近」。沒有 IntersectionObserver 的環境就全量掛。
+  const virtualize = (() => {
+    if (typeof IntersectionObserver !== 'function') return undefined
+    const callbacks = new Map<Element, (near: boolean) => void>()
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) { const cb = callbacks.get(e.target); if (cb) cb(e.isIntersecting) }
+    }, { root: scrollView, rootMargin: '200% 0px' })
+    return {
+      scroller: scrollView,
+      observe: (frame: HTMLElement, cb: (near: boolean) => void) => {
+        callbacks.set(frame, cb)
+        io.observe(frame)
+        return () => { callbacks.delete(frame); io.unobserve(frame) }
+      },
+    }
+  })()
+
   const list = createMessageList({
     doc,
     list: refs.list,
@@ -253,7 +270,23 @@ export function createShell(options: CreateShellOptions): Shell {
     // 宿主的渲染管線保留正文裡的 <script>（跟一般卡同一套信任模型）：掛上後在那則的作用域裡跑一次。
     runScripts: runMessageScripts,
     mountFrontend,
+    virtualize,
   })
+
+  // ── 更早的歷史：捲到頂附近就向宿主要下一頁；宿主用 message.new + before 插進來，列表補償捲動位置。 ──
+  const history = { more: false, loading: false }
+  let historyAskedAt = 0
+  const askHistory = () => {
+    if (!history.more || history.loading) return
+    const now = Date.now()
+    if (now - historyAskedAt < 800) return
+    historyAskedAt = now
+    history.loading = true
+    transport.send({ type: 'history', op: 'more' })
+  }
+  const nearTop = () => scrollView.scrollTop < Math.max(300, scrollView.clientHeight * 2)
+  const onScroll = () => { if (nearTop()) askHistory() }
+  scrollView.addEventListener('scroll', onScroll, { passive: true })
 
   // ── 輸入區 ──
   // input:change 只在值真的變了才發：冷啟動時宿主同步一次空草稿、殼自己也有初始的空值，
@@ -398,7 +431,14 @@ export function createShell(options: CreateShellOptions): Shell {
         coldStart(message.messages || [])
         return
       case 'message.new':
-        list.add(message.message)
+        if (message.before) list.insertBefore(message.message, message.before)
+        else list.add(message.message)
+        return
+      case 'history':
+        history.more = !!message.more
+        history.loading = !!message.loading
+        // 內容還不夠一屏（或玩家本來就停在頂端）：不會有捲動事件，直接再要。
+        if (nearTop()) askHistory()
         return
       case 'message.stream':
         list.stream(message.id, message.content, message.view)
@@ -446,6 +486,8 @@ export function createShell(options: CreateShellOptions): Shell {
         return
       case 'conversation.switch':
         if (stageState !== 'closed') { sdkHost.stage.close(); bus.emit('stage:close') }
+        history.more = false
+        history.loading = false
         list.clear()
         bus.resetReplay()
         bus.emit('conversation:switch')
@@ -478,6 +520,7 @@ export function createShell(options: CreateShellOptions): Shell {
       doc.removeEventListener('click', onGesture, true)
       doc.removeEventListener('keydown', onGesture, true)
       doc.removeEventListener('click', onLinkClick)
+      scrollView.removeEventListener('scroll', onScroll)
       refs.root.remove()
       refs.authorCss.remove()
     },

@@ -64,6 +64,8 @@ export interface HudHostState {
   chrome?: unknown
   /** 沙箱殼用：面板與訊息選單的呈現資料（見 sandbox/protocol PanelsState）。 */
   panels?: unknown
+  /** 沙箱殼用：更早的歷史還有沒有、正在載嗎（殼捲到頂附近會要下一頁）。 */
+  history?: { more: boolean; loading: boolean }
   messages: HudHostMessage[]
   generation: 'idle' | 'starting' | 'streaming'
   streamingMessageId: string | null
@@ -130,6 +132,8 @@ export interface HudHost {
   forkFromMessage?(messageId: string): HostResult
   /** 重新讀一次歷史；沒有就不提供 refreshConversation */
   refreshConversation?(): HostResult
+  /** 載下一頁更早的歷史（沙箱殼捲到頂附近）；沒有更多或正在載回 false。 */
+  loadMoreHistory?(): HostResult
 }
 
 // ── 契約形狀（照外掛原樣） ─────────────────────────────────────────────
