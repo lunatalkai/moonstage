@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { sanitizeAuthorHtml, stripUnknownTags } from '../sanitize'
+import { stylePolicyFor } from '@/common/author-style-policy'
 import { installCard, renderContent, expandMacros } from '../rules'
 import { topLevelNames, wrapInlineScript } from '../author-scripts'
 
@@ -53,7 +54,7 @@ describe('裝卡：抽 style／script', () => {
       { id: 1, name: 'kit', find: '{{eg-kit}}', replace: '<style>.x{color:red}</style><script>function tap(){}</script><script src="http://a/b.js"></script><script src="https://a/c.js"></script>剩下' },
       { id: 2, name: 'hp', find: '/體力/', replace: '<b>HP</b>' },
       { id: 3, name: 'off', find: 'x', replace: '<style>.no{}</style>', enabled: false },
-    ])
+    ], stylePolicyFor('mmd'))
     expect(card.styles).toEqual(['.x{color:red}'])
     expect(card.scripts).toEqual([
       { kind: 'inline', code: 'function tap(){}', ruleName: 'kit' },
@@ -62,6 +63,23 @@ describe('裝卡：抽 style／script', () => {
     expect(card.rules[0].replace).toBe('剩下')
     expect(card.rules[1].replace).toBe('<b>HP</b>')
     expect(card.rules[2].replace).toBe('<style>.no{}</style>')
+  })
+})
+
+describe('裝卡：樣式依格式政策落地', () => {
+  // 一張酒館卡的正文美化規則把 `body{display:flex;justify-content:center}` 與
+  // `body::before{position:fixed;…}` 寫在 <style> 裡；在原平台這些是死規則（逐字前綴），
+  // 我們的殼曾把它原樣裝進 iframe，整個聊天頁變成一條窄柱、外圈一環漸層。
+  const rules = [{ id: 1, name: 'beautify', find: '/x/', replace: '<style>body{display:flex}body::before{position:fixed;inset:0}.letter{color:red}</style>' }]
+  it('酒館格式：逐字接訊息層前綴，body 類規則跟原平台一樣不會碰到頁面', () => {
+    const card = installCard(rules, stylePolicyFor('tavern'))
+    expect(card.styles).toEqual(['.mes_text body{display:flex}.mes_text body::before{position:fixed;inset:0}.mes_text .letter{color:red}'])
+  })
+  it('MMD 格式：原樣——作者就是靠它換整頁', () => {
+    expect(installCard(rules, stylePolicyFor('mmd')).styles).toEqual(['body{display:flex}body::before{position:fixed;inset:0}.letter{color:red}'])
+  })
+  it('沒宣告格式當 MMD', () => {
+    expect(installCard(rules, stylePolicyFor(undefined)).styles[0]).toMatch(/^body\{/)
   })
 })
 

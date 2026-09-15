@@ -36,6 +36,8 @@ export interface SandboxRule {
 }
 
 export interface SandboxCard {
+  /** 卡片格式（'mmd'｜'tavern'；沒有＝MMD）。決定規則裡的 <style> 落地時要不要加訊息層前綴（見 common/author-style-policy）。 */
+  format?: string
   rules: SandboxRule[]
   /** 功能欄的原文；空字串＝整塊不存在。 */
   statusbar: string

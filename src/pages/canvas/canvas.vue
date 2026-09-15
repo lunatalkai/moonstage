@@ -2619,6 +2619,7 @@ function mountSandbox(asset: any) {
           role: { name: convertPlainText(view.roleName || '', displayScript), avatarUrl: view.roleAvatar ? String(cfImage(view.roleAvatar, 'avatarMedium') || '') : '' },
           user: { nickname: userDisplayName(), avatarUrl: String(info.avatar || '') },
           card: {
+            format: cardFormat.value,
             rules: Array.isArray(sandboxAsset?.rules) ? sandboxAsset.rules : [],
             statusbar: String(sandboxAsset?.mountTrigger || ''),
             // 狀態欄也用一般卡的管線算（跟訊息同一套規則引擎與範圍處理），殼直接掛。

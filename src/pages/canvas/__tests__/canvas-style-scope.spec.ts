@@ -31,9 +31,11 @@ describe('加作用域', () => {
     expect(scopeCss('p, .title{color:red}', MESSAGE_SCOPE)).toBe('.mes_text p, .mes_text .title{color:red}')
   })
 
-  it('作者寫 body / :root 是想改整則訊息的字，對映到訊息層而不是丟掉', () => {
-    expect(scopeCss('body{font-size:14px}', MESSAGE_SCOPE)).toBe('.mes_text{font-size:14px}')
-    expect(scopeCss(':root.dark{color:#fff}', MESSAGE_SCOPE)).toBe('.mes_text.dark{color:#fff}')
+  it('body / :root 也是逐字接前綴——跟酒館一樣變成死規則，卡在兩邊長得一樣', () => {
+    // 曾經對映到訊息層本身；實卡的 body::before{position:fixed} 被對映後仍蓋住整個視口。
+    expect(scopeCss('body{font-size:14px}', MESSAGE_SCOPE)).toBe('.mes_text body{font-size:14px}')
+    expect(scopeCss('body::before{position:fixed}', MESSAGE_SCOPE)).toBe('.mes_text body::before{position:fixed}')
+    expect(scopeCss(':root.dark{color:#fff}', MESSAGE_SCOPE)).toBe('.mes_text :root.dark{color:#fff}')
   })
 
   it('@media 要進去處理內層，@keyframes 的內容不是選擇器不能碰', () => {
@@ -58,6 +60,11 @@ describe('整段訊息 HTML', () => {
 
   it('MMD 來源原樣過——那邊的作者就是靠無前綴的 <style> 換掉整個頁面', () => {
     expect(scopeCardHtml(html, 'mmd')).toBe(html)
+  })
+
+  it('伺服器欄位原始字串也能直接餵（沒宣告當 MMD）', () => {
+    expect(scopeCardHtml(html, undefined)).toBe(html)
+    expect(scopeCardHtml(html, 'SillyTavern')).toBe('<div class="panel">x</div><style>.mes_text p{color:red}</style>')
   })
 
   it('酒館來源加上訊息層前綴', () => {

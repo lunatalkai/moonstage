@@ -12,6 +12,7 @@ import { createSdk, type Sdk, type SdkHost } from './sdk/create-sdk'
 import { SdkError, sdkErrorFromHost } from './sdk/errors'
 import { installMessageScope } from './scope'
 import { installCard, renderContent } from './rules'
+import { applyStylePolicyToHtml, stylePolicyFor } from '@/common/author-style-policy'
 import { runAuthorScripts, runInlineScript } from './author-scripts'
 import { createMessageList } from './render/message-list'
 import { createPanels } from './render/panels'
@@ -178,10 +179,12 @@ export function createShell(options: CreateShellOptions): Shell {
   ;(win as unknown as { sdk: Sdk }).sdk = controller.sdk
 
   // ── 裝卡：樣式、腳本（在任何 DOM 內容之前）。 ──
-  const card = installCard(config.card.rules || [])
+  // 卡片格式決定 <style> 怎麼落地（政策表在 common/author-style-policy）；殼自己不判斷格式。
+  const stylePolicy = stylePolicyFor(config.card.format)
+  const card = installCard(config.card.rules || [], stylePolicy)
   refs.authorCss.textContent = card.styles.join('\n')
   const macros = { user: config.user.nickname || '', char: config.role.name || '' }
-  const render = (content: string) => renderContent(content, card.rules, { macros, variants: config.variants || null, doc })
+  const render = (content: string) => applyStylePolicyToHtml(renderContent(content, card.rules, { macros, variants: config.variants || null, doc }), stylePolicy)
   // 狀態欄先掛、腳本後跑：舊頁寫法的卡把引擎零件（隱藏的 span、樣式）放在狀態欄裡，腳本一跑就去找它們，
   // 先跑腳本會找不到、功能少一半（碧藍檔案那張：導覽 13 步變 9 步、開場白裡的檔案面板不出來）。
   // 舞台與訊息列容器也已經在上面掛好了，作者腳本啟動時看得到跟舊頁一樣的骨架。

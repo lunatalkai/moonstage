@@ -2,7 +2,8 @@
  * 規則 → 畫面的管線，與裝卡時的抽取。
  *
  * 裝卡：把每條規則替換內容裡的 `<style>` 與 `<script>` 抽出來（不論那條規則有沒有命中），
- * 樣式合成一張全頁樣式表、腳本按規則順序整卡只跑一次。抽走之後規則本身照常參與替換。
+ * 樣式依卡片格式的政策落地（酒館卡加訊息層前綴、MMD 卡原樣）後合成一張全頁樣式表、
+ * 腳本按規則順序整卡只跑一次。抽走之後規則本身照常參與替換。
  *
  * 渲染一則內容：巨集（{{user}}／{{char}}）→ 顯示規則（重用 display-rule-engine：同一份預算與
  * 回滾邏輯）→ Markdown（`*x*` 是斜體；四個空格不當程式碼塊）→ 對白引號上色 → 淨化。
@@ -12,11 +13,12 @@ import MarkdownIt from 'markdown-it'
 import { applyDisplayRules } from '@/utils/display-rule-engine.js'
 import type { SandboxRule } from './protocol'
 import { sanitizeAuthorHtml, stripUnknownTags } from './sanitize'
+import { applyStylePolicy, type AuthorStylePolicy } from '@/common/author-style-policy'
 
 export interface InstalledCard {
   /** 替換內容已抽掉 style/script 的規則，給渲染用。 */
   rules: SandboxRule[]
-  /** 各規則抽出的樣式，按規則順序。 */
+  /** 各規則抽出、已依政策落地的樣式，按規則順序。 */
   styles: string[]
   /** 各規則抽出的腳本，按規則順序；外鏈與內聯都在。 */
   scripts: AuthorScript[]
@@ -30,7 +32,7 @@ const STYLE_RE = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi
 const SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi
 const SRC_RE = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i
 
-export function installCard(rules: SandboxRule[]): InstalledCard {
+export function installCard(rules: SandboxRule[], policy: AuthorStylePolicy): InstalledCard {
   const styles: string[] = []
   const scripts: AuthorScript[] = []
   const stripped: SandboxRule[] = []
@@ -38,7 +40,7 @@ export function installCard(rules: SandboxRule[]): InstalledCard {
     if (!rule || rule.enabled === false) { if (rule) stripped.push(rule); continue }
     const ruleName = String(rule.name || rule.id || '')
     let replace = String(rule.replace == null ? '' : rule.replace)
-    replace = replace.replace(STYLE_RE, (_m, css: string) => { styles.push(css); return '' })
+    replace = replace.replace(STYLE_RE, (_m, css: string) => { styles.push(applyStylePolicy(css, policy)); return '' })
     replace = replace.replace(SCRIPT_RE, (_m, attrs: string, code: string) => {
       const src = SRC_RE.exec(attrs || '')
       const url = src ? (src[1] || src[2] || src[3] || '') : ''
