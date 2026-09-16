@@ -4002,7 +4002,7 @@
 	"canvas.panel.backgroundReset": "背景をリセット",
 	"canvas.panel.backgroundRole": "キャラクターの背景を使う",
 	"canvas.panel.reset": "チャットをリセット",
-	"canvas.panel.resetConfirm": "リセットするとこの会話の内容は残りません。続けますか？",
+	"canvas.panel.resetConfirm": "リセットすると物語は冒頭に戻り、それより後の内容は残りません。長期指示とノートは残ります。続けますか？",
 	"canvas.panel.export": "チャットを書き出す",
 	"canvas.panel.exportEmpty": "書き出せる内容がまだありません",
 	"canvas.panel.perTurn": "/回",

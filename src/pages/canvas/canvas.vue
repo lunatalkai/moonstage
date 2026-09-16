@@ -563,7 +563,9 @@ import {
   type ChatOperationUIAction,
   type RewriteSnapshot,
   isOpeningIndex,
+  openingChatIdFromOldestHistoryRow,
   canEditResendPlayerIndex,
+  hasAIReplyAfterPlayerIndex,
 } from './chat-operation-ui-state';
 import {
   createHistoryRequestKey,
@@ -8619,8 +8621,16 @@ const menuActions = computed(() => {
   if (!item) return []
   // 純預覽的訊息不在伺服器上：改寫、倒回、分叉、刪除都沒有對象，只留複製。
   if (previewOnly.value) return [{ key: 'copy', label: t('chat.copy') }]
-  // 開場白是作者寫的：不改寫、不繼續、不刪除；它前面沒有東西可倒回。只留複製。
-  if (isOpeningIndex(talkList.value, index)) return [{ key: 'copy', label: t('chat.copy') }]
+  // 開場白是作者寫的：不改寫、不繼續、不刪除。但它可以當倒回的目標——倒回開場白＝
+  // 一步清空劇情，長期指令、手帳、記憶都留著（玩家 2026-09-16：回到起點要按兩次）。
+  if (isOpeningIndex(talkList.value, index)) {
+    const openingActions: Array<{ key: string; label: string }> = []
+    if (item.id !== 0 && index !== talkList.value.length - 1) {
+      openingActions.push({ key: 'rewind', label: t('canvas.menu.rewind') })
+    }
+    openingActions.push({ key: 'copy', label: t('chat.copy') })
+    return openingActions
+  }
   const isAI = item.type == 0
   const latestAI = isAI && isLatestCanonicalAIIndex(index)
   const actions: Array<{ key: string; label: string; disabled?: boolean }> = []
@@ -8835,6 +8845,10 @@ function doEditResendPlayer(index: number, draft: string) {
   if (!text) return
   const userBubble = talkList.value[index]
   if (!userBubble || !canEditResendPlayerIndex(talkList.value, index)) return
+  if (!hasAIReplyAfterPlayerIndex(talkList.value, index)) {
+    resendPlayerRowWithoutReply(index, text)
+    return
+  }
   const snapshot = createRewriteSnapshotForTarget(talkList.value, userBubble.chatId || userBubble.id)
   if (!snapshot) return
   if (text === String(userBubble.content || '').trim()) {
@@ -8851,6 +8865,37 @@ function doEditResendPlayer(index: number, draft: string) {
   pendingRewriteSnapshot = snapshot
   rewriteTargetChatId.value = String(userBubble.chatId || userBubble.id || '')
   send()
+}
+
+// 後面沒有 AI 回覆的那一句（那一輪失敗、或回覆被刪了）：沒有東西可「改寫」，
+// 改成先把這句從伺服器拿掉，再把改好的字當新訊息送出。拿不掉就不送——否則同一句會出現兩次。
+function resendPlayerRowWithoutReply(index: number, text: string) {
+  const userBubble = talkList.value[index]
+  const chatId = String(userBubble?.chatId || userBubble?.id || '')
+  if (!chatId) return
+  if (actionBtnState.value === 'stop') {
+    sendStop();
+  }
+  _this.http.post(_this.requestUrl.chatDelete, {
+    header: { 'content-type': 'application/json' },
+    showLoading: false,
+    data: { conversationId: unref(conversationId), chatId },
+  }).then((res: any) => {
+    if (res.statusCode !== 200) {
+      message.error((res.data && res.data.error) || t('main.save_failed'))
+      return
+    }
+    const at = talkList.value.findIndex((item: any) => item && String(item.chatId || item.id || '') === chatId)
+    if (at >= 0) talkList.value.splice(at, 1)
+    content.value = text
+    rewrite.value = false
+    contine.value = false
+    pendingRewriteSnapshot = null
+    rewriteTargetChatId.value = ''
+    send()
+  }).catch((e: any) => {
+    console.error('編輯並重送（沒有回覆）失敗', e)
+  })
 }
 
 // ── 輸入區 ─────────────────────────────────────────────────────────────
@@ -10441,13 +10486,56 @@ function onPickFont(key: string) {
 }
 
 // ── 重置聊天 ───────────────────────────────────────────────────────────
+//
+// 重置＝倒回到開場白。劇情清空，但長期指令、手帳、記憶、當前會話人設都掛在對話上，留著。
+// 以前是把整段對話刪掉再開新的，那些一起沒了；而倒回到起點又要按兩次（先倒回第一句、
+// 再刪那一句），所以玩家寧可重置（玩家 2026-09-16）。沒有開場白可倒（玩家先講話的卡）
+// 才走刪除。
 function resetConversation() {
-  const id = unref(conversationId)
+  const id = String(unref(conversationId) || '')
   if (!id) return
   if (isTimelineMutationBlocked()) {
     notifyTimelineMutationBlocked()
     return
   }
+  findOpeningChatId(id).then((openingId) => {
+    if (String(unref(conversationId) || '') !== id) return
+    if (openingId) {
+      loadConversation(openingId)
+      return
+    }
+    deleteConversationAndRestart(id)
+  })
+}
+
+// 開場白那一則的 chatId。畫面上有就直接用；長對話只載了最新一頁，開場白在最舊那一頁——
+// 先問一筆拿總數，再拿最舊的那一筆（分頁是新的在前，最後一頁的那一筆就是最舊的）。
+async function findOpeningChatId(targetConversationId: string): Promise<string> {
+  const list = talkList.value as any[]
+  const loaded = list.findIndex((_item, i) => isOpeningIndex(list, i))
+  if (loaded >= 0) {
+    const row = list[loaded]
+    return row && row.id !== 0 && row.id != null ? String(row.chatId || row.id) : ''
+  }
+  try {
+    const page = (pageNum: number) => _this.http.get(_this.requestUrl.historyMessageList, {
+      data: { conversationId: targetConversationId, pageNum, pageSize: 1 },
+      showLoading: false,
+      timeout: 10000,
+    })
+    const first: any = await page(1)
+    const total = Number(first?.data?.total) || 0
+    if (first.statusCode !== 200 || total <= 0) return ''
+    const oldest: any = total === 1 ? first : await page(total)
+    if (oldest.statusCode !== 200) return ''
+    return openingChatIdFromOldestHistoryRow(oldest?.data?.chats?.[0])
+  } catch (e) {
+    console.warn('找開場白失敗，重置改走刪除', e)
+    return ''
+  }
+}
+
+function deleteConversationAndRestart(id: string) {
   _this.http.post(_this.requestUrl.deleteConversation, {
     header: { 'content-type': 'application/json' },
     showLoading: false,

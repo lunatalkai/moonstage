@@ -4002,7 +4002,7 @@
 	"canvas.panel.backgroundReset": "Reset background",
 	"canvas.panel.backgroundRole": "Use card background",
 	"canvas.panel.reset": "Reset chat",
-	"canvas.panel.resetConfirm": "Resetting drops everything in this conversation. Continue?",
+	"canvas.panel.resetConfirm": "Resetting takes the story back to the opening. Everything after it is dropped; your standing instructions and notebook are kept. Continue?",
 	"canvas.panel.export": "Export chat",
 	"canvas.panel.exportEmpty": "Nothing to export yet",
 	"canvas.panel.perTurn": "/turn",

@@ -12,6 +12,7 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import {
   canEditResendPlayerIndex,
+  hasAIReplyAfterPlayerIndex,
   createRewriteSnapshotForTarget,
   restoreRewriteCandidate,
 } from '../chat-operation-ui-state'
@@ -29,8 +30,12 @@ describe('哪一則玩家訊息能編輯並重送', () => {
     const list = [ai('g', '開場'), user('u1', '早'), ai('a1', '嗨'), user('u2', '再來'), ai('a2', '好')]
     expect(canEditResendPlayerIndex(list, 1)).toBe(false)
   })
-  it('後面沒有 AI 回覆（那一輪失敗或還在跑）不行：那是重試，不是編輯', () => {
-    expect(canEditResendPlayerIndex([ai('g', '開場'), user('u1', '早')], 1)).toBe(false)
+  it('後面什麼都沒有（那一輪失敗、或回覆被刪了）：可以，走拿掉重送', () => {
+    expect(canEditResendPlayerIndex([ai('g', '開場'), user('u1', '早')], 1)).toBe(true)
+    expect(hasAIReplyAfterPlayerIndex([ai('g', '開場'), user('u1', '早')], 1)).toBe(false)
+    expect(hasAIReplyAfterPlayerIndex([ai('g', '開場'), user('u1', '早'), ai('a1', '嗨')], 1)).toBe(true)
+  })
+  it('後面的 AI 回覆還在跑不行：等它跑完', () => {
     expect(canEditResendPlayerIndex([ai('g', '開場'), user('u1', '早'), ai('a1', '', { chatLoading: true })], 1)).toBe(false)
   })
   it('沒存檔的訊息（id 0）與 AI 訊息不行', () => {

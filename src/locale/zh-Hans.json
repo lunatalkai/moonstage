@@ -4002,7 +4002,7 @@
 	"canvas.panel.backgroundReset": "重置背景图",
 	"canvas.panel.backgroundRole": "使用角色背景",
 	"canvas.panel.reset": "重置聊天",
-	"canvas.panel.resetConfirm": "重置后这段对话的内容不会保留，确定要重置吗？",
+	"canvas.panel.resetConfirm": "重置后剧情会回到开场白，后面的内容不会保留；长期指令与手账会保留。确定要重置吗？",
 	"canvas.panel.export": "导出聊天",
 	"canvas.panel.exportEmpty": "这段对话还没有内容可以导出",
 	"canvas.panel.perTurn": "/次",

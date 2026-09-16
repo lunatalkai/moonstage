@@ -25,6 +25,10 @@ describe('改寫態', () => {
 })
 
 describe('倒回這裡', () => {
+  it('開場白可以當倒回目標（不是最新一則時）：一步回到起點，長期指令與手帳留著', () => {
+    const src = readFileSync(resolve(__dirname, '../canvas.vue'), 'utf8')
+    expect(src).toMatch(/if \(isOpeningIndex\(talkList\.value, index\)\) \{\s*\n\s*const openingActions[^\n]*\n\s*if \(item\.id !== 0 && index !== talkList\.value\.length - 1\) \{\s*\n\s*openingActions\.push\(\{ key: 'rewind'/)
+  })
   it('最新一則不給倒回', () => {
     const src = readFileSync(resolve(__dirname, '../canvas.vue'), 'utf8')
     expect(src).toMatch(/const isLatestRow = index === talkList\.value\.length - 1\s*\n\s*if \(item\.id !== 0 && !isLatestRow\) \{\s*\n\s*actions\.push\(\{ key: 'rewind'/)

@@ -4002,7 +4002,7 @@
 	"canvas.panel.backgroundReset": "배경 초기화",
 	"canvas.panel.backgroundRole": "캐릭터 배경 사용",
 	"canvas.panel.reset": "대화 초기화",
-	"canvas.panel.resetConfirm": "초기화하면 이 대화의 내용은 남지 않아요. 계속할까요?",
+	"canvas.panel.resetConfirm": "초기화하면 이야기가 오프닝으로 돌아가고 이후 내용은 남지 않아요. 장기 지시와 노트는 그대로 남아요. 계속할까요?",
 	"canvas.panel.export": "대화 내보내기",
 	"canvas.panel.exportEmpty": "아직 내보낼 내용이 없어요",
 	"canvas.panel.perTurn": "/회",

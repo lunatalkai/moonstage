@@ -253,6 +253,16 @@ export function isOpeningIndex(messages: any[], index: number): boolean {
   return true
 }
 
+/**
+ * 從歷史分頁的原始列裡挑出「開場白」的 chatId：最舊那一列、是 AI、不是摘要。
+ * 玩家先講話的卡（最舊一列是玩家）沒有開場白，回空字串——那種對話重置只能整段刪。
+ */
+export function openingChatIdFromOldestHistoryRow(row: any): string {
+  if (!row || row.isSummary === true) return ''
+  if (String(row.chatRole || '') !== 'AI') return ''
+  return String(row.chatId || row.id || '')
+}
+
 export function latestCanonicalAIIndex(messages: any[]): number {
   if (!Array.isArray(messages)) return -1
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -312,13 +322,29 @@ export function canEditResendPlayerIndex(messages: any[], index: number): boolea
   if (!item || item.type !== 1 || item.isSummary === true) return false
   if (item.id === 0 || item.id == null || String(item.id) === '') return false
   let sawAI = false
+  let sawAnything = false
   for (let i = index + 1; i < messages.length; i += 1) {
     const next = messages[i]
     if (!next || next.isSummary === true) continue
     if (next.type === 1) return false
+    sawAnything = true
     if (next.type === 0 && !next.chatLoading && (next.id !== 0 && next.id != null)) sawAI = true
   }
-  return sawAI
+  // 後面什麼都沒有（那一輪失敗、或回覆被刪了）也能改字重送——沒有 AI 可改寫，
+  // 走的是「把這句拿掉、當新訊息送出」（玩家 2026-09-16：只剩自己那一句時鍵不見了）。
+  return sawAI || !sawAnything
+}
+
+/** 這則玩家訊息後面有沒有一則已存檔、完成的 AI 回覆：有＝改寫那一輪；沒有＝拿掉重送。 */
+export function hasAIReplyAfterPlayerIndex(messages: any[], index: number): boolean {
+  if (!Array.isArray(messages) || index < 0 || index >= messages.length) return false
+  for (let i = index + 1; i < messages.length; i += 1) {
+    const next = messages[i]
+    if (!next || next.isSummary === true) continue
+    if (next.type === 1) return false
+    if (next.type === 0 && !next.chatLoading && (next.id !== 0 && next.id != null)) return true
+  }
+  return false
 }
 
 export function isLatestCanonicalAIId(messages: any[], id: unknown): boolean {
