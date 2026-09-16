@@ -1,0 +1,506 @@
+/* 由 scripts/gen-canvas-chrome-box.mjs 從 canvas.css 產生，不要手改。
+   殼的 margin／padding 在 @layer 外再宣告一次：卡片的 `* { margin: 0; padding: 0 }` 在 MMD 只清作者
+   自己的內容，到這裡不能把殼一起清掉。為什麼與範圍見產生器檔頭。 */
+.header-box {
+    padding: 0 10px
+}
+.preview-badge {
+    padding: 4px 10px
+}
+.model-chip {
+    padding: 4px 10px
+}
+.lt-prep-live {
+    padding: 10px 12px
+}
+.agent-resume-card {
+    padding: 10px 12px
+}
+.agent-resume-card__btn {
+    padding: 6px 14px
+}
+.canvas-sandbox-notice {
+    margin: 8px 16px 12px;
+    padding: 10px 14px
+}
+.chat-bottom {
+    padding-bottom: env(safe-area-inset-bottom)
+}
+.shortcut-bar {
+    padding: 8px 12px 0
+}
+.shortcut-btn {
+    padding: 4px 12px
+}
+.send-msg {
+    padding: 8px 12px 12px
+}
+.ai-assistant .beta-badge {
+    padding: 0 4px
+}
+.ai-assistant .tooltip {
+    padding: 6px 10px
+}
+.chat-input-scope {
+    padding: 4px 8px
+}
+.chat-input-scope.is-expanded {
+    padding: 10px
+}
+.chat-input-toolbar {
+    margin-bottom: 6px
+}
+.chat-input-tool-btn {
+    padding: 4px 9px
+}
+.uni-textarea-textarea {
+    padding: 0
+}
+.chat-input-collapsed-display {
+    padding: 0 6px
+}
+.mind-type {
+    padding: 0 8px
+}
+.more-options-scope {
+    padding-bottom: 6px
+}
+.more-scope {
+    margin: 0 auto;
+    padding: 8px 12px 12px
+}
+.more-scope .item {
+    padding: 8px 4px
+}
+.modify-input-box {
+    padding: 10px 12px
+}
+.confirm-edit-scope .cancel-btn,
+  .confirm-edit-scope .ok-btn {
+    padding: 10px 0
+}
+.lt-system-action {
+    padding: 4px 12px
+}
+.u-popup {
+    padding: 16px;
+    margin: 0
+}
+.u-popup__content {
+    padding: 16px
+}
+.mp-info-bar {
+    padding: 8px 12px
+}
+.mp-energy-pill {
+    padding: 2px 10px
+}
+.mp-group-title {
+    padding-bottom: 4px
+}
+.mp-model-family + .mp-model-family {
+    margin-top: 12px
+}
+.mp-family-title {
+    padding-bottom: 6px
+}
+.mp-model-item-lane {
+    padding: 2px 8px
+}
+.mp-model-item {
+    padding: 8px 12px
+}
+.mp-model-item + .mp-model-item {
+    margin-top: 8px
+}
+.mp-empty {
+    padding: 24px 0
+}
+.mp-card,
+  .mp-switch-row {
+    padding: 12px
+}
+.mp-token-btn {
+    padding: 0 12px
+}
+.model-setting-scope .mp-setting-body {
+    padding: 0 16px
+}
+.ms-sheet {
+    padding-bottom: 8px
+}
+.ms-search {
+    padding: 0 14px
+}
+.ms-search-clear {
+    padding: 0 4px
+}
+@media (hover: hover) and (pointer: fine) {
+    .ms-rail {
+      padding-bottom: 4px
+    }
+}
+.ms-rail-inner {
+    padding: 0 16px
+}
+.ms-chip,
+  .ms-pill {
+    padding: 0 12px
+}
+.ms-card {
+    padding: 12px
+}
+.ms-listhead {
+    padding-top: 4px
+}
+.ms-row {
+    padding: 10px 12px
+}
+.ms-badge {
+    padding: 1px 8px
+}
+.ms-detail {
+    padding: 12px
+}
+.ms-detail-eyebrow {
+    padding-top: 4px
+}
+.ms-opt {
+    padding: 10px 12px
+}
+.ms-opt-meta {
+    padding-left: 24px
+}
+.ms-opt-entry {
+    padding: 8px 0 0 24px
+}
+.ms-chip-status {
+    padding: 2px 10px
+}
+.ms-lane-empty {
+    padding: 12px 0
+}
+.ms-bucket-tip {
+    padding: 4px 8px
+}
+.ms-empty {
+    padding: 32px 0
+}
+.ms-cost-mask {
+    padding: 24px
+}
+.ms-cost {
+    padding: 20px
+}
+@media (min-width: 769px) {
+    .u-popup {
+      padding: 24px
+    }
+}
+@media (min-width: 769px) {
+    .u-popup__content {
+      padding: 20px 24px 24px
+    }
+}
+@media (min-width: 769px) {
+    .role-setting .card,
+    .ms-card {
+      padding: 14px 16px
+    }
+}
+@media (min-width: 769px) {
+    .np-textarea {
+      padding: 14px 16px
+    }
+}
+@media (min-width: 769px) {
+    .confirm-scope .confirm-content {
+      padding: 8px 0 12px
+    }
+}
+@media (min-width: 769px) {
+    .ms-row {
+      padding: 12px 14px
+    }
+}
+@media (min-width: 769px) {
+    .ms-detail {
+      padding: 14px 16px 16px
+    }
+}
+@media (min-width: 769px) {
+    .ms-detail > .ms-kv {
+      padding: 10px 12px
+    }
+}
+.u-popup__content .bottom {
+    padding-top: 4px
+}
+.confirm-scope {
+    padding: 8px 0
+}
+.modify-scope .modify-item {
+    padding: 0 12px
+}
+.cl-full {
+    padding: 8px 12px
+}
+.cl-new {
+    padding: 0 12px
+}
+.cl-empty {
+    padding: 24px 0
+}
+.cl-item {
+    padding: 8px 12px
+}
+.cl-item-tag {
+    padding: 2px 10px
+}
+.cl-rename-input {
+    padding: 4px 10px
+}
+.cl-action {
+    padding: 0 8px
+}
+.role-setting .header-scope .header-box {
+    padding-right: 36px
+}
+.role-setting .icon-back,
+  .role-setting .complete-btn {
+    padding: 6px 14px
+}
+.role-setting__actions {
+    padding-top: 4px
+}
+.role-setting .card {
+    padding: 12px
+}
+.role-setting .input-dark,
+  .role-setting .textarea-dark {
+    padding: 10px 12px
+}
+.role-setting .advanced-toggle {
+    padding: 8px 4px
+}
+.custom-instruction-scope .header-scope {
+    padding-right: 36px
+}
+.custom-instruction-scope .add-btn {
+    padding: 6px 14px
+}
+.custom-instruction-scope .empty-default-show {
+    padding: 24px 0
+}
+.custom-instruction-scope .item {
+    padding: 10px 12px
+}
+.custom-instruction-scope .item-origin {
+    padding: 1px 8px
+}
+.custom-instruction-scope .ci-btn {
+    padding: 4px 10px
+}
+.custom-instruction-scope .custom-textarea,
+  .custom-instruction-scope .custom-textarea-box textarea {
+    padding: 10px 12px
+}
+.custom-instruction-scope .ci-loading {
+    padding: 24px 0
+}
+.custom-instruction-scope .ci-retry {
+    margin-left: 8px
+}
+.np-top {
+    padding-right: 36px
+}
+.np-textarea {
+    padding: 12px
+}
+.np-error {
+    padding: 24px 0
+}
+.np-retry {
+    margin-left: 8px
+}
+.np-template-item {
+    padding: 8px 12px
+}
+.np-template-empty {
+    padding: 16px 0
+}
+.np-code-input {
+    padding: 0 12px
+}
+.np-code-btn {
+    padding: 8px 12px
+}
+.np-code-hint {
+    padding: 0 12px
+}
+.np-preview,
+  .np-share {
+    padding: 12px
+}
+.np-share-code {
+    padding: 8px 0
+}
+.np-copy-item {
+    padding: 8px 12px
+}
+.np-copy-empty {
+    padding: 16px 0
+}
+.np-discard {
+    padding: 10px 12px
+}
+.np-copy-btn {
+    padding: 0 16px
+}
+.np-template-btn,
+  .np-save-template-btn,
+  .np-save-btn {
+    padding: 0 16px
+}
+.cb-top {
+    padding-right: 36px
+}
+.cb-loading {
+    padding-top: 8px
+}
+.cb-empty {
+    padding: 24px 16px
+}
+.cb-retry {
+    padding: 0 16px
+}
+.cb-metric {
+    padding: 10px 12px
+}
+.cb-active-detail {
+    padding: 10px 12px
+}
+.cb-mod-detail-row {
+    padding: 8px 12px
+}
+.cb-row {
+    padding: 8px 12px
+}
+.cb-billing {
+    padding: 12px
+}
+.cb-billing-hit {
+    padding: 3px 8px
+}
+.cb-billing-item {
+    padding: 6px 4px
+}
+.mem-top {
+    padding-right: 36px
+}
+.mem-loading {
+    padding-top: 8px
+}
+.mem-empty,
+  .mem-error {
+    padding: 32px 16px
+}
+.mem-retry {
+    padding: 0 16px
+}
+.mem-card {
+    padding: 12px 14px
+}
+.mem-source {
+    padding: 2px 8px
+}
+@media (max-width: 768px) {
+    .u-popup__content {
+      padding: 16px
+    }
+}
+@media (max-width: 768px) {
+    .send-msg {
+      padding: 8px 8px 10px
+    }
+}
+@media (max-width: 768px) {
+    .send-msg .ai-assistant,
+    .send-msg .more-options-scope {
+      padding: 0
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-collapsed-row,
+    .chat-input-bottom-row {
+      padding-left: 40px;
+      padding-right: 36px
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-collapsed-row {
+      padding-left: 0;
+      padding-right: 0
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-collapsed-display {
+      padding: 4px 4px 6px
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-row-lead {
+      padding-left: 40px
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-scope:has(.chat-input-collapsed-text) .chat-input-row-tail {
+      padding-right: 36px
+    }
+}
+@media (max-width: 768px) {
+    .chat-input-scope.is-expanded .chatMsgTextarea {
+      padding-bottom: 8px
+    }
+}
+.lt-dialog-head {
+    padding-right: 44px
+}
+.mp-top,
+  .np-top,
+  .mem-top,
+  .cb-top,
+  .cl-title,
+  .custom-instruction-scope .header-scope,
+  .role-setting .header-scope .header-box {
+    padding-right: 44px
+}
+.confirm-bottom,
+  .u-popup__content .bottom,
+  .np-actions,
+  .role-setting .bottom,
+  .custom-instruction-scope .btn-scope {
+    padding-top: 16px
+}
+.role-setting .bottom {
+    margin-top: auto;
+    padding-top: 12px;
+    padding-bottom: 2px
+}
+.confirm-bottom .ok-btn,
+  .confirm-bottom .cancel-btn,
+  .u-popup__content .bottom .btn,
+  .role-setting .icon-back,
+  .role-setting .complete-btn,
+  .np-copy-btn,
+  .np-template-btn,
+  .np-save-template-btn,
+  .np-save-btn,
+  .custom-instruction-scope .add-btn {
+    padding: 0 20px
+}
+@media (min-width: 769px) {
+    .np-copy-btn {
+      margin-right: auto
+    }
+}

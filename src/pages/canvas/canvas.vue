@@ -404,6 +404,8 @@ import { createHudBridge, type HudBridge, type HudHost, type HudMoreKind } from 
 // ── Open Canvas ─────────────────────────────────────────────────
 import '@/common/canvas-theme-vars.css'
 import './canvas.css'
+// 殼的 margin／padding 在 layer 外的副本（由 scripts/gen-canvas-chrome-box.mjs 產生），要排在 canvas.css 之後
+import './canvas-chrome-box.css'
 import { shouldRegenerateAssist, assistLabelKey } from './canvas-assist-state'
 import CanvasHeader from './components/canvas-header.vue'
 import CanvasStage from './components/canvas-stage.vue'
