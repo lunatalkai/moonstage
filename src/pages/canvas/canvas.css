@@ -233,10 +233,17 @@
   uni-app 的基底把 `*` 設成 border-box，MMD 那邊沒有：作者寫 `width:12px; padding:0 6px`
   在 MMD 是 24px 寬的按鈕，到我們這裡只剩 12px，直排的「城市地圖」四個字被切掉一半
   （owner 2026-09-06 截圖）。只還給 MMD 來源的作者內容（掛載容器與訊息氣泡），
-  酒館的卡本來就是 border-box 世界。寫在層外才蓋得過 uni 的 `*`。
+  酒館的卡本來就是 border-box 世界。寫在層外才蓋得過宿主的 `*`。
+
+  這條只是「還原 MMD 的預設」，特異性必須是零（:where 包住範圍、後面只跟 `*`）：
+  作者自己寫的 box-sizing——不管是 `.btn{box-sizing:border-box}` 還是整卡一條 `*{}`——
+  都得贏過它。以前寫成 `[data-…][data-…] *`（0,2,0）把作者的 `.xiai-role-btn{border-box}`
+  也壓掉，衣櫥面板一列兩顆按鈕變成一列一顆（2026-09-16 玩家截圖，MMD 上是兩顆）。
+  零特異性下靠來源順序決勝：這份樣式表排在宿主的重置之後、作者的 <style>（頁面 body
+  裡或殼 head 裡稍後掛的）之前，所以贏宿主、輸作者——正是要的次序。
 */
-[data-stage-author-layer][data-stage-author-format="mmd"] *,
-.canvas-root.lt-format-mmd .lt-bubble-body * {
+:where([data-stage-author-layer][data-stage-author-format="mmd"]) *,
+:where(.canvas-root.lt-format-mmd .lt-bubble-body) * {
   box-sizing: content-box;
 }
 
