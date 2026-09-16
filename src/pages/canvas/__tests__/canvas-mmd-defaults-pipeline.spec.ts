@@ -112,3 +112,28 @@ describe('MMD 來源的畫布：平台預設與對白上色', () => {
     expect(html).not.toContain('<status>')
   })
 })
+
+/**
+ * 2026-09-16 玩家回報：MMD 搬來的卡狀態欄「爆炸」——畫面上直接印出 `DGSPANELSTART▶ts::…◀DGSPANELEND`。
+ * 資料庫裡模型寫的是 `DGS_KV_PANEL_V2_START`；「遊戲對白裝飾」的 `_(.*?)_` 分支把 `_KV_`、`_V2_` 當斜體標記，
+ * 而回呼只接了四個捕獲組、第五組永遠拿不到，整段被換成空字串——單字裡的底線就這樣被吃掉，
+ * 作者的點火器在氣泡裡再也找不到起止標記，只好把原文攤出來。
+ */
+describe('底線斜體裝飾不吃掉單字裡的底線', () => {
+  const panelRule = { id: 'p', find: '/((?:DGS_KV_PANEL_V2_START▶[\\s\\S]*?◀DGS_KV_PANEL_V2_END\\s*)+)/g', replace: '<div class="gt-wrap"><div class="gt-raw">$1</div></div>' }
+  const line = 'DGS_KV_PANEL_V2_START▶ts::1719001;;name::甲;;identity::乙;;◀DGS_KV_PANEL_V2_END'
+
+  it('規則抓進 .gt-raw 的機讀標記原樣保留（MMD 卡的狀態欄點火器靠它）', () => {
+    const html = buildHighlightText('mmd', [panelRule])(`正文。\n\n${line}`, 0, null)
+    expect(html).not.toContain('DGSPANELSTART')
+    expect((html.match(/DGS_KV_PANEL_V2_START/g) || []).length).toBe(1)
+    expect((html.match(/DGS_KV_PANEL_V2_END/g) || []).length).toBe(1)
+  })
+
+  it('snake_case 不動；獨立的 _心聲_ 才轉成括號斜體', () => {
+    const html = buildHighlightText('mmd')('<p>檔案 file_name_here 放這。她 _輕嘆_ 一聲。</p>', 0, null)
+    expect(html).toContain('file_name_here')
+    expect(html).toMatch(/<span style="color: #C4B4A3;font-style: italic;font-weight: 400;">（輕嘆）<\/span>/)
+    expect(html).not.toContain('_輕嘆_')
+  })
+})

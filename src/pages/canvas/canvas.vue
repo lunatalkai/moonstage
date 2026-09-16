@@ -3717,8 +3717,13 @@ const highlightText = (content, type, cacheKey) => {
     // raw-text 元素內容已被 stash 成 \x05N\x06 佔位符 — 這個 regex
     // 不會誤判到那些位置，所以這裡無需額外 skip。上一步包進來的 <font> 標籤裡
     // 沒有這些分隔符，不會被打到。
-    const highlightedText = dialogued.replace(/\$(.*?)\$|（(.*?)）|\((.*?)\)|\*(.*?)\*|_(.*?)_/g, (subMatch, p1, p2, p3, p4) => {
-      const replacementText = p1 || p2 || p3 || p4 || '';
+    // 底線只認獨立的 _text_（前後不是字母數字），跟 Markdown 一樣：單字裡的底線是識別字的一部分
+    // （snake_case、`DGS_KV_PANEL_V2_START` 這種機讀標記）。以前 `_(.*?)_` 什麼都吃，而且回呼只接了
+    // 四個捕獲組、底線那組永遠拿不到，整段被換成空字串——MMD 搬來的卡狀態欄標記被吃成
+    // `DGSPANELSTART`，作者的點火器找不到起止標記就把原文攤出來（2026-09-16 玩家回報）。
+    const highlightedText = dialogued.replace(/\$(.*?)\$|（(.*?)）|\((.*?)\)|\*(.*?)\*|(^|[^\p{L}\p{N}_])_([^_\n]+?)_(?![\p{L}\p{N}_])/gu, (subMatch, p1, p2, p3, p4, underscoreLead, p5) => {
+      const replacementText = p1 || p2 || p3 || p4 || p5 || '';
+      const lead = underscoreLead || '';
       if (replacementText) {
         const hasBrackets =
             (replacementText.startsWith('(') && replacementText.endsWith(')')) ||
@@ -3732,11 +3737,11 @@ const highlightText = (content, type, cacheKey) => {
         }
         const spanClose = '</span>';
 
-        return hasBrackets
+        return lead + (hasBrackets
             ? `${spanOpen}${replacementText}${spanClose}`
-            : `${spanOpen}（${replacementText}）${spanClose}`;
+            : `${spanOpen}（${replacementText}）${spanClose}`);
       }
-      return '';
+      return lead;
     });
 
     return `>${highlightedText}<`;
