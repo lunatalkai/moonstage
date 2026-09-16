@@ -60,6 +60,11 @@ describe('trimStrings', () => {
     expect(out.html).toBe('<i> 旁白：天亮了 </i>')
   })
 
+  it('帶 trimStrings 的規則：存在但沒匹配到的可選組展開成空字串（跟原生一樣）', () => {
+    const out = applyTavernRules('【X】', [{ id: '1', find: '/【(X)(Y)?】/', replace: '$1|$2|', trimStrings: ['z'] }])
+    expect(out.html).toBe('X||')
+  })
+
   it('帶 trimStrings 的規則也認兩位數的 $10 以上（跟引擎同一套規則）', () => {
     const out = applyTavernRules('【abcdefghij k】', [{
       id: '1',

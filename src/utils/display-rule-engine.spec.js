@@ -180,6 +180,14 @@ describe('替換內容裡的 $n：只有真的捕獲組才展開', () => {
     expect(out.html).toBe('a|i|j|k|n')
   })
 
+  // 組存在但這次沒參與匹配（可選組）：原生給空字串，不是留著字面 $n。
+  it('存在但沒匹配到的可選組展開成空字串', () => {
+    const out = applyDisplayRules('【X】', [
+      { id: 'r', find: '/【(X)(Y)?】/', replace: '$1|$2|', enabled: true },
+    ])
+    expect(out.html).toBe('X||')
+  })
+
   it('兩位數的組不存在時退回一位數＋字面數字（跟原生一樣）', () => {
     const out = applyDisplayRules('【XY】', [
       { id: 'r', find: '/【(X)(Y)】/', replace: '$12|$21|$30', enabled: true },
