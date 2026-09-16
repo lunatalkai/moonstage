@@ -83,7 +83,8 @@ export interface HudHostState {
   }
   persona: {
     mode: string
-    modes: Array<{ id: string; label: string }>
+    /** disabled：這一檔現在掛不上（「當前會話」還沒有對話時） */
+    modes: Array<{ id: string; label: string; disabled?: boolean }>
     name: string
     genders: Array<{ id: string; label: string }>
     gender: string
@@ -394,7 +395,7 @@ export function createHudBridge(host: HudHost): HudBridge {
     const personaPanel: HudSnapshot['personaPanel'] = {
       open: local.personaOpen,
       title: '',
-      modes: local.personaOpen ? state.persona.modes.map((m) => ({ id: m.id, label: m.label, selected: m.id === personaMode, disabled: false })) : [],
+      modes: local.personaOpen ? state.persona.modes.map((m) => ({ id: m.id, label: m.label, selected: m.id === personaMode, disabled: m.disabled === true })) : [],
       currentModeId: local.personaOpen ? personaMode : null,
       name: local.personaOpen ? (draft ? draft.name : state.persona.name) : '',
       maxLength: 0,
@@ -788,7 +789,9 @@ export function createHudBridge(host: HudHost): HudBridge {
       case 'setPersonaMode': {
         const id = isRecord(payload) ? str(payload.modeId) : ''
         if (!id) return fail(action, 'INVALID_ARGUMENT', 'modeId')
-        if (!host.read().persona.modes.some((m) => m.id === id)) return fail(action, 'NOT_FOUND', labels.noTarget)
+        const target = host.read().persona.modes.find((m) => m.id === id)
+        if (!target) return fail(action, 'NOT_FOUND', labels.noTarget)
+        if (target.disabled) return fail(action, 'NOT_AVAILABLE', labels.notOpen)
         local.personaDraft = { ...personaDraft(), mode: id }
         return ok(action)
       }

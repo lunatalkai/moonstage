@@ -193,6 +193,8 @@
       <CanvasPersona
         :persona-mode="asPersonaMode(formData.personaMode)"
         :global-persona="globalPersona"
+        :conversation-persona="conversationPersona"
+        :has-conversation="Boolean(unref(conversationId))"
         :nick-name="playerNickName"
         :user-name="formData.userName"
         :user-sex="formData.userSex"
@@ -2449,7 +2451,7 @@ function buildPanelsState() {
       break;
     case 'persona':
       title = t('canvas.panel.persona');
-      props = { personaMode: asPersonaMode(formData.personaMode), globalPersona: globalPersona.value, nickName: playerNickName.value, userName: formData.userName, userSex: formData.userSex, userDefine: formData.userDefine, sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak, defaultJailbreak: defaultJailbreak.value, sexOptions: personaSexOptions.value, sandboxOptions: personaSandboxOptions.value, saving: personaSaving.value, error: personaError.value, labels: personaLabels.value };
+      props = { personaMode: asPersonaMode(formData.personaMode), globalPersona: globalPersona.value, conversationPersona: conversationPersona.value, hasConversation: Boolean(unref(conversationId)), nickName: playerNickName.value, userName: formData.userName, userSex: formData.userSex, userDefine: formData.userDefine, sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak, defaultJailbreak: defaultJailbreak.value, sexOptions: personaSexOptions.value, sandboxOptions: personaSandboxOptions.value, saving: personaSaving.value, error: personaError.value, labels: personaLabels.value };
       break;
     case 'directives':
       title = t('directive.title');
@@ -2927,15 +2929,19 @@ function buildHudHost(): HudHost {
         },
         persona: {
           mode: asPersonaMode(formData.personaMode),
+          // 「當前會話」要有對話才掛得上；沒有時仍列出來但標成不可選，跟彈層同一個規則。
           modes: [
             { id: 'name_only', label: personaLabels.value.modeNameOnly },
             { id: 'global', label: personaLabels.value.modeGlobal },
             { id: 'custom', label: personaLabels.value.modeCustom },
+            { id: 'conversation', label: personaLabels.value.modeConversation, disabled: !unref(conversationId) },
           ],
-          name: String(formData.userName || ''),
+          // 三個欄位是「目前那一檔正在生效的值」，不是卡片那三欄：全局檔給全局那份、
+          // 當前會話檔給這個存檔那份。給卡片那三欄的話，殼原樣送回來就把別檔的內容蓋掉了。
+          name: effectivePersonaFields().userName,
           genders: personaSexOptions.value.map((o: any) => ({ id: String(o.value), label: String(o.label) })),
-          gender: String(formData.userSex || ''),
-          identity: String(formData.userDefine || ''),
+          gender: effectivePersonaFields().userSex,
+          identity: effectivePersonaFields().userDefine,
         },
         moreItems: moreItems.value.map((it: any) => ({
           id: String(it.key),
@@ -8499,8 +8505,8 @@ function userDisplayName(): string {
   const info: any = unref(userInfo) || {}
   // {{user}} 換成誰，跟伺服器替換開場白時同一條鏈：人設稱呼 → 作者取的玩家名（「你」這種佔位不算）
   // → 帳號暱稱 → 「你」。帳號的 userName 是登入帳號（例如 test-01），不在鏈裡。
-  // 人設三檔：用全局那份時名字來自全局人設，其餘兩檔用這張卡填的稱呼。
-  const personaName = asPersonaMode(formData.personaMode) === 'global' ? globalPersona.value.userName : formData.userName
+  // 人設四檔：名字來自目前那一檔正在生效的那份（全局／這個存檔／這張卡）。
+  const personaName = effectivePersonaFields().userName
   return resolvePlayerName({
     personaName,
     cardUserName: roleView.value.userName,
@@ -9125,8 +9131,9 @@ async function loadRoleSettings() {
   const targetRoleId = String(unref(roleId) || '')
   if (!targetRoleId) return
   try {
+    const requestConversationId = String(unref(conversationId) || '')
     const res = await _this.http.get(_this.requestUrl.playerRoleSettings, {
-      data: { roleId: targetRoleId },
+      data: requestConversationId ? { roleId: targetRoleId, conversationId: requestConversationId } : { roleId: targetRoleId },
       showLoading: false,
       timeout: 10000,
     })
@@ -9137,6 +9144,10 @@ async function loadRoleSettings() {
     // 全局人設與暱稱跟這張卡的設定一起回來：人設彈層要能顯示「全局那份」與「沒填會用哪個名字」。
     const gp = (res.data.globalPersona && typeof res.data.globalPersona === 'object') ? res.data.globalPersona : {}
     globalPersona.value = { userName: String(gp.userName || ''), userSex: String(gp.userSex || ''), userDefine: String(gp.userDefine || '') }
+    // 帶了對話 id 就連這個存檔那份一起回來；回來時對話已經換了就不採用（換存檔那條 watch 會再載）。
+    if (requestConversationId && requestConversationId === String(unref(conversationId) || '')) {
+      conversationPersona.value = readConversationPersona(res.data.conversationPersona)
+    }
     playerNickName.value = String(res.data.nickName || '')
     formData.selectModelName = String(res.data.selectModelName || '') || settings.selectModel
     defaultJailbreak.value = String(res.data.defaultJailbreak || '')
@@ -9190,8 +9201,72 @@ const personaSaving = ref(false)
 const personaError = ref('')
 /** 帳號層級那份人設（全局人設）；跟這張卡的設定一起載入。 */
 const globalPersona = ref({ userName: '', userSex: '', userDefine: '' })
+/** 這個存檔那份人設（當前會話）；exists=false＝還沒設過，那一檔從這張卡的人設起步。換存檔就重載。 */
+const conversationPersona = ref<{ userName: string; userSex: string; userDefine: string; exists: boolean }>({ userName: '', userSex: '', userDefine: '', exists: false })
 /** 帳號暱稱：「僅使用稱呼」沒填時 AI 會用它叫玩家，彈層要講出來。 */
 const playerNickName = ref('')
+
+function readConversationPersona(raw: any) {
+  const cp = (raw && typeof raw === 'object') ? raw : {}
+  return { userName: String(cp.userName || ''), userSex: String(cp.userSex || ''), userDefine: String(cp.userDefine || ''), exists: cp.exists === true }
+}
+
+/** 目前那一檔正在生效的三個欄位——跟伺服器套用人設時同一個規則（存檔沒設過退回卡片那份）。 */
+function effectivePersonaFields(): { userName: string; userSex: string; userDefine: string } {
+  const mode = asPersonaMode(formData.personaMode)
+  if (mode === 'global') return globalPersona.value
+  if (mode === 'conversation' && conversationPersona.value.exists) return conversationPersona.value
+  return { userName: String(formData.userName || ''), userSex: String(formData.userSex || ''), userDefine: String(formData.userDefine || '') }
+}
+
+// 換存檔／開新對話：這個存檔那份人設要換掉。對話清成空字串時就是「還沒有存檔」。
+watch(() => String(unref(conversationId) || ''), (next) => {
+  conversationPersona.value = { userName: '', userSex: '', userDefine: '', exists: false }
+  if (next) loadConversationPersona(next)
+})
+
+async function loadConversationPersona(targetConversationId: string) {
+  try {
+    const res = await _this.http.get(_this.requestUrl.playerConversationPersona, {
+      data: { conversationId: targetConversationId },
+      showLoading: false,
+      timeout: 10000,
+    })
+    // 回來時已經換到別的存檔就丟掉，別把上一個存檔的人設寫到這一個上。
+    if (targetConversationId !== String(unref(conversationId) || '')) return
+    if (res.statusCode !== 200 || !res.data) return
+    conversationPersona.value = readConversationPersona(res.data)
+  } catch (e) {
+    console.warn('當前會話人設載入失敗', e)
+  }
+}
+
+// 存這個存檔那份。還沒設過時整份送出（伺服器建列），設過了只送動到的欄位。
+async function persistConversationPersona(next: { userName: string; userSex: string; userDefine: string }): Promise<string> {
+  const targetConversationId = String(unref(conversationId) || '')
+  if (!targetConversationId) return t('canvas.panel.personaModeConversationNeedsChat')
+  const before = conversationPersona.value
+  const changed: Record<string, string> = {}
+  for (const key of ['userName', 'userSex', 'userDefine'] as const) {
+    if (!before.exists || (before[key] || '') !== (next[key] || '')) changed[key] = next[key] || ''
+  }
+  if (!Object.keys(changed).length) return ''
+  try {
+    const res = await _this.http.post(_this.requestUrl.playerConversationPersonaSave, {
+      header: { 'content-type': 'application/json' },
+      data: { conversationId: targetConversationId, ...changed },
+      showLoading: false,
+    })
+    if (res.statusCode !== 200) {
+      // 稱呼與自我介紹會過內容審核，被擋下時伺服器講的是原因——原樣講給玩家聽。
+      return String((res.data && (res.data.error || res.data.message)) || t('main.save_failed'))
+    }
+    conversationPersona.value = { ...before, ...changed, exists: true }
+    return ''
+  } catch (e) {
+    return t('main.save_failed')
+  }
+}
 
 // 只送動到的欄位。伺服器那端每個欄位都是指標：沒送＝不動。
 async function persistGlobalPersona(next: { userName: string; userSex: string; userDefine: string }): Promise<string> {
@@ -9241,9 +9316,12 @@ const personaLabels = computed(() => ({
   modeNameOnly: t('canvas.panel.personaModeNameOnly'),
   modeGlobal: t('canvas.panel.personaModeGlobal'),
   modeCustom: t('canvas.panel.personaModeCustom'),
+  modeConversation: t('canvas.panel.personaModeConversation'),
   modeNameOnlyHint: t('canvas.panel.personaModeNameOnlyHint'),
   modeGlobalHint: t('canvas.panel.personaModeGlobalHint'),
   modeCustomHint: t('canvas.panel.personaModeCustomHint'),
+  modeConversationHint: t('canvas.panel.personaModeConversationHint'),
+  modeConversationNeedsChat: t('canvas.panel.personaModeConversationNeedsChat'),
   nickNameHint: playerNickName.value ? t('canvas.panel.personaNickNameHint', { name: playerNickName.value }) : '',
   nameLabel: t('canvas.panel.personaName'),
   namePlaceholder: t('canvas.panel.personaNamePlaceholder'),
@@ -9286,6 +9364,15 @@ async function onSavePersona(value: any) {
       return
     }
     formData.personaMode = 'global'
+  } else if (mode === 'conversation') {
+    // 這個存檔那份先存（審核在那邊擋）；這張卡只記「用當前會話的」，卡片自己那三欄不動。
+    const reason = await persistConversationPersona(persona)
+    if (reason) {
+      personaSaving.value = false
+      personaError.value = reason
+      return
+    }
+    formData.personaMode = 'conversation'
   } else if (mode === 'name_only') {
     formData.personaMode = 'name_only'
     formData.userName = persona.userName

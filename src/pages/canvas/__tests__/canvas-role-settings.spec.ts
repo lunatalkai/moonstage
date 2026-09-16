@@ -142,6 +142,7 @@ describe('人設三檔', () => {
     expect(asPersonaMode('')).toBe('global')
     expect(asPersonaMode('weird')).toBe('global')
     expect(asPersonaMode('custom')).toBe('custom')
+    expect(asPersonaMode('conversation')).toBe('conversation')
   })
 
   it('只改稱呼也把模式一起送：伺服器對「有人設欄位、沒說模式」會推定成單獨設置', async () => {

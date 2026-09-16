@@ -48,6 +48,9 @@ export const requestUrl = {
 	// 全局人設（帳號層級）：所有卡共用的稱呼／性別／自我介紹。每張卡用哪一檔在 role-settings 的 personaMode。
 	playerPersona: `${V1}/player/persona`,
 	playerPersonaSave: `${V1}/player/persona/save`,
+	// 當前會話人設（對話層級）：同一張卡不同存檔各自一份；personaMode=conversation 時生效。
+	playerConversationPersona: `${V1}/player/conversation-persona`,
+	playerConversationPersonaSave: `${V1}/player/conversation-persona/save`,
 	// 深入準備（Agent 模式）與劇情摘要偏好
 	playerAgentMode: `${V1}/player/agent-mode`,
 	playerCompactPreference: `${V1}/player/compact-preference`,

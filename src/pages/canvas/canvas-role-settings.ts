@@ -68,8 +68,11 @@ export const USER_SEX_VALUES = ['man', 'women', 'other'] as const
 /** 虛構框架由弱到強。順序就是畫面上的順序——它是一條強度軸，不是一組並列選項。 */
 export const SANDBOX_LEVELS = ['light', 'standard', 'immersive', 'deep'] as const
 
-/** 人設三檔（對齊 MMD）：僅使用稱呼／全局人設／單獨設置。順序就是畫面上的順序。 */
-export const PERSONA_MODES = ['name_only', 'global', 'custom'] as const
+/**
+ * 人設四檔：僅使用稱呼／全局人設／單獨設置（前三檔對齊 MMD）／當前會話。順序就是畫面上的順序。
+ * 「當前會話」是同一張卡不同存檔各自一份——大世界卡每個存檔選的種族、形象都不同。
+ */
+export const PERSONA_MODES = ['name_only', 'global', 'custom', 'conversation'] as const
 export type PersonaMode = (typeof PERSONA_MODES)[number]
 export const DEFAULT_PERSONA_MODE: PersonaMode = 'global'
 export function asPersonaMode(value: unknown): PersonaMode {

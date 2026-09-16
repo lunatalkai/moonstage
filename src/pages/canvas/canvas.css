@@ -3490,6 +3490,12 @@
     color: var(--lt-canvas-accent);
   }
 
+  /* 「當前會話」在還沒有對話時掛不上去：鍵留著但變灰，原因寫在底下的說明字裡。 */
+  .role-setting .mode-item.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   /* 選項底下那句「這一檔是什麼意思」：說明字，不是正文 */
   .role-setting .mode-hint {
     font-size: 12px;

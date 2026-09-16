@@ -14,9 +14,11 @@
     </div>
 
     <!--
-      人設三檔（對齊 MMD）：僅使用稱呼／全局人設／單獨設置。
-      「全局」編輯的是帳號那一份，改了到處生效；「單獨」只動這張卡；「僅稱呼」只留名字。
-      每一檔底下寫一句「它會怎樣」——這是三個不同的儲存位置，玩家看不到後面的差別。
+      人設四檔：僅使用稱呼／全局人設／單獨設置（前三檔對齊 MMD）／當前會話。
+      「全局」編輯的是帳號那一份，改了到處生效；「單獨」只動這張卡；「僅稱呼」只留名字；
+      「當前會話」只動這個存檔——大世界卡每個存檔選的種族、形象都不同，卡片那份分不開。
+      每一檔底下寫一句「它會怎樣」——這是四個不同的儲存位置，玩家看不到後面的差別。
+      還沒有對話時「當前會話」沒有地方可以掛：鍵留著但變灰，底下寫出原因，別讓玩家猜。
     -->
     <div class="card mode-box">
       <div class="label">{{ labels.modeLabel }}</div>
@@ -25,12 +27,13 @@
           v-for="option in modeOptions"
           :key="option.value"
           class="mode-item"
-          :class="{ selected: option.value === draft.personaMode }"
+          :class="{ selected: option.value === draft.personaMode, disabled: option.disabled }"
           role="radio"
-          tabindex="0"
+          :tabindex="option.disabled ? -1 : 0"
           :aria-checked="option.value === draft.personaMode ? 'true' : 'false'"
-          @click="draft.personaMode = option.value"
-          @keydown.enter.prevent="draft.personaMode = option.value"
+          :aria-disabled="option.disabled ? 'true' : 'false'"
+          @click="pickMode(option)"
+          @keydown.enter.prevent="pickMode(option)"
         >{{ option.label }}</div>
       </div>
       <div class="mode-hint">{{ modeHint }}</div>
@@ -170,6 +173,10 @@ const props = withDefaults(defineProps<{
   personaMode?: string
   /** 帳號層級那份人設（全局人設）；「全局」那一檔編輯的是它 */
   globalPersona?: Partial<PersonaFields> | null
+  /** 這個存檔那份人設（當前會話）；exists=false＝存檔還沒設過，那一檔從這張卡的人設起步 */
+  conversationPersona?: (Partial<PersonaFields> & { exists?: boolean }) | null
+  /** 有對話才有「當前會話」可以掛；沒有時那一檔變灰並講出原因 */
+  hasConversation?: boolean
   /** 帳號暱稱；稱呼沒填時 AI 會用它 */
   nickName?: string
   userName?: string
@@ -196,9 +203,13 @@ const props = withDefaults(defineProps<{
     modeNameOnly: string
     modeGlobal: string
     modeCustom: string
+    modeConversation: string
     modeNameOnlyHint: string
     modeGlobalHint: string
     modeCustomHint: string
+    modeConversationHint: string
+    /** 還沒有對話時「當前會話」那一檔底下的原因 */
+    modeConversationNeedsChat: string
     nickNameHint: string
     nameLabel: string
     namePlaceholder: string
@@ -213,7 +224,7 @@ const props = withDefaults(defineProps<{
     jailbreakReset: string
   }
 }>(), {
-  personaMode: '', globalPersona: null, nickName: '',
+  personaMode: '', globalPersona: null, conversationPersona: null, hasConversation: false, nickName: '',
   userName: '', userSex: '', userDefine: '', sandboxLevel: '', jailbreak: '',
   defaultJailbreak: '',
   sexOptions: () => [],
@@ -225,8 +236,9 @@ const props = withDefaults(defineProps<{
   error: '',
   labels: () => ({
     title: '', cancel: 'Cancel', save: 'Save',
-    modeLabel: '', modeNameOnly: '', modeGlobal: '', modeCustom: '',
-    modeNameOnlyHint: '', modeGlobalHint: '', modeCustomHint: '', nickNameHint: '',
+    modeLabel: '', modeNameOnly: '', modeGlobal: '', modeCustom: '', modeConversation: '',
+    modeNameOnlyHint: '', modeGlobalHint: '', modeCustomHint: '', modeConversationHint: '', modeConversationNeedsChat: '',
+    nickNameHint: '',
     nameLabel: '', namePlaceholder: '', sexLabel: '',
     defineLabel: '', definePlaceholder: '',
     sandboxLabel: '', sandboxDesc: '',
@@ -247,8 +259,11 @@ const emit = defineEmits<{
   編輯的是草稿，不是直接寫回去。玩家改到一半關掉彈層時，伺服器上那份設定
   一個字都不該動——他沒有按儲存。
 
-  兩份草稿：這張卡自己的（draft），跟帳號那份全局人設（globalDraft）。切到「全局」時
-  三個欄位接到 globalDraft 上，其餘兩檔接到 draft；切來切去各自的內容都還在。
+  三份草稿：這張卡自己的（draft）、帳號那份全局人設（globalDraft）、這個存檔那份
+  （conversationDraft）。切到「全局」時三個欄位接到 globalDraft 上，「當前會話」接到
+  conversationDraft，其餘兩檔接到 draft；切來切去各自的內容都還在。
+  存檔還沒設過人設時 conversationDraft 從這張卡的人設起步——跟伺服器那端「沒設過退回
+  卡片那份」同一個規則，玩家看到的就是會生效的。
 */
 const draft = reactive({
   personaMode: asPersonaMode(props.personaMode) as PersonaMode,
@@ -264,8 +279,21 @@ const globalDraft = reactive<PersonaFields>({
   userDefine: String(props.globalPersona?.userDefine || ''),
 })
 
+function seedConversationDraft(): PersonaFields {
+  const cp = props.conversationPersona
+  if (cp && cp.exists) {
+    return { userName: String(cp.userName || ''), userSex: String(cp.userSex || ''), userDefine: String(cp.userDefine || '') }
+  }
+  return { userName: props.userName, userSex: props.userSex, userDefine: props.userDefine }
+}
+const conversationDraft = reactive<PersonaFields>(seedConversationDraft())
+
 /** 目前那一檔正在編輯的三個欄位落在哪份草稿上。 */
-const persona = computed<PersonaFields>(() => (draft.personaMode === 'global' ? globalDraft : draft))
+const persona = computed<PersonaFields>(() => {
+  if (draft.personaMode === 'global') return globalDraft
+  if (draft.personaMode === 'conversation') return conversationDraft
+  return draft
+})
 
 const advancedOpen = ref(false)
 
@@ -283,13 +311,28 @@ watch(() => props.globalPersona, (gp) => {
   globalDraft.userSex = String(gp?.userSex || '')
   globalDraft.userDefine = String(gp?.userDefine || '')
 }, { deep: true })
+// 換存檔時這份會整個換掉（另一個存檔的人設，或退回卡片那份）。
+watch(() => [props.conversationPersona, props.userName, props.userSex, props.userDefine], () => {
+  Object.assign(conversationDraft, seedConversationDraft())
+}, { deep: true })
 
-const modeOptions = computed(() => [
-  { value: 'name_only' as PersonaMode, label: props.labels.modeNameOnly, hint: props.labels.modeNameOnlyHint },
-  { value: 'global' as PersonaMode, label: props.labels.modeGlobal, hint: props.labels.modeGlobalHint },
-  { value: 'custom' as PersonaMode, label: props.labels.modeCustom, hint: props.labels.modeCustomHint },
+interface ModeOption { value: PersonaMode; label: string; hint: string; disabled?: boolean }
+const modeOptions = computed<ModeOption[]>(() => [
+  { value: 'name_only', label: props.labels.modeNameOnly, hint: props.labels.modeNameOnlyHint },
+  { value: 'global', label: props.labels.modeGlobal, hint: props.labels.modeGlobalHint },
+  { value: 'custom', label: props.labels.modeCustom, hint: props.labels.modeCustomHint },
+  {
+    value: 'conversation', label: props.labels.modeConversation,
+    hint: props.hasConversation ? props.labels.modeConversationHint : props.labels.modeConversationNeedsChat,
+    disabled: !props.hasConversation,
+  },
 ])
 const modeHint = computed(() => modeOptions.value.find((o) => o.value === draft.personaMode)?.hint || '')
+
+function pickMode(option: ModeOption) {
+  if (option.disabled) return
+  draft.personaMode = option.value
+}
 
 /*
   沒設過就標在「標準」上。這裡跟性別不一樣：性別沒設過是一個真的狀態（AI 就不

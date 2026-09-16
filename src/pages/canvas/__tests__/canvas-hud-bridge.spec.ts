@@ -16,7 +16,7 @@ function baseState(over: Partial<HudHostState> = {}): HudHostState {
     editing: { open: false, messageId: null, text: '' },
     model: { selectedId: 'm-a', groups: [{ id: 'g1', label: '一般', models: [{ id: 'm-a', name: 'A', description: '', score: '3' }, { id: 'm-b', name: 'B', description: '', score: '5' }] }] },
     conversations: { currentId: 'c1', rows: [{ id: 'c1', title: '第 1 段', preview: '…', current: true }, { id: 'c2', title: '第 2 段', preview: '…', current: false }], full: false },
-    persona: { mode: 'global', modes: [{ id: 'name_only', label: '僅稱呼' }, { id: 'global', label: '全局' }, { id: 'custom', label: '單獨' }], name: '阿明', genders: [{ id: 'male', label: '男' }, { id: 'female', label: '女' }], gender: 'male', identity: '一個路人' },
+    persona: { mode: 'global', modes: [{ id: 'name_only', label: '僅稱呼' }, { id: 'global', label: '全局' }, { id: 'custom', label: '單獨' }, { id: 'conversation', label: '當前會話', disabled: true }], name: '阿明', genders: [{ id: 'male', label: '男' }, { id: 'female', label: '女' }], gender: 'male', identity: '一個路人' },
     moreItems: [{ id: 'directives', label: '自訂指令', kind: 'customInstructions', destructive: false }, { id: 'reset-chat', label: '重置', kind: 'resetChat', destructive: true }],
     ...over,
   }
@@ -205,6 +205,11 @@ describe('canvas-hud-bridge：動作', () => {
     expect(p.open).toBe(true)
     expect(p.name).toBe('阿明')
     expect(p.currentModeId).toBe('global')
+    // 「當前會話」還沒有對話時掛不上：列出來但標成不可選，選它要被擋
+    expect(p.modes.find((m) => m.id === 'conversation')?.disabled).toBe(true)
+    const blocked = await bridge.invoke('setPersonaMode', { modeId: 'conversation' })
+    expect(blocked.ok).toBe(false)
+    expect((blocked as any).error?.code).toBe('NOT_AVAILABLE')
     expect((await bridge.invoke('setPersonaMode', { modeId: 'custom' })).ok).toBe(true)
     expect((await bridge.invoke('setPersonaName', { name: '小華' })).ok).toBe(true)
     expect((await bridge.invoke('setPersonaGender', { genderId: 'female' })).ok).toBe(true)
