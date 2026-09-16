@@ -39,7 +39,10 @@ const CUSTOM_HC_TAGS = /<\s*hc-[a-z]/i;
 // 行首縮排 + block-level HTML 開/閉 tag — 用於 dedentHtmlBlockLines pre-pass
 // AI 輸出常 pretty-print HTML（tag 前留 4+ 空格），CommonMark 卻把 ≥4 空格的行當 indented code block，
 // 造成第二段 <p> 之後被 escape 成 <pre><code>&lt;p&gt;...</code></pre>
-const HTML_BLOCK_LEADING_WS = /^[ \t]+(<\/?\s*(div|section|article|header|footer|nav|main|aside|h[1-6]|p|ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|form|fieldset|figure|hr|body|html|pre|blockquote|details|summary|audio|video|canvas|iframe|hc-[a-z][\w-]*)\b)/i;
+// HTML 註解（<!-- … -->）也算：它跟區塊 tag 一樣是 CommonMark 的 HTML 區塊起始條件（type 2），
+// 排版過的作者 HTML 在空行之後常接一行縮排的註解，不砍縮排就會印成一行 `<!-- … -->` 文字
+// （2026-09-16 MMD 匯入卡的開場面板回報）。
+const HTML_BLOCK_LEADING_WS = /^[ \t]+(<!--|<\/?\s*(div|section|article|header|footer|nav|main|aside|h[1-6]|p|ul|ol|li|dl|dt|dd|table|thead|tbody|tr|td|th|form|fieldset|figure|hr|body|html|pre|blockquote|details|summary|audio|video|canvas|iframe|hc-[a-z][\w-]*)\b)/i;
 
 /**
  * 把「行首是 block-level HTML tag」這種行的縮排砍掉，再交給 markdown-it。
