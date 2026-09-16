@@ -167,6 +167,25 @@ describe('替換內容裡的 $n：只有真的捕獲組才展開', () => {
     ])
     expect(out.html).toBe('aXb|$2|c')
   })
+
+  // MMD 的狀態欄規則常有十幾個捕獲組（角色信息：名字｜性別｜年齡｜功法…當前形象），
+  // 替換內容寫 $10～$14。原生 String.replace 對兩位數的 $nn：那個組存在就是它，
+  // 不存在才是 $n 接一個數字。之前引擎只認一位數，$10 變成「$1 的內容＋0」——
+  // 玩家看到法寶欄寫著「林渊0」（2026-09-16 回報）。
+  it('兩位數的 $10～$14：那個組存在就展開它，不是 $1 接數字', () => {
+    const find = '/【(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)(l)(m)(n)】/'
+    const out = applyDisplayRules('【abcdefghijklmn】', [
+      { id: 'r', find, replace: '$1|$9|$10|$11|$14', enabled: true },
+    ])
+    expect(out.html).toBe('a|i|j|k|n')
+  })
+
+  it('兩位數的組不存在時退回一位數＋字面數字（跟原生一樣）', () => {
+    const out = applyDisplayRules('【XY】', [
+      { id: 'r', find: '/【(X)(Y)】/', replace: '$12|$21|$30', enabled: true },
+    ])
+    expect(out.html).toBe('X2|Y1|$30')
+  })
 })
 
 describe('neutralizeRelativeMediaSources', () => {

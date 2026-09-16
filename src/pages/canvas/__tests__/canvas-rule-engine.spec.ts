@@ -60,6 +60,16 @@ describe('trimStrings', () => {
     expect(out.html).toBe('<i> 旁白：天亮了 </i>')
   })
 
+  it('帶 trimStrings 的規則也認兩位數的 $10 以上（跟引擎同一套規則）', () => {
+    const out = applyTavernRules('【abcdefghij k】', [{
+      id: '1',
+      find: '/【(a)(b)(c)(d)(e)(f)(g)(h)(i)(j) (k)】/',
+      replace: '$1-$10-$11-$12',
+      trimStrings: ['z'],
+    }])
+    expect(out.html).toBe('a-j-k-a2')
+  })
+
   it('壞掉的匹配式整條回滾，不是半套', () => {
     const out = applyTavernRules('abc', [{ id: 'bad', find: '/([/', replace: 'x', trimStrings: ['y'] }])
     expect(out.html).toBe('abc')

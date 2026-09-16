@@ -159,13 +159,28 @@ function applyTrimRule(
   const next = text.replace(regex, function () {
     if (over) return ''
     const args = Array.prototype.slice.call(arguments)
-    const out = replace.replace(/\$([0-9])/g, (whole, n) => {
-      const idx = Number(n)
-      const raw = idx === 0 ? args[0] : args[idx]
-      if (raw === undefined) return whole
+    // 跟引擎同一套：$k 只在 k ≤ 組數時才是捕獲組；兩位數的 $nn 那個組存在就是它，
+    // 不存在才是 $n 接一個數字（原生 String.replace 的語意）。
+    const last = args[args.length - 1]
+    const stringIndex = last !== null && typeof last === 'object' ? args.length - 2 : args.length - 1
+    const groupCount = Math.max(0, stringIndex - 2)
+    const groupValue = (idx: number): string | undefined => {
+      if (idx < 0 || idx > groupCount) return undefined
+      const raw = args[idx]
+      if (raw === undefined) return ''
       let value = String(raw)
       for (const trim of trims) value = value.split(trim).join('')
       return value
+    }
+    const out = replace.replace(/\$([0-9][0-9]?)/g, (whole, digits: string) => {
+      if (digits.length === 2) {
+        const two = groupValue(Number(digits))
+        if (two !== undefined) return two
+        const one = groupValue(Number(digits.charAt(0)))
+        return one === undefined ? whole : one + digits.charAt(1)
+      }
+      const value = groupValue(Number(digits))
+      return value === undefined ? whole : value
     })
     produced += out.length
     if (produced > budget) {

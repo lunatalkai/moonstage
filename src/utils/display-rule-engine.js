@@ -190,13 +190,25 @@ function expandReplacement(replace, args, pickRandom) {
 
   // replace 回呼的參數是 (match, g1..gn, offset, string[, groups])：$k 只在 k ≤ n 時才是捕獲組，
   // 否則會把偏移量／整段原文塞進去（原生 String.replace 對沒有的組保留字面 $k）。
+  // 兩位數的 $nn 跟原生 String.replace 同一套：第 nn 組存在就是它，不存在才是 $n 接一個數字。
+  // MMD 的狀態欄規則動輒十幾個捕獲組，替換內容寫 $10～$14；只認一位數會把 $10 展開成
+  // 「$1 的內容＋0」（2026-09-16 回報：法寶欄寫著「名字0」）。
   const last = args[args.length - 1]
   const stringIndex = last !== null && typeof last === 'object' ? args.length - 2 : args.length - 1
   const groupCount = Math.max(0, stringIndex - 2)
-  out = out.replace(/\$([1-9])/g, (whole, index) => {
-    const n = Number(index)
-    if (n > groupCount) return whole
+  const groupValue = (n) => {
+    if (n < 1 || n > groupCount) return undefined
     const value = args[n]
+    return value === undefined ? '' : value
+  }
+  out = out.replace(/\$([1-9][0-9]?)/g, (whole, digits) => {
+    if (digits.length === 2) {
+      const two = groupValue(Number(digits))
+      if (two !== undefined) return two
+      const one = groupValue(Number(digits.charAt(0)))
+      return one === undefined ? whole : one + digits.charAt(1)
+    }
+    const value = groupValue(Number(digits))
     return value === undefined ? whole : value
   })
 
