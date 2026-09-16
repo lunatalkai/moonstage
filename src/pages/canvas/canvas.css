@@ -1118,10 +1118,19 @@
     z-index: 20;
   }
 
+  /*
+    容器本身不上色：MMD 的 .chat-bottom 是透明的，畫面上看得到的是快捷列與輸入區
+    這兩塊，作者的美化也只畫這兩塊（跟 .chat／.topTabbar）。容器一有底色，桌機欄寬
+    兩側的留白、快捷列與輸入區之間那 8px，就會露出我們的深色，作者把整頁塗成粉色
+    之後那三處還是灰的（owner 2026-09-16 截圖）。所以底色搬到兩塊上面。
+  */
   .chat-bottom {
-    background: var(--lt-canvas-composer-bg);
-    border-top: 1px solid var(--lt-canvas-line);
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .shortcut-bar-wrapper,
+  .chat-bottom-wapper {
+    background: var(--lt-canvas-composer-bg);
   }
 
   /* .chat-bottom-wapper / .shortcut-bar-wrapper 的欄寬與置中搬到 layer 外了，
