@@ -74,6 +74,10 @@ function stageCssPlugin(): PostcssPlugin {
     // html body .x／body .x → .ms-stage .x
     const stripped = s.replace(/^(html\s+)?body\s+/i, '').replace(/^html\s+/i, '')
     if (/^(html|body)\b/i.test(stripped)) return STAGE_SCOPE
+    // 舞台裡刻意寫成零特異性的規則（`:where(範圍) *`，例如 MMD 內容的 content-box 預設）：
+    // 前綴也得用 :where 包住，不然 `.ms-stage` 這一級就把它抬成 (0,1,0)，作者整卡一條 `*{}`
+    // 或元素選擇器又贏不了它——這條前綴只是把舞台圈起來，不該替規則加權。
+    if (stripped.startsWith(':where(')) return `:where(${STAGE_SCOPE}) ${stripped}`
     return `${STAGE_SCOPE} ${stripped}`
   }
   return {
