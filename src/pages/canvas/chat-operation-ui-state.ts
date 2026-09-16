@@ -257,6 +257,19 @@ export function isOpeningIndex(messages: any[], index: number): boolean {
  * 從歷史分頁的原始列裡挑出「開場白」的 chatId：最舊那一列、是 AI、不是摘要。
  * 玩家先講話的卡（最舊一列是玩家）沒有開場白，回空字串——那種對話重置只能整段刪。
  */
+/**
+ * 畫面上已經載進來的列裡找開場白。只有「沒有更舊的頁」時才能信：長對話只載了最新一頁，
+ * 那一頁最舊的 AI 列是劇情中段，拿它當倒回目標會把玩家丟在故事中間、還砍掉後面三十則。
+ */
+export function openingChatIdFromLoadedList(messages: any[], hasOlderPages: boolean): string {
+  if (hasOlderPages || !Array.isArray(messages)) return ''
+  const index = messages.findIndex((_item, i) => isOpeningIndex(messages, i))
+  if (index < 0) return ''
+  const row = messages[index]
+  if (!row || row.id === 0 || row.id == null) return ''
+  return String(row.chatId || row.id || '')
+}
+
 export function openingChatIdFromOldestHistoryRow(row: any): string {
   if (!row || row.isSummary === true) return ''
   if (String(row.chatRole || '') !== 'AI') return ''

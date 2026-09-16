@@ -564,6 +564,7 @@ import {
   type RewriteSnapshot,
   isOpeningIndex,
   openingChatIdFromOldestHistoryRow,
+  openingChatIdFromLoadedList,
   canEditResendPlayerIndex,
   hasAIReplyAfterPlayerIndex,
 } from './chat-operation-ui-state';
@@ -10501,6 +10502,10 @@ function resetConversation() {
   findOpeningChatId(id).then((openingId) => {
     if (String(unref(conversationId) || '') !== id) return
     if (openingId) {
+      // 只剩開場白：沒有東西可清，別為了一個空操作去打回溯。
+      const list = talkList.value as any[]
+      const last = list[list.length - 1]
+      if (list.length > 0 && last && String(last.chatId || last.id || '') === openingId && !ajax.value.hasNextPage) return
       loadConversation(openingId)
       return
     }
@@ -10508,15 +10513,12 @@ function resetConversation() {
   })
 }
 
-// 開場白那一則的 chatId。畫面上有就直接用；長對話只載了最新一頁，開場白在最舊那一頁——
-// 先問一筆拿總數，再拿最舊的那一筆（分頁是新的在前，最後一頁的那一筆就是最舊的）。
+// 開場白那一則的 chatId。畫面上載齊了（沒有更舊的頁）就直接用；長對話只載了最新一頁，
+// 開場白在最舊那一頁——先問一筆拿總數，再拿最舊的那一筆（分頁是新的在前，最後一頁的
+// 那一筆就是最舊的）。
 async function findOpeningChatId(targetConversationId: string): Promise<string> {
-  const list = talkList.value as any[]
-  const loaded = list.findIndex((_item, i) => isOpeningIndex(list, i))
-  if (loaded >= 0) {
-    const row = list[loaded]
-    return row && row.id !== 0 && row.id != null ? String(row.chatId || row.id) : ''
-  }
+  const loadedId = openingChatIdFromLoadedList(talkList.value as any[], !!ajax.value.hasNextPage)
+  if (loadedId) return loadedId
   try {
     const page = (pageNum: number) => _this.http.get(_this.requestUrl.historyMessageList, {
       data: { conversationId: targetConversationId, pageNum, pageSize: 1 },
