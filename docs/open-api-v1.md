@@ -115,7 +115,7 @@ path and the identity differ.
 | GET | `/role/author-asset/serve` | the author's page assets for a card |
 | GET | `/player/preference` | per-player **look** settings (font, colours, wallpaper) — `?roleId=` (omit for account scope) |
 | POST | `/player/preference/save` | merge-write — `{ roleId, prefs }` |
-| GET | `/player/role-settings` | what the player set on this card — `?roleId=`: persona (`userName`, `userSex`, `userDefine`), chosen model/channel (`selectModel`), context tier (`context`), thinking depth, custom jailbreak. **The turn reads these**, not `player/preference` |
+| GET | `/player/role-settings` | what the player set on this card — `?roleId=`: persona (`userName`, `userSex`, `userDefine`), chosen model/channel (`selectModel`), context tier (`context`), thinking depth, custom customInstructions. **The turn reads these**, not `player/preference` |
 | POST | `/player/role-settings/save` | `{ roleId, ...fields }` — send only the fields you change; the rest keep their value. Persona text goes through moderation |
 | GET | `/conversation/directives` | standing instructions for a conversation — `?conversationId=` → `{ list, maxCount, maxLength }` |
 | POST | `/conversation/directive/add` \| `update` \| `delete` | `{ conversationId, text }` / `{ conversationId, sourceId, text }` / `{ conversationId, sourceId }` |
@@ -171,7 +171,7 @@ rewritten on the way in.
 |---|---|---|
 | POST | `/role` | create an empty private card — `{ roleName, language?, cardType?, contentRatingIntent?, idempotencyKey? }` → `{ roleId, roleVisibility, reviewStatus }` |
 | PATCH | `/role/:roleId` | basic profile — `{ roleName?, roleDesc?, roleTag?, userName?, roleDetailDesc? }`; only sent fields change |
-| POST | `/role/:roleId/document` | write card text as one document — `{ fields: { roleName?, roleDesc?, roleTag?, userName?, roleType?, roleAvatar?, roleBackground?, roleDetailDesc?, roleWelcome?, talkExample?, roleOutputContract?, jailbreak? } }`. Only the fields you send are written; an absent field is left alone, so an older client never blanks a newer field |
+| POST | `/role/:roleId/document` | write card text as one document — `{ fields: { roleName?, roleDesc?, roleTag?, userName?, roleType?, roleAvatar?, roleBackground?, roleDetailDesc?, roleWelcome?, talkExample?, roleOutputContract?, customInstructions? } }`. Only the fields you send are written; an absent field is left alone, so an older client never blanks a newer field |
 | PATCH | `/role/:roleId/welcome` | opening lines — `{ roleWelcome, alternates?, prologue? }`. `alternates` and `prologue` are full replacements: omit to keep, send `[]` to clear |
 | POST | `/role/:roleId/visibility` | `{ visibility: "private" }` — the only value v1 accepts; going public is a publish |
 | GET | `/role/validate` | `?roleId=` → the same report the card-writer shows before publishing |

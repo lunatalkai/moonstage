@@ -1,3 +1,5 @@
+import { instructionsToAPI, instructionsFromAPI } from './instruction-fields'
+
 /**
  * 請求層的組裝：host、loading／toast、bearer、401 換 token 後重送。
  *
@@ -44,6 +46,7 @@ export function setupHttp(http, deps) {
 
 	// 請求攔截：身分只有 Bearer 一個來源，沒有站台金鑰、沒有帳號識別標頭、不帶 cookie。
 	http.interceptors.request.use(async config => {
+		config.data = instructionsToAPI(config.data);
 		const showLoading = config.showLoading !== false && !isSilentRequest(config.url);
 		if (showLoading) {
 			loading.show(config.loadingText || '');
@@ -70,6 +73,7 @@ export function setupHttp(http, deps) {
 
 	//响应拦截
 	http.interceptors.response.use(response => {
+		response.data = instructionsFromAPI(response.data);
 		// 隐藏 Loading
 		loading.hide();
 
