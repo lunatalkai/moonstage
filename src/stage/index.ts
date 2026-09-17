@@ -71,7 +71,7 @@ export async function installMoonStage(app: App, options: InstallMoonStageOption
   installed = true
   const { host, auth, api, i18n } = options
 
-  setStageHost(host)
+  setStageHost({ ...host, apiBase: api.base })
   setSandboxHostOptions(options.sandbox || null)
   installUniShim(host)
   useExternalAuth(auth)

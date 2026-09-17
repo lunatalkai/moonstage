@@ -10,7 +10,13 @@ const CHAT_WS_PATH = '/open/v1/conversation/ws'
  * 串流仍連正式環境，訊息照樣送出去，測試結果看起來正常但驗的是舊程式。給一個
  * 統一的入口，比要人記得同時手改兩個檔案可靠。
  */
-export function resolveChatWebSocketBase(wsBase: string, explicitBase?: string): string {
+export function resolveChatWebSocketBase(wsBase: string, explicitBase?: string, hostApiBase?: string): string {
+  if (hostApiBase) {
+    const base = new URL(hostApiBase)
+    if (base.protocol !== 'https:' && base.protocol !== 'http:') throw new Error('Unsupported provider API protocol')
+    base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${base.toString().replace(/\/+$/, '')}${CHAT_WS_PATH}`
+  }
   const explicit = (explicitBase || '').trim()
   if (explicit) {
     // 手貼的時候很容易連 http:// 一起貼進來，剝掉而不是拒絕。

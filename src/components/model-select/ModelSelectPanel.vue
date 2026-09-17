@@ -378,6 +378,8 @@
 
 <script lang="ts" setup>
 	// @ts-nocheck
+	import { useStageHost } from '@/host/stage-host'
+	const stageHost = useStageHost()
 	import { CanvasInput } from '@/pages/canvas/components/canvas-field'
 	import { variantPrice } from '@/pages/canvas/canvas-model-catalog'
 	import icon_deepseek from '@/static/icon/models/deepseek.png';
@@ -1394,6 +1396,7 @@ const truncationText = (completionRate: number) => {
 
 
 	const loadDeepPrepPreference = async () => {
+		if (stageHost.capabilities?.agentMode === false) return;
 		if (!formData.roleId) return;
 		try {
 			// 帶上「使用者現在挑的那個模型」，而不是只問已存檔的那個。
@@ -1442,6 +1445,7 @@ const truncationText = (completionRate: number) => {
 	});
 
 	const onDeepPrepChange = async (nextEnabled) => {
+		if (stageHost.capabilities?.agentMode === false) return;
 		// 停用態仍然在畫面上，所以也可能被觸發——在這裡擋掉，不要送出一個
 		// 伺服器本來就不會生效的偏好。
 		if (!deepPrepModelSupported.value) return;

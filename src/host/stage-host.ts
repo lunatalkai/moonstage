@@ -13,6 +13,9 @@
 export type ToastKind = 'info' | 'success' | 'error' | 'warning'
 
 export interface StageHost {
+  /** 由嵌入套件填入；HTTP 與串流必須使用同一個供應商。 */
+  apiBase?: string
+  capabilities?: import("./capabilities").StageCapabilities
   ui: {
     toast(text: string, kind?: ToastKind): void
     confirm(options: { title?: string; content: string; confirmText?: string; cancelText?: string }): Promise<boolean>

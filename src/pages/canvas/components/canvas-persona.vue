@@ -171,6 +171,7 @@ interface PersonaFields { userName: string; userSex: string; userDefine: string 
 const props = withDefaults(defineProps<{
   /** name_only / global / custom */
   personaMode?: string
+  supportedModes?: readonly string[]
   /** 帳號層級那份人設（全局人設）；「全局」那一檔編輯的是它 */
   globalPersona?: Partial<PersonaFields> | null
   /** 這個存檔那份人設（當前會話）；exists=false＝存檔還沒設過，那一檔從這張卡的人設起步 */
@@ -326,7 +327,7 @@ const modeOptions = computed<ModeOption[]>(() => [
     hint: props.hasConversation ? props.labels.modeConversationHint : props.labels.modeConversationNeedsChat,
     disabled: !props.hasConversation,
   },
-])
+].filter(option => !props.supportedModes || props.supportedModes.includes(option.value)))
 const modeHint = computed(() => modeOptions.value.find((o) => o.value === draft.personaMode)?.hint || '')
 
 function pickMode(option: ModeOption) {

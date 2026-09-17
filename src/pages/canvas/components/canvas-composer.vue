@@ -83,6 +83,7 @@
             點了只把 AI 替玩家寫的一句填進輸入框，不代送。
           -->
           <div
+            v-if="assistEnabled"
             class="ai-assistant"
             :class="{ 'is-busy': assistBusy }"
             role="button"
@@ -346,6 +347,7 @@ const props = withDefaults(defineProps<{
   /** 這一輪要花多少點（已格式化；動態計價是區間）。空字串＝還不知道，不顯示數字。 */
   modelScore?: string
   /** 幫答進行中：按鈕鎖住，不重複扣點 */
+  assistEnabled?: boolean
   assistBusy?: boolean
   /** 幫答每次的點數，顯示在 .beta-badge；空字串＝不顯示數字 */
   assistCost?: string | number
@@ -356,6 +358,7 @@ const props = withDefaults(defineProps<{
   moreOpen: false,
   moreItems: () => [],
   modelScore: '',
+  assistEnabled: true,
   assistBusy: false,
   assistCost: '',
   labels: () => ({ stop: 'Stop', more: 'More', send: 'Send', paste: 'Paste', clear: 'Clear', model: 'Model', assist: 'Let AI draft a reply', perTurn: 'Credits per turn' }),

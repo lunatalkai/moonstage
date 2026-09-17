@@ -1,3 +1,4 @@
+import { useStageHost } from '@/host/stage-host'
 import {
 	computed,
 	ref,
@@ -224,6 +225,7 @@ export const useUserDefine = () => {
 	};
 
 	const getUserDefine = () => {
+        if (useStageHost().capabilities?.preferences === false) return Promise.resolve();
 		if (!unref(formData).roleId) {
 			return Promise.resolve(); // 返回一个 resolved Promise
 		}
@@ -259,6 +261,7 @@ export const useUserDefine = () => {
 	// fields：只想更動的欄位（見 buildScopedUserDefinePayload 註解），省略時維持既有
 	// 行為，送出整個 formData。
 	const setUserDefine = async (fields) => {
+        if (useStageHost().capabilities?.preferences === false) return Promise.resolve();
 		if (isSubmitting.value) return Promise.resolve();
 
 		isSubmitting.value = true;

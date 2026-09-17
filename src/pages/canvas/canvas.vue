@@ -100,6 +100,7 @@
       @stop="onCanvasStop"
       @more="panel = toggleMore(panel)"
       :assist-busy="assistBusy"
+      :assist-enabled="stageHost.capabilities?.assist !== false"
       :assist-cost="ASSIST_COST"
       @assist="onAssist"
       @more-pick="onPanelPick"
@@ -191,6 +192,7 @@
     <CanvasPopup :open="panel.sheet === 'persona'" v-if="!sandboxCard" :title="t('canvas.panel.persona')"
                  :close-label="t('main.cancel')" @close="closeCanvasSheet">
       <CanvasPersona
+        :supported-modes="stageHost.capabilities?.personaModes"
         :persona-mode="asPersonaMode(formData.personaMode)"
         :global-persona="globalPersona"
         :conversation-persona="conversationPersona"
@@ -423,6 +425,7 @@ import { resolveStageBackground, resolveStageLandscapeBackground } from './canva
 import { stripUnknownTags, wrapDialogue } from './canvas-platform-defaults'
 import { buildGreetingList, hasAlternates, shouldDeferStart, stepGreeting, greetingIndexForStart, buildPrologueList, shouldShowPrologue } from './canvas-greetings'
 import { archiveRequestQuery, buildArchiveRows, isArchiveFull, nextArchiveAfterDelete } from './canvas-archives'
+import { allowsStageAction, allowsStagePanel } from '@/host/capabilities'
 import type { ArchiveRow } from './canvas-archives'
 import { convertVisibleHtml, convertPlainText, createDisplayScriptConverter, directionForLocale } from './canvas-display-script'
 
@@ -441,6 +444,7 @@ import CanvasModify from './components/canvas-modify.vue'
 import CanvasConversationList from './components/canvas-conversation-list.vue'
 import CanvasPersona from './components/canvas-persona.vue'
 import CanvasDirectives from './components/canvas-directives.vue'
+import ChatSystemMessage from '@/components/chat-system-message/chat-system-message.vue'
 import CanvasNotepad from './components/canvas-notepad.vue'
 import CanvasContextBreakdown from './components/canvas-context-breakdown.vue'
 import CanvasMemory from './components/canvas-memory.vue'
@@ -636,6 +640,7 @@ function isTransportFailure(e: any): boolean {
 }
 
 async function loadMultiPassPreference(retryLeft = 1) {
+  if (stageHost.capabilities?.agentMode === false) return
   const id = String(unref(roleId) || formData.roleId || '')
   if (!id) return
   try {
@@ -2456,7 +2461,7 @@ function buildPanelsState() {
       break;
     case 'persona':
       title = t('canvas.panel.persona');
-      props = { personaMode: asPersonaMode(formData.personaMode), globalPersona: globalPersona.value, conversationPersona: conversationPersona.value, hasConversation: Boolean(unref(conversationId)), nickName: playerNickName.value, userName: formData.userName, userSex: formData.userSex, userDefine: formData.userDefine, sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak, defaultJailbreak: defaultJailbreak.value, sexOptions: personaSexOptions.value, sandboxOptions: personaSandboxOptions.value, saving: personaSaving.value, error: personaError.value, labels: personaLabels.value };
+      props = { supportedModes: stageHost.capabilities?.personaModes, personaMode: asPersonaMode(formData.personaMode), globalPersona: globalPersona.value, conversationPersona: conversationPersona.value, hasConversation: Boolean(unref(conversationId)), nickName: playerNickName.value, userName: formData.userName, userSex: formData.userSex, userDefine: formData.userDefine, sandboxLevel: formData.sandboxLevel, jailbreak: formData.jailbreak, defaultJailbreak: defaultJailbreak.value, sexOptions: personaSexOptions.value, sandboxOptions: personaSandboxOptions.value, saving: personaSaving.value, error: personaError.value, labels: personaLabels.value };
       break;
     case 'directives':
       title = t('directive.title');
@@ -4230,12 +4235,14 @@ function getSystemMsgCtaLabel(action: ChatOperationUIAction | 'refresh_history' 
 }
 
 function getSystemMsgCta(finishReason, item, index) {
+  if (!allowsStageAction(stageHost.capabilities, 'continue')) return ''
   return getSystemMsgCtaLabel(
     getSystemMsgCtaAction(finishReason, item, index),
   );
 }
 
 function getSystemMsgCtas(item, index) {
+  if (!allowsStageAction(stageHost.capabilities, 'continue')) return []
   if (item?.operationProjectionCapable !== true) return [];
   return terminalUIActionsFromAllowedActions(item)
     .filter(action => isTerminalActionAllowed(talkList.value, index, action))
@@ -7893,6 +7900,7 @@ async function connectWebSocket(
     // 指向臨時實例時，代理與串流由同一個環境變數決定。
     // 分開設定就會有人只改一邊，然後靜默測到線上。
     import.meta.env.VITE_CHAT_API_BASE,
+    stageHost.apiBase,
   );
 
   // 組 query string（Phase 2a 協定協商）
@@ -8429,6 +8437,7 @@ const lastAssistReply = ref('')
 watch(conversationId, () => { lastAssistReply.value = '' })
 
 async function onAssist() {
+  if (stageHost.capabilities?.assist === false) return
   if (assistBusy.value) return
   if (previewOnly.value) {
     uni.showToast({ title: t('openChat.preview.intercepted'), icon: 'none' })
@@ -8579,7 +8588,7 @@ function messageProps(item: any, index: number, htmlOverride?: string) {
     // 串流進行中一律關掉：重新生成時新氣泡要等跑完才換上去，這段時間舊的那則仍是
     // 「最新一則 AI」，鍵還亮著就會再送一次（owner 2026-09-05：跑到 182 個 token 時還能按）。
     // 開場白是作者寫的，不是模型生成的：沒有「重新生成」。
-    latestAI: !previewOnly.value && !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index) && !isOpeningIndex(talkList.value, index),
+    latestAI: allowsStageAction(stageHost.capabilities, 'rewrite') && !previewOnly.value && !isUser && !isSystemOnly && !!item.chatFinish && !isStreamActive.value && isLatestCanonicalAIIndex(index) && !isOpeningIndex(talkList.value, index),
     contextUsage: (!isUser && !isSystemOnly) ? contextUsageForRow(item) : null,
     swipes: (index === 0 && showGreetingSwipes.value)
       ? { index: greeting.index, total: greeting.list.length }
@@ -8623,7 +8632,7 @@ const menuActions = computed(() => {
   const item = talkList.value[index]
   if (!item) return []
   // 純預覽的訊息不在伺服器上：改寫、倒回、分叉、刪除都沒有對象，只留複製。
-  if (previewOnly.value) return [{ key: 'copy', label: t('chat.copy') }]
+  if (previewOnly.value || !allowsStageAction(stageHost.capabilities, 'rewrite')) return [{ key: 'copy', label: t('chat.copy') }]
   // 開場白是作者寫的：不改寫、不繼續、不刪除。但它可以當倒回的目標——倒回開場白＝
   // 一步清空劇情，長期指令、手帳、記憶都留著（玩家 2026-09-16：回到起點要按兩次）。
   if (isOpeningIndex(talkList.value, index)) {
@@ -8681,6 +8690,7 @@ function closeMessageMenu() {
 }
 
 function onMenuPick(key: string) {
+  if (!allowsStageAction(stageHost.capabilities, key)) return
   const index = menuIndex.value
   const item = talkList.value[index]
   if (!item) return
@@ -8924,7 +8934,7 @@ const shortcutItems = computed(() => previewOnly.value ? [] : [
   { key: 'directives', label: t('directive.entry') },
   { key: 'notepad', label: t('notepad.entry') },
   { key: 'conversations', label: t('canvas.archive.entry') },
-])
+].filter(item => allowsStagePanel(stageHost.capabilities, item.key)))
 
 // ── 底部功能面板與彈層 ─────────────────────────────────────────────────
 //
@@ -8953,7 +8963,7 @@ const moreItems = computed(() => previewOnly.value ? [
   { key: 'reset-chat', label: t('canvas.panel.reset') },
   { key: 'export', label: t('canvas.panel.export') },
   { key: 'bottom', label: t('canvas.shortcut.toBottom') },
-])
+].filter(item => allowsStagePanel(stageHost.capabilities, item.key)))
 
 function closeCanvasSheet() {
   panel.value = closeSheet(panel.value)
@@ -8965,6 +8975,7 @@ function onPanelPick(key: string) {
 }
 
 function onShortcut(key: string) {
+  if (!allowsStagePanel(stageHost.capabilities, key)) return
   if (key === 'new-chat') {
     // 滿了就不問「要不要開新的」——先講清楚為什麼開不了、給一條去刪的路。
     if (archivesFull.value) { askArchivesFull(); return }
@@ -9274,6 +9285,7 @@ watch(() => String(unref(conversationId) || ''), (next) => {
 })
 
 async function loadConversationPersona(targetConversationId: string) {
+  if (stageHost.capabilities?.personaModes && !stageHost.capabilities.personaModes.includes('conversation')) return
   try {
     const res = await _this.http.get(_this.requestUrl.playerConversationPersona, {
       data: { conversationId: targetConversationId },
@@ -10266,6 +10278,7 @@ function onNewFromArchives() {
 }
 
 async function loadArchives() {
+  if (!allowsStagePanel(stageHost.capabilities, 'conversations')) return
   const targetRoleId = String(unref(roleId) || '')
   if (!targetRoleId) return
   try {

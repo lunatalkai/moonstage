@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { resolveChatWebSocketBase } from '../chat-websocket-url'
 
 describe('聊天串流位址', () => {
+  it('嵌入宿主的 API 主機同時決定串流主機，優先於建置與開發設定', () => {
+    expect(resolveChatWebSocketBase('wss://api.lunatalk.ai', 'localhost:8888', 'https://api.harperharbor.com/'))
+      .toBe('wss://api.harperharbor.com/open/v1/conversation/ws')
+    expect(resolveChatWebSocketBase('wss://api.lunatalk.ai', undefined, 'http://127.0.0.1:8915'))
+      .toBe('ws://127.0.0.1:8915/open/v1/conversation/ws')
+  })
   it('走開放 API v1 的串流路徑', () => {
     expect(resolveChatWebSocketBase('wss://api.lunatalk.ai'))
       .toBe('wss://api.lunatalk.ai/open/v1/conversation/ws')
