@@ -19,7 +19,7 @@ describe('pre-admission chat error UX', () => {
   })
 
   it('does not emit a generic draft warning before the exact error bubble', () => {
-    expect(chat).toContain('recoverPendingChatTurnBeforeAccepted(false)')
+    expect(chat).toContain('recoverPendingChatTurnBeforeAccepted(false, operationProjection)')
     expect(chat).not.toContain('💎 立即充值')
     expect(chat).not.toContain('class="msg-error-cta"')
   })
@@ -30,8 +30,8 @@ describe('pre-admission chat error UX', () => {
     expect(chat).toContain('systemOnly: true')
     // 開放客戶端沒有付費端點（docs/open-api-v1.md），所以餘額不足只留誠實的
     // 錯誤卡：kind／標題照舊，副標說清楚該去哪處理，不再給導購 CTA——按了會落空。
-    expect(chat).toContain("'insufficient_credits': t('chat.manageOnLunaTalk')")
-    expect(chat).toContain("'quota_exhausted':  t('chat.manageOnLunaTalk')")
+    expect(chat).toContain("'insufficient_credits': t('chat.manageCredits')")
+    expect(chat).toContain("'quota_exhausted':  t('chat.manageCredits')")
     expect(chat).not.toContain("'open_vip'")
     expect(chat).not.toContain("'open_checkin'")
     expect(chat).toContain("!['resume_unavailable', 'compact_no_input'].includes(item.finishReason)")

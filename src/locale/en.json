@@ -3937,7 +3937,7 @@
 	"openChat.trial.unavailable": "The worldbook service is temporarily unavailable. Please try again later.",
 	"openChat.trial.failed": "Could not create the trial card. Please try again later.",
 	"chat.backwardUnavailable": "Rewinding the story isn’t available in this client yet.",
-	"chat.manageOnLunaTalk": "Points and membership are handled on lunatalk.ai. Come back here when you’re topped up.",
+	"chat.manageCredits": "Check your balance on the platform you are using, then add credits and try again.",
 	"chat.modelSelectAria": "Choose model",
 	"canvas.you": "You",
 	"canvas.send": "Send",

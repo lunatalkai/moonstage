@@ -4209,8 +4209,8 @@ function getSystemMsgSub(finishReason) {
     'history_load_error': t('systemMsg.networkErrorSub') || '請檢查網路後重試',
     // 這個客戶端不賣點數也沒有每日報到，所以副標只說清楚該去哪處理，不給一顆
     // 按了會落空的鍵（開放契約沒有付費端點，見 docs/open-api-v1.md）。
-    'insufficient_credits': t('chat.manageOnLunaTalk'),
-    'quota_exhausted':  t('chat.manageOnLunaTalk'),
+    'insufficient_credits': t('chat.manageCredits'),
+    'quota_exhausted':  t('chat.manageCredits'),
     'compact_retryable': t('error.compactRetryable')   || '記憶整理未完成，對話已恢復，請再發送一次',
     'rewrite_target_not_latest': t('chat.rewriteTargetChangedSub') || '對話內容已變更，請重新整理後編輯最新一則 AI 回覆',
     'rewrite_target_invalid': t('chat.rewriteTargetChangedSub') || '對話內容已變更，請重新整理後編輯最新一則 AI 回覆',
@@ -7067,7 +7067,7 @@ function commitPendingChatOperationAfterVisibleDone(): boolean {
   return true;
 }
 
-function recoverPendingChatTurnBeforeAccepted(showNotice = true): boolean {
+function recoverPendingChatTurnBeforeAccepted(showNotice = true, errorMetadata: Record<string, any> = {}): boolean {
   const pending = pendingChatTurn;
   if (!chatTransport.shouldRecoverTransientTurn(pending)) return false;
 
@@ -7094,7 +7094,7 @@ function recoverPendingChatTurnBeforeAccepted(showNotice = true): boolean {
     // 伺服器已經明確講了原因（免費次數用完、點數不足這類），這種時候只彈一句
     // 「訊息未送出」等於把一個明確的答案顯示成斷線——使用者分不出是我們壞了
     // 還是他不能用。把原話印進錯誤氣泡，草稿仍然留在輸入框讓他換個模型再送。
-    appendChatErrorBubble(explicitErrorType, resolveChatErrorMessage(explicitErrorType, t));
+    appendChatErrorBubble(explicitErrorType, resolveChatErrorMessage(explicitErrorType, t), errorMetadata);
   } else if (showNotice) {
     message.warning(t('chat.messageNotSentDraftSaved'));
   }
@@ -7234,14 +7234,14 @@ function settleConfirmedPreAdmissionFailure(
     return true;
   }
 
-  const recovered = recoverPendingChatTurnBeforeAccepted(false);
+  const recovered = recoverPendingChatTurnBeforeAccepted(false, operationProjection);
   if (!recovered) {
     if (storedDraft && !content.value) content.value = storedDraft;
     pendingChatTurn = null;
     clearStreamState();
     removeOrphanPlaceholder();
+    appendChatErrorBubble(errorType, errorMessage, operationProjection);
   }
-  appendChatErrorBubble(errorType, errorMessage, operationProjection);
   closeWebSocket();
   return true;
 }

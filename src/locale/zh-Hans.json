@@ -3937,7 +3937,7 @@
 	"openChat.trial.unavailable": "世界书服务暂时无法使用，请稍后再试。",
 	"openChat.trial.failed": "创建试玩卡失败，请稍后再试。",
 	"chat.backwardUnavailable": "这个聊天器目前还不能倒回剧情。",
-	"chat.manageOnLunaTalk": "点数与会员在 lunatalk.ai 上处理，充值好再回来继续。",
+	"chat.manageCredits": "请查看当前平台的余额，充值后再试。",
 	"chat.modelSelectAria": "选择模型",
 	"canvas.you": "你",
 	"canvas.send": "发送",

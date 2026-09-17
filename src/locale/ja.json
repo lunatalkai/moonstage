@@ -3937,7 +3937,7 @@
 	"openChat.trial.unavailable": "ワールドブックのサービスを一時的に利用できません。しばらくしてからもう一度お試しください。",
 	"openChat.trial.failed": "トライアルカードを作成できませんでした。しばらくしてからもう一度お試しください。",
 	"chat.backwardUnavailable": "このチャットでは、まだ物語を巻き戻せません。",
-	"chat.manageOnLunaTalk": "ポイントと会員は lunatalk.ai で手続きできます。追加したらここに戻ってきてください。",
+	"chat.manageCredits": "ご利用中のプラットフォームで残高を確認し、チャージしてから再度お試しください。",
 	"chat.modelSelectAria": "モデルを選択",
 	"canvas.you": "あなた",
 	"canvas.send": "送信",

@@ -57,7 +57,7 @@ describe('desktop chat transport ownership', () => {
     const chat = readChat()
     const send = sliceBetween(chat, 'function send()', '// 发送WebSocket消息')
     const handler = sliceBetween(chat, 'const handlerMessage =', '// 滚动节流定时器')
-    const recovery = sliceBetween(chat, 'function recoverPendingChatTurnBeforeAccepted(showNotice = true)', 'function markPendingChatTurnAccepted')
+    const recovery = sliceBetween(chat, 'function recoverPendingChatTurnBeforeAccepted(', 'function markPendingChatTurnAccepted')
 
     expect(send).toContain('transportTransient: true')
     expect(send).toContain('beginPendingChatTurn')
@@ -249,12 +249,12 @@ describe('desktop chat transport ownership', () => {
     const chat = readChat()
     const recovery = sliceBetween(
       chat,
-      'function recoverPendingChatTurnBeforeAccepted(showNotice = true)',
+      'function recoverPendingChatTurnBeforeAccepted(',
       'function markPendingChatTurnAccepted',
     )
 
     expect(recovery).toContain('pending.preAdmissionErrorType')
-    expect(recovery).toContain('appendChatErrorBubble(explicitErrorType, resolveChatErrorMessage(explicitErrorType, t))')
+    expect(recovery).toContain('appendChatErrorBubble(explicitErrorType, resolveChatErrorMessage(explicitErrorType, t), errorMetadata)')
     // 沒有明確原因時仍然只彈那句話——這條分支不是被取代，是被讓路。
     expect(recovery).toContain("message.warning(t('chat.messageNotSentDraftSaved'))")
   })

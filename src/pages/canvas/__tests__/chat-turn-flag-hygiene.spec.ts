@@ -70,7 +70,7 @@ describe('回合旗標衛生（工單 #41-F1 · desktop）', () => {
 
   it('recoverPendingChatTurnBeforeAccepted（回合送出失敗復原，涵蓋 sendError 提前 return）重置兩個旗標', () => {
     const chat = readChat()
-    const fn = sliceBetween(chat, 'function recoverPendingChatTurnBeforeAccepted(showNotice = true)', 'function markPendingChatTurnAccepted')
+    const fn = sliceBetween(chat, 'function recoverPendingChatTurnBeforeAccepted(', 'function markPendingChatTurnAccepted')
 
     expect(fn).toContain('rewrite.value = false')
     expect(fn).toContain('contine.value = false')
