@@ -100,7 +100,6 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
   let destroyed = false
   let liveSeq = 0
   let lastBusy: boolean | null = null
-  let lastInputFromShell: string | null = null
   let lastInputPosted: string | null = null
   let backWaiter: ((handled: boolean) => void) | null = null
   let handshakeTimer: ReturnType<typeof setTimeout> | null = null
@@ -293,7 +292,7 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
 
   const syncInput = (snapshot: HudHostState) => {
     const value = snapshot.inputText
-    if (value === lastInputFromShell || value === lastInputPosted) return
+    if (value === lastInputPosted) return
     lastInputPosted = value
     post({ type: 'input', value })
   }
@@ -442,7 +441,9 @@ export function createSandboxHost(deps: SandboxHostDeps): SandboxHost {
         void handleRequest(message.reqId, message.op, message.args || [])
         return
       case 'input':
-        lastInputFromShell = message.value
+        // 此值代表殼目前持有的草稿，不是歷史上最後由宿主送過的字。
+        // 殼改了草稿後，宿主的清空／還原都必須重新傳回。
+        lastInputPosted = message.value
         hud.setInputText(message.value)
         return
       case 'action':

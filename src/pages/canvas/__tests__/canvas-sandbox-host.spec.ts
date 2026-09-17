@@ -313,6 +313,39 @@ describe('沙箱宿主橋', () => {
     host.destroy()
   })
 
+  it('送出清空與失敗還原都鏡射到殼，後續草稿不會被舊值去重掉', async () => {
+    const state = { current: makeState({ messages: [msg({ id: 'greeting', text: 'Hello', opening: true })] }) }
+    const { hud } = fakeHud(state)
+    const host = createSandboxHost({ hud, iframe: h.iframe, win: window, origin: ORIGIN, roleId: '1', hello })
+    host.start()
+    h.fromShell({ type: 'ready-shell' })
+    await flush()
+    h.posted.length = 0
+    const inputs = () => h.posted.filter((p) => p.type === 'input').map((p) => p.value)
+
+    // 手動輸入和作者 sdk.input.set 都會走這條殼 → 宿主訊息。
+    h.fromShell({ type: 'input', value: '要送出的草稿' })
+    state.current.inputText = '要送出的草稿'
+    host.sync()
+    expect(inputs()).toEqual([])
+    state.current.inputText = ''
+    host.sync()
+    expect(inputs()).toEqual([''])
+    // 尚未受理的失敗，宿主還原同一份草稿，不能被歷史值誤判成回音。
+    state.current.inputText = '要送出的草稿'
+    host.sync()
+    expect(inputs()).toEqual(['', '要送出的草稿'])
+    state.current.inputText = ''
+    host.sync()
+    // 已送出後另寫下一則，重複同步不能清掉新草稿。
+    h.fromShell({ type: 'input', value: '下一則' })
+    state.current.inputText = '下一則'
+    host.sync()
+    host.sync()
+    expect(inputs()).toEqual(['', '要送出的草稿', ''])
+    host.destroy()
+  })
+
   it('input 鏡射不回音；action 對應宿主動作；back 交涉；握手逾時回報', async () => {
     vi.useFakeTimers()
     const state = { current: makeState({ messages: [msg({ id: '60', text: 'x', canonicalLatestAI: true })] }) }
