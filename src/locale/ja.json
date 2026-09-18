@@ -1,4 +1,6 @@
 {
+	"error.contextCapacityTitle": "モデルのコンテキスト容量を超えています",
+	"error.contextCapacityExceeded": "内容がモデルのコンテキスト容量を超えています。今回のメッセージを短くするか、容量の大きいモデルに切り替えてください。これまでの会話は保存されています。",
 	"mine.checkRole.author": "作成者",
 	"mine.checkRole.visibilityPublic": "公開",
 	"mine.checkRole.visibilityPrivate": "非公開",

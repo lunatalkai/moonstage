@@ -139,3 +139,8 @@ describe('resolveChatErrorMessage', () => {
     expect(resolveChatErrorPresentation('server_error', translate).finishReason).toBe('server_error')
   })
 })
+
+it('explains capacity failures without presenting them as a network retry', () => {
+ expect(resolveChatErrorMessage('context_capacity_exceeded', translate)).toBe('error.contextCapacityExceeded')
+ expect(resolveChatErrorPresentation('context_capacity_exceeded', translate).finishReason).toBe('context_capacity_exceeded')
+})

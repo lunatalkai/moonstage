@@ -1,4 +1,6 @@
 {
+	"error.contextCapacityTitle": "Context capacity exceeded",
+	"error.contextCapacityExceeded": "This content exceeds the model’s available context. Shorten your message or choose a model with a larger context window. Your conversation has been kept.",
 	"mine.checkRole.author": "Author",
 	"mine.checkRole.visibilityPublic": "Public",
 	"mine.checkRole.visibilityPrivate": "Private",

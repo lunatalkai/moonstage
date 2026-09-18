@@ -4130,6 +4130,7 @@ function getSystemMsgKind(finishReason) {
     'insufficient_credits': 'quota',
     'quota_exhausted': 'quota',
     'compact_retryable': 'compact-retryable',
+    'context_capacity_exceeded': 'model-error',
     'conversation_stale': 'model-error',
     'operation_in_progress': 'model-error',
     'mutation_in_progress': 'model-error',
@@ -4166,6 +4167,7 @@ function getSystemMsgLabel(finishReason) {
     'history_load_error': t('systemMsg.networkError') || '網路連線中斷',
     'insufficient_credits': t('chat.point_no_tips') || '點數已用完',
     'quota_exhausted':  t('chat.freeQuotaExhaustedTitle') || '免費額度已用完',
+    'context_capacity_exceeded': t('error.contextCapacityTitle'),
     'compact_retryable': t('chat.compactFailed')    || '記錄失敗',
     'conversation_stale': t('error.replyNotGenerated'),
     'operation_in_progress': t('chat.operationPending') || '目前的聊天操作仍在進行中',
@@ -4211,6 +4213,7 @@ function getSystemMsgSub(finishReason) {
     // 按了會落空的鍵（開放契約沒有付費端點，見 docs/open-api-v1.md）。
     'insufficient_credits': t('chat.manageCredits'),
     'quota_exhausted':  t('chat.manageCredits'),
+    'context_capacity_exceeded': t('error.contextCapacityExceeded'),
     'compact_retryable': t('error.compactRetryable')   || '記憶整理未完成，對話已恢復，請再發送一次',
     'rewrite_target_not_latest': t('chat.rewriteTargetChangedSub') || '對話內容已變更，請重新整理後編輯最新一則 AI 回覆',
     'rewrite_target_invalid': t('chat.rewriteTargetChangedSub') || '對話內容已變更，請重新整理後編輯最新一則 AI 回覆',

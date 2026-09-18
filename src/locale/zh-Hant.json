@@ -1,4 +1,6 @@
 {
+	"error.contextCapacityTitle": "內容超過模型容量",
+	"error.contextCapacityExceeded": "目前的內容超過模型可用容量，請縮短這次訊息或切換容量較大的模型，既有對話已保留。",
 	"mine.checkRole.author": "作者",
 	"mine.checkRole.visibilityPublic": "公開",
 	"mine.checkRole.visibilityPrivate": "私有",
