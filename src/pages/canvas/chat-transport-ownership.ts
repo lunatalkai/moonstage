@@ -341,6 +341,14 @@ export interface ChatOperationStatus {
   messageKey?: string
   allowedActions?: string[]
   retryable?: boolean
+  hasContextUsage?: boolean
+  model?: string
+  contextUsage?: {
+    inputTokens?: number
+    outputTokens?: number
+    cachedTokens?: number
+    cacheWriteTokens?: number
+  }
   // 伺服器把這一輪被接受當下凍結的 agent 模式投影出來。舊伺服器不帶這個欄位，
   // 留 undefined 讓呼叫端退回本地判斷——當成 false 會讓 agent 輪次在冷啟動後
   // 又被套上五分鐘上界。
@@ -387,6 +395,18 @@ export function normalizeChatOperationStatus(input: any): ChatOperationStatus | 
   if (version !== undefined) normalized.version = version
   // 只認伺服器明確給的布林；沒帶就留 undefined（見 ChatOperationStatus.agentTurn）。
   if (typeof source.agentTurn === 'boolean') normalized.agentTurn = source.agentTurn
+  // Preserve provider usage through stream, polling and wrapped status responses.
+  // Missing measurements stay absent, including replies recorded before usage persistence.
+  if (typeof source.hasContextUsage === 'boolean') normalized.hasContextUsage = source.hasContextUsage
+  if (typeof source.model === 'string' && source.model.trim()) normalized.model = source.model.trim()
+  if (source.contextUsage && typeof source.contextUsage === 'object') {
+    const usage: NonNullable<ChatOperationStatus['contextUsage']> = {}
+    for (const key of ['inputTokens', 'outputTokens', 'cachedTokens', 'cacheWriteTokens'] as const) {
+      const count = source.contextUsage[key]
+      if (typeof count === 'number' && Number.isSafeInteger(count) && count >= 0) usage[key] = count
+    }
+    if (Object.keys(usage).length) normalized.contextUsage = usage
+  }
   for (const key of [
     'conversationId',
     'clientOperationId',

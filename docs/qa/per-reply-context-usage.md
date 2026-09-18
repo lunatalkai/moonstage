@@ -21,3 +21,22 @@ Validation on 2026-09-18: synthetic API fixture + real MoonStage component in Ch
 first/second reply, reload, Traditional Chinese and English, 390 × 844 mobile.
 The delayed response gate and history/terminal persistence are covered by tests.
 No production conversation was sent or modified for this UI check.
+
+## Completion without history reload
+
+Regression: the completion handler referenced an undefined `input`, interrupting
+turn cleanup. Status normalization also dropped usage during polling or wrapped
+operation responses. Usage now survives normalization and is applied once before
+the existing terminal cleanup.
+
+Validation on 2026-09-18: the real MoonStage player sent a synthetic message over
+a local WebSocket. After the completed operation event, the history endpoint was
+deliberately kept pending. Without reloading the page, the latest reply showed its
+usage button and opened diagnostics for `fixture-reply`: 200 input tokens, 20 cached
+tokens, 10% cache hit. Desktop and 390 × 844 mobile rendering were checked. No
+production chat or model was used. Four executable regression cases cover direct
+stream, polled and wrapped completion, plus repeated normalization; they failed
+before the fix and pass afterward.
+
+This is a player-only projection fix: HTTP/MCP contracts and server metrics are
+unchanged. Existing browser error reporting remains the diagnostic signal.

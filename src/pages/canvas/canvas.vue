@@ -6544,10 +6544,10 @@ function recordAuthoritativeOperationStatus(input: any) {
     : findOperationCandidate(talkList.value, pendingChatTurn.aiBubbleId);
   if (operationBubble) {
     operationBubble.operationProjectionCapable = true;
-    if (input?.hasContextUsage === true) {
+    if (status.hasContextUsage === true) {
       operationBubble.hasContextUsage = true;
-      operationBubble.inputTokens = Number(input.contextUsage?.inputTokens) || 0;
-      operationBubble.model = input.model || operationBubble.model;
+      if (status.contextUsage?.inputTokens !== undefined) operationBubble.inputTokens = status.contextUsage.inputTokens;
+      operationBubble.model = status.model || operationBubble.model;
     }
     operationBubble.operationId = status.operationId;
     operationBubble.operationKind = operationKindFromServer(status.kind);
@@ -6590,11 +6590,6 @@ function refreshHistoryAfterAuthoritativeOperation(status: any) {
 
   if (operationBubble) {
     operationBubble.operationProjectionCapable = true;
-    if (input?.hasContextUsage === true) {
-      operationBubble.hasContextUsage = true;
-      operationBubble.inputTokens = Number(input.contextUsage?.inputTokens) || 0;
-      operationBubble.model = input.model || operationBubble.model;
-    }
     operationBubble.chatLoading = false;
     operationBubble.chatFinish = true;
     operationBubble.operationState = status.state;
