@@ -313,3 +313,27 @@ describe('組成：吃得到作者的美化', () => {
     expect(block).not.toMatch(/rgba?\(/)
   })
 })
+
+it('keeps the selected reply and actual usage separate from estimated composition', () => {
+ const report = normalizeServerReport({supported:true,status:'ok',schemaVersion:2,conversationId:'fixture',chatId:'reply-one',items:[],total:{estimatedTokens:120,charCount:360},cache:{available:true,inputTokens:100,readTokens:20,hitRate:20},billing:{available:true,totalPoints:1,componentsAvailable:false,cacheHitRate:20}})!
+ expect(report.chatId).toBe('reply-one')
+ const wrapper=mount(CanvasContextBreakdown,{props:{report,loading:false,loadFailed:false,activeKey:'',modDetailsExpanded:false,locale:'en',labels:{...LABELS,actualInputTokens:'Actual input',cachedInputTokens:'Cached input'}}})
+ expect(wrapper.text()).toContain('Actual input')
+ expect(wrapper.text()).toContain('Cached input')
+ expect(wrapper.find('.cb-billing-grid').exists()).toBe(false)
+ expect(wrapper.findAll('.cb-metric-value').map(x=>x.text())).toEqual(['100','20','120','360'])
+})
+
+it('rejects a late response when another reply in the same conversation is selected',()=>{
+ const gate=createPromptDiagnosticsRequestGate()
+ const first=gate.begin('conversation:reply-one')!
+ const second=gate.begin('conversation:reply-two')!
+ expect(gate.isCurrent(first)).toBe(false)
+ expect(gate.isCurrent(second)).toBe(true)
+})
+
+it('does not turn missing historical cache usage into a measured zero',()=>{
+ const report=normalizeServerReport({supported:true,status:'ok',items:[],cache:{available:false,hitRate:null},billing:{available:true,totalPoints:1,componentsAvailable:false,cacheHitRate:null}})!
+ expect(report.billing.cacheHitRate).toBeNull()
+ expect(report.cache.hitRate).toBeNull()
+})

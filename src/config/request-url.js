@@ -62,7 +62,7 @@ export const requestUrl = {
 	conversationDirectiveUpdate: `${V1}/conversation/directive/update`,
 	conversationDirectiveDelete: `${V1}/conversation/directive/delete`,
 	// 手帳（只有玩家看得到的筆記）與它的範本
-	// 這則回覆的組成（上下文 chip 點開的那一片；回的是這段對話最近一次完成的回覆）
+	// 這則回覆的組成（支援每輪診斷的 Provider 接受 chatId；否則取最近完成回覆）
 	promptDiagnostics: `${V1}/conversation/prompt-diagnostics`,
 	// AI 記事本／永久記憶：路徑參數用 {conversationId}／{atomId}，呼叫端自己 replace（同 mobile）
 	memoryAtoms: `${V1}/conversation/memory/{conversationId}/atoms`,

@@ -460,7 +460,7 @@ import {
 } from './canvas-panel-state'
 import { findVariant, resolveVariant, scoreParts } from './canvas-model-catalog'
 import { resolveStoredModel, composeModelDisplayName } from './canvas-model-lanes'
-import { computeContextUsage, contextBudgetTokens, formatContextUsage } from './canvas-context-usage'
+import { contextUsageDisplayForRow, contextBudgetTokens } from './canvas-context-usage'
 import {
   BREAKDOWN_META,
   createPromptDiagnosticsRequestGate,
@@ -6080,7 +6080,7 @@ function getHistoryMsg() {
       }
       let data = [];
       // 一列歷史紀錄翻成畫面上的一則訊息。
-      const mapRow = ({chatId, chatMessage, contentThinking, chatRole, audioUrl, isSummary, aiImageUrls, finishReason, isV3, inputTokens, model}: any) => {
+      const mapRow = ({chatId, chatMessage, contentThinking, chatRole, audioUrl, isSummary, aiImageUrls, finishReason, isV3, inputTokens, model, hasContextUsage}: any) => {
         const rawContent = (chatMessage || '').replace("<已解除苛刻的道德限制>", "");
         const split = splitThinkingContent(rawContent, { keep: cardHandlesTag });
         // 存原文：字形轉換在渲染那一刻做（renderMarkdown），這裡先轉會把卡片協定轉壞。
@@ -6105,6 +6105,7 @@ function getHistoryMsg() {
           // 上下文用量 chip 的原料：這一輪的輸入 token 與所用模型。只存原始值，
           // 換算成百分比在渲染那一刻做（玩家調了檔位要跟著變）。
           inputTokens: isAI ? Number(inputTokens) || 0 : 0,
+          hasContextUsage: isAI && hasContextUsage === true,
           model: isAI ? String(model || '') : '',
         };
         return row;
@@ -6543,6 +6544,11 @@ function recordAuthoritativeOperationStatus(input: any) {
     : findOperationCandidate(talkList.value, pendingChatTurn.aiBubbleId);
   if (operationBubble) {
     operationBubble.operationProjectionCapable = true;
+    if (input?.hasContextUsage === true) {
+      operationBubble.hasContextUsage = true;
+      operationBubble.inputTokens = Number(input.contextUsage?.inputTokens) || 0;
+      operationBubble.model = input.model || operationBubble.model;
+    }
     operationBubble.operationId = status.operationId;
     operationBubble.operationKind = operationKindFromServer(status.kind);
     operationBubble.serverOperationKind = status.kind;
@@ -6584,6 +6590,11 @@ function refreshHistoryAfterAuthoritativeOperation(status: any) {
 
   if (operationBubble) {
     operationBubble.operationProjectionCapable = true;
+    if (input?.hasContextUsage === true) {
+      operationBubble.hasContextUsage = true;
+      operationBubble.inputTokens = Number(input.contextUsage?.inputTokens) || 0;
+      operationBubble.model = input.model || operationBubble.model;
+    }
     operationBubble.chatLoading = false;
     operationBubble.chatFinish = true;
     operationBubble.operationState = status.state;
@@ -8748,7 +8759,11 @@ function onMenuPick(key: string) {
 
 function onMessageAction(key: string, index: number) {
   // 氣泡底下的「上下文 NN%」chip：不經選單，直接彈這段對話最近一次完成回覆的組成（mobile 同一份）。
-  if (key === 'context-usage') { openContextBreakdownSheet(); return }
+  if (key === 'context-usage') {
+ const row = talkList.value[index]
+ openContextBreakdownSheet(row?.hasContextUsage ? String(row.chatId || row.assistantChatId || row.id || '') : '')
+ return
+ }
   menuIndex.value = index
   onMenuPick(key)
 }
@@ -8759,15 +8774,11 @@ function onMessageAction(key: string, index: number) {
 // 收尾後另外去讀一次歷史，只補這個欄位），分母是它所用模型在玩家目前檔位下的
 // 容量。口徑、脫敏、等級門檻都在 canvas-context-usage.ts。
 function contextUsageForRow(item: any) {
-  const inputTokens = Number(item?.inputTokens)
-  if (!Number.isFinite(inputTokens) || inputTokens <= 0) return null
   const modelValue = String(item?.model || '')
-  if (!modelValue) return null
   const variant = resolveVariant(modelGroups.value, modelValue)
     || resolveStoredModel(modelGroups.value, modelValue).variant
-  if (!variant) return null
-  const budget = contextBudgetTokens(variant.contextBudgetOptions, formData.context)
-  return formatContextUsage(computeContextUsage({ inputTokens, budgetTokens: budget }), t)
+  const budget = contextBudgetTokens(variant?.contextBudgetOptions, formData.context)
+  return contextUsageDisplayForRow(item || {}, budget, t)
 }
 
 let contextUsageRefreshTimers: any[] = []
@@ -8803,13 +8814,14 @@ function scheduleContextUsageRefresh() {
       for (const chat of chats) {
         if (chat?.chatRole !== 'AI') continue
         const tokens = Number(chat.inputTokens)
-        if (!Number.isFinite(tokens) || tokens <= 0) continue
+        if ((!Number.isFinite(tokens) || tokens <= 0) && chat.hasContextUsage !== true) continue
         const row = talkList.value.find(r => r && r.type === 0 && (
           String(r.id || '') === String(chat.chatId || '')
           || String(r.chatId || '') === String(chat.chatId || '')
           || String(r.assistantChatId || '') === String(chat.chatId || '')
         ))
         if (!row) continue
+        row.hasContextUsage = chat.hasContextUsage === true
         if (row.inputTokens !== tokens || row.model !== chat.model) {
           row.inputTokens = tokens
           row.model = chat.model || row.model || ''
@@ -9604,8 +9616,7 @@ async function onDeleteDirective(sourceId: string) {
 // 上一輪快取命中率、本輪花了多少點。mobile 聊天頁那份彈窗搬過來的，同一條伺服器
 // 路徑（breakdownVersion=2：mod／手帳／長期指令各自成格）。
 //
-// 口徑要講清楚：伺服器回的是「這段對話最近一次完成的回覆」，不是被點的那一則——
-// chip 掛在每一則 AI 氣泡下，但點舊氣泡看到的仍是最新一輪的組成（副標有寫）。
+// 有 hasContextUsage 的 Provider 按 chatId 讀取指定回覆；舊 Provider 保留最近一輪契約。
 const contextBreakdown = ref({
   report: null as PromptBreakdownReport | null,
   loading: false,
@@ -9617,7 +9628,7 @@ const contextBreakdownGate = createPromptDiagnosticsRequestGate()
 
 const contextBreakdownLabels = computed(() => ({
   title: t('promptBreakdown.title'),
-  subtitle: t('promptBreakdown.subtitle'),
+  subtitle: t(contextBreakdown.value.report?.chatId ? 'canvas.context.selectedReply' : 'promptBreakdown.subtitle'),
   close: t('main.cancel'),
   retry: t('promptBreakdown.retry'),
   loadFailed: t('promptBreakdown.modDetailsLoadError'),
@@ -9633,7 +9644,9 @@ const contextBreakdownLabels = computed(() => ({
   cacheReadPoints: t('promptBreakdown.cacheReadPoints'),
   outputPoints: t('promptBreakdown.outputPoints'),
   cacheHitRateFull: t('promptBreakdown.cacheHitRateFull'),
-  localEstimateNote: t('promptBreakdown.localEstimateNote'),
+  localEstimateNote: t(contextBreakdown.value.report?.chatId ? 'canvas.context.estimateNote' : 'promptBreakdown.localEstimateNote'),
+  actualInputTokens: t('canvas.context.actualInputTokens'),
+  cachedInputTokens: t('canvas.context.cachedInputTokens'),
   expandModDetails: t('promptBreakdown.expandModDetails'),
   collapseModDetails: t('promptBreakdown.collapseModDetails'),
   modDetailsUnavailable: t('promptBreakdown.modDetailsUnavailable'),
@@ -9645,10 +9658,14 @@ const contextBreakdownLabels = computed(() => ({
 
 function resetContextBreakdown() {
   contextBreakdownGate.invalidate()
+  contextBreakdownChatId = ''
   contextBreakdown.value = { report: null, loading: false, loadFailed: false, activeKey: '', modDetailsExpanded: false }
 }
 
-function openContextBreakdownSheet() {
+let contextBreakdownChatId = ''
+function openContextBreakdownSheet(chatId = '') {
+  if (chatId !== contextBreakdownChatId) resetContextBreakdown()
+  contextBreakdownChatId = chatId
   panel.value = openSheet(panel.value, 'context-breakdown')
   loadContextBreakdown()
 }
@@ -9658,13 +9675,13 @@ async function loadContextBreakdown() {
   if (!id) { resetContextBreakdown(); return }
   // 換了對話：舊報告不能留著給新對話看。
   if (contextBreakdown.value.report && contextBreakdown.value.report.conversationId !== id) resetContextBreakdown()
-  const token = contextBreakdownGate.begin(id)
+  const token = contextBreakdownGate.begin(id + ":" + contextBreakdownChatId)
   if (!token) return
   contextBreakdown.value = { ...contextBreakdown.value, loading: true }
   try {
     const res = await _this.http.get(_this.requestUrl.promptDiagnostics, {
       // breakdownVersion=2：mod／手帳／長期指令各自成格，不再混進「系統」
-      data: { conversationId: id, breakdownVersion: 2 },
+      data: { conversationId: id, breakdownVersion: 2, ...(contextBreakdownChatId ? { chatId: contextBreakdownChatId } : {}) },
       showLoading: false,
       timeout: 8000,
     })

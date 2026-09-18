@@ -66,6 +66,10 @@
           </div>
         </div>
         <div class="cb-metrics">
+          <template v-if="report.cache.available && labels.actualInputTokens">
+            <div class="cb-metric"><span class="cb-metric-value">{{ formatNumber(report.cache.inputTokens) }}</span><span class="cb-metric-label">{{ labels.actualInputTokens }}</span></div>
+            <div class="cb-metric"><span class="cb-metric-value">{{ formatNumber(report.cache.readTokens) }}</span><span class="cb-metric-label">{{ labels.cachedInputTokens }}</span></div>
+          </template>
           <div class="cb-metric">
             <span class="cb-metric-value">{{ formatNumber(report.total.estimatedTokens) }}</span>
             <span class="cb-metric-label">{{ labels.totalTokens }}</span>
@@ -160,7 +164,7 @@
             {{ labels.cacheHitRateFull }} {{ report.billing.cacheHitRate == null ? '--' : report.billing.cacheHitRate }}%
           </span>
         </div>
-        <div v-if="report.billing.available" class="cb-billing-grid">
+        <div v-if="report.billing.available && report.billing.componentsAvailable !== false" class="cb-billing-grid">
           <div class="cb-billing-item">
             <span class="cb-billing-item-label">{{ labels.inputPoints }}</span>
             <span class="cb-billing-item-value">{{ formatNumber(report.billing.inputPoints) }}</span>
@@ -202,6 +206,8 @@ export interface ContextBreakdownLabels {
   unsupportedModel: string
   notReady: string
   totalTokens: string
+  actualInputTokens?: string
+  cachedInputTokens?: string
   totalChars: string
   tokenUnit: string
   pointUnit: string

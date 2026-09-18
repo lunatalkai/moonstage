@@ -90,3 +90,17 @@ export function formatContextUsage(usage: ContextUsage | null, t: Translate): Co
     level: usage.level,
   }
 }
+
+/** Providers without a published token capacity still expose per-turn diagnostics.
+ * Never divide token usage by a byte limit or fabricate a context capacity. */
+export function contextUsageDisplayForRow(
+ row: { inputTokens?: number | string; hasContextUsage?: boolean },
+ budgetTokens: number | null,
+ t: Translate,
+): ContextUsageDisplay | null {
+ const usage = formatContextUsage(computeContextUsage({inputTokens: row.inputTokens, budgetTokens}), t)
+ if (usage) return usage
+ return row.hasContextUsage === true
+   ? {label: t('canvas.context.details'), tip: t('canvas.context.detailsTip'), level: 'low'}
+   : null
+}

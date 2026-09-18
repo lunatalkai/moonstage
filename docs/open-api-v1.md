@@ -379,3 +379,24 @@ consulted.
   login page and return its HTML under `/api/oauth/authorize`, breaking the flow.
 - Third-party hosts without a same-origin proxy: set `VITE_API_PROXY_PATH` to your
   proxy path, or point `VITE_API_ORIGIN` / `VITE_WS_BASE` at the API host directly.
+
+### Per-reply context usage (optional provider extension)
+
+A provider can return `hasContextUsage: true` and `contextUsage` on generated
+assistant history rows and terminal operation statuses. The latter contains
+`inputTokens`, `outputTokens`, `cachedTokens` and `cacheWriteTokens` from the
+upstream response. `inputTokens` is also projected on the history row for older
+players. Unknown historical usage stays absent; it must not be reported as a
+measured zero.
+
+When `hasContextUsage` is present, the player passes that row's `chatId` to
+`GET /conversation/prompt-diagnostics` together with `conversationId` and
+`breakdownVersion=2`. The provider verifies ownership and returns that reply's
+snapshot; an unknown or removed chat returns 404 rather than the latest reply.
+Without this extension, the original latest-reply behavior remains unchanged.
+
+Composition buckets are estimates; input and cache totals are model-reported.
+Cache hit rates are percentages (0–100). `billing.componentsAvailable: false`
+means show the settled total without inventing a component cost split.
+If no token capacity is published, show a context-details action without a
+capacity percentage. A byte limit is not a token capacity.

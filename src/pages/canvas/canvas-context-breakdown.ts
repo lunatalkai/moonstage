@@ -70,6 +70,7 @@ export interface PromptBreakdownItem {
 }
 
 export interface PromptBreakdownBilling {
+  componentsAvailable?: boolean
   available: boolean
   totalPoints: number
   inputPoints: number
@@ -87,6 +88,7 @@ export interface PromptBreakdownCache {
 }
 
 export interface PromptBreakdownReport {
+  chatId?: string
   schemaVersion?: number
   supported: boolean
   /** ok／notReady／unsupportedModel */
@@ -359,7 +361,7 @@ function normalizeServerCache(cache: any): PromptBreakdownCache {
   const hitRateValue = Number(cache.hitRate)
   return {
     available,
-    hitRate: available && Number.isFinite(hitRateValue) ? hitRateValue : null,
+    hitRate: available && cache.hitRate != null && Number.isFinite(hitRateValue) ? hitRateValue : null,
     inputTokens,
     readTokens,
     writeTokens,
@@ -381,10 +383,11 @@ function normalizeServerBilling(billing: any): PromptBreakdownBilling {
   return {
     available,
     totalPoints: available ? totalPoints : 0,
+    componentsAvailable: billing.componentsAvailable !== false,
     inputPoints: available ? inputPoints : 0,
     cacheReadPoints: available ? cacheReadPoints : 0,
     outputPoints: available ? outputPoints : 0,
-    cacheHitRate: available && Number.isFinite(hitRateValue) ? hitRateValue : null,
+    cacheHitRate: available && billing.cacheHitRate != null && Number.isFinite(hitRateValue) ? hitRateValue : null,
   }
 }
 
@@ -446,6 +449,7 @@ export function normalizeServerReport(report: any): PromptBreakdownReport | null
     supported,
     status,
     conversationId: cleanText(report.conversationId),
+    chatId: cleanText(report.chatId),
     items: normalizedItems,
     total,
     cache: normalizeServerCache(report.cache),
